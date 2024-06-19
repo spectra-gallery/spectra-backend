@@ -1,0 +1,516 @@
+const nodemailer = require('nodemailer');
+require('dotenv').config();
+const db = require('../models');
+const crypto = require('crypto');
+const Token = db.token;
+const Auth = db.auth;
+
+const BASE_URL = process.env.BASE_URL;
+
+// configure the mail server infomaniak
+const transporter = nodemailer.createTransport({
+  host: 'mail.infomaniak.com',
+    port: 465,
+    secure: true,
+    auth: {
+        user: 'artist@spectra.gallery',
+        pass: process.env.MAIL_PASSWORD
+    }
+});
+
+
+/**
+ * Sends an email using the configured transporter.
+ *
+ * @param {Object} mailOptions - The options for the email to send.
+ * @param {string} mailOptions.from - The email address to send the email from.
+ * @param {string} mailOptions.to - The email address to send the email to.
+ * @param {string} mailOptions.subject - The subject of the email.
+ * @param {string} mailOptions.text - The plain text body of the email.
+ * @param {string} [mailOptions.html] - The HTML body of the email.
+ */
+async function sendMail(mailOptions) {
+  /*
+    let info = await transporter.sendMail(mailOptions);
+    //console.log('Message sent: %s', info.messageId);
+    return info;*/
+
+  transporter.sendMail(mailOptions, (err, info) => {
+    if (err) {
+      console.log(err);
+    } else {
+      console.log(info);
+    }
+  });
+}
+
+/**
+ * Gets the mail options for a given recipient, data, and type.
+ *
+ * @param {string} to - The email address to send the email to.
+ * @param {Object} data - The data to include in the email.
+ * @param {string} type - The type of email to send.
+ * @return {Object} The mail options.
+ */
+function getMailOptions(to, data, type) {
+  if (type === 'content') {
+    return {
+      from: 'admin@function.gallery',
+      to: to,
+      subject: `${data._id} created by ${data.artists[0]}`,
+      html: `
+        <div style="background-color: #f2f2f2; 
+        padding: 20px; border-radius: 10px;">
+    
+        <h2 style="color: #000;">ID: ${data._id}</h2>
+        <div style="color: #000;">Name: ${data.name}</div>
+        <div style="color: #000;">Content: ${data.description}</div>
+        <div style="color: #000;">Artist: ${data.artists[0]}</div>
+        <div style="color: #000;">Supply: ${data.totalSupply}</div>
+        <div style="color: #000;">Price: ${data.price}</div>
+        <div style="color: #000;">OnSale: ${data.onSale}</div>
+        <img src="${data.image}" alt="image" 
+        style="width: 100%; height: auto;"/>
+    
+        </div>
+        `,
+    };
+  } else if (type === 'newUser') {
+    return {
+      from: 'admin@function.gallery',
+      to: to,
+      subject: `New User - ${data.username}`,
+      html: `
+        <div style="background-color: #f2f2f2; 
+        padding: 20px; border-radius: 10px;">
+
+        <h2 style="color: #000; text-align: center;">Username: 
+        ${data.username}</h2>
+        <div style="color: #000; text-align: center;">Ordinal:
+        ${data.ordinalAddress}</div>
+        <div style="color: #000; text-align: center;">Cardinal:
+        ${data.cardinalAddress}</div>
+
+        </div>
+        `,
+    };
+  } else if (type === 'inscription') {
+    return {
+      from: 'admin@function.gallery',
+      to: to,
+      subject: `Inscription - ${data.identifier}`,
+      html: `
+        <div style="background-color: #f2f2f2; 
+        padding: 20px; border-radius: 10px;">
+
+        <h2 style="color: #000;
+        text-align: center;">Collection ID: ${data._id}</h2>
+        <div style="color: #000;
+        text-align: center;">Inscription ID: ${data.txId}</div>
+        <div style="color: #000;
+        text-align: center;">Satscribe ID: ${data.identifier}</div>
+        <div style="color: #000;
+        text-align: center;">Amount: ${data.amount}</div>
+        <div style="color: #000;
+        text-align: center;">Fees: ${data.fees}</div>
+        <div style="color: #000;
+        text-align: center;">Receptacle Address: ${data.fundingAddress}</div>
+        <div style="color: #000;
+        text-align: center;">Funding Address: ${data.userAddress}</div>
+        <div style="color: #000;
+        text-align: center;">Awaiting Funding: ${data.isAwaitingFunding}</div>
+        <div style="color: #000;
+        text-align: center;">Awaiting Ordinal: ${data.isAwaitingOrdinal}</div>
+        <div style="color: #000;
+        text-align: center;">
+        Awaiting Confirmation: ${data.isAwaitingConfirmation}</div>
+        <div style="color: #000;
+        text-align: center;">is Confirmed: ${data.isConfirmed}</div>
+        <div style="color: #000;
+        text-align: center;">has failed: ${data.hasFailed}</div>
+
+        </div>
+        `,
+    };
+  } else if (type === 'autoPay') {
+    return {
+      from: 'admin@function.gallery',
+      to: to,
+      subject: `AutoPay - ${data.txHash}`,
+      html: `
+        <div style="background-color: #f2f2f2; 
+        padding: 20px; border-radius: 10px;">
+
+        <h2 style="color: #000; 
+        text-align: center;">TX HASH: ${data.txHash}</h2>
+        <div style="color: #000;
+        text-align: center;">Amount: ${data.value}</div>
+
+        </div>
+        `,
+    };
+  } else if (type === 'transaction') {
+    return {
+      from: 'admin@function.gallery',
+      to: to,
+      subject: `Transaction - ${data.txHash}`,
+      html: `
+        <div style="background-color: #f2f2f2;
+        padding: 20px; border-radius: 10px;">
+
+        <h2 style="color: #000;
+        text-align: center;">TX HASH: ${data.txHash}</h2>
+        <div style="color: #000; text-align: center;">Valid: ${data.valid}</div>
+
+        </div>
+        `,
+    };
+  } else if (type === 'walletSwitch') {
+    return {
+      from: 'admin@function.gallery',
+      to: to,
+      subject: `Wallet Switch - ${data.id}`,
+      html: `
+        <div style="background-color: #f2f2f2;
+        padding: 20px; border-radius: 10px;">
+
+        <h2 style="color: #000; text-align: center;">Wallet ID: ${data.id}</h2>
+        <div style="color: #000;
+        text-align: center;">Wallet Balance: ${data.balance}</div>
+
+        </div>
+        `,
+    };
+  } else if (type === 'bid') {
+    return {
+      from: 'admin@function.gallery',
+      to: to,
+      subject: `Bid - ${data.tokenId}`,
+      html: `
+        <div style="background-color: #f2f2f2;
+        padding: 20px; border-radius: 10px;">
+
+        <h2 style="color: #000;
+        text-align: center;">Token ID: ${data.tokenId}</h2>
+        <div style="color: #000;
+        text-align: center;">Bidder: ${data.bidderOrdinalAddress}</div>
+        <div style="color: #000;
+        text-align: center;">Bid Value: ${data.amount} satoshis</div>
+
+        </div>
+        `,
+    };
+  } else if (type === 'whitelist') {
+    return {
+      from: 'admin@function.gallery',
+      to: to,
+      subject: `Whitelist - ${data._doc.username}`,
+      html: `
+        <div style="background-color: #f2f2f2;
+        padding: 20px; border-radius: 10px;">
+
+        <h2 style="color: #000;
+        text-align: center;">Username: ${data._doc.username}</h2>
+        <div style="color: #000;
+        text-align: center;">Whitelisting Address: 
+        ${data.whitelistAddress}</div>
+        <div style="color: #000;
+        text-align: center;">User Address: ${data._doc.address}</div>
+
+        </div>
+        `,
+    };
+  } else if (type === 'application') {
+    return {
+      from: 'admin@function.gallery',
+      to: 'pmosi76@gmail.com',
+      subject: `User: ${data._doc.username}, applied as Creator`,
+      html: `
+        <div style="background-color: #f2f2f2;
+        padding: 20px; border-radius: 10px;">
+
+        <h2 style="color: #000;
+        text-align: center;">Username: ${data._doc.username}</h2>   
+        <div style="color: #000;
+        text-align: center;">Application ID: ${data._doc._id}</div>  
+        <div style="color: #000;
+        text-align: center;">User ID: ${data._doc.id}</div>
+        <div style="color: #000;
+        text-align: center;">Email: ${data._doc.email}</div>
+        <div style="color: #000;
+        text-align: center;">Address: ${data._doc.address}</div>
+        <div style="color: #000;
+        text-align: center;">Website: ${data._doc.website}</div>
+        <div style="color: #000;
+        text-align: center;">Twitter: ${data._doc.twitter}</div>
+        <div style="color: #000;
+        text-align: center;">Description: ${data._doc.description}</div>
+
+        </div>
+        `,
+    };
+  } else if (type === 'secret') {
+    return {
+      from: 'admin@function.gallery',
+      to: to,
+      subject: `Secret Key`,
+      html: `
+        <div style="background-color: #f2f2f2;
+        padding: 20px; border-radius: 10px;">
+
+        <h2 style="color: #000;
+        text-align: center;">Secret: ${data}</h2>
+
+        </div>
+        `,
+    };
+  } else if (type === 'adminLogin') {
+    return {
+      from: 'admin@function.gallery',
+      to: to,
+      subject: `Admin Login - ${data.username}`,
+      html: `
+        <div style="background-color: #f2f2f2; 
+        padding: 20px; border-radius: 10px;">
+
+        <h2 style="color: #000; text-align: center;">Username: 
+        ${data.username}</h2>
+        <div style="color: #000; text-align: center;">Ordinal:
+        ${data.ordinalAddress}</div>
+        <div style="color: #000; text-align: center;">Cardinal:
+        ${data.cardinalAddress}</div>
+
+        </div>
+        `,
+    };
+  } else if (type === 'u2f') {
+    return {
+      from: 'admin@function.gallery',
+      to: to,
+      subject: `Secret Key`,
+      html: `
+        <div style="background-color: #f2f2f2;
+        padding: 20px; border-radius: 10px;">
+
+        <h2 style="color: #000;
+        text-align: center;">Secret: ${data}</h2>
+
+        </div>
+        `,
+    };
+  } else if (type === 'error') {
+    return {
+      from: 'admin@function.gallery',
+      to: to,
+      subject: `Error`,
+      html: `
+        <div style="background-color: #f2f2f2;
+        padding: 20px; border-radius: 10px;">
+
+        <h2 style="color: #000;
+        text-align: center;">Error: ${data}</h2>
+
+        </div>
+        `,
+    };
+  } else if (type === 'apply_granted') {
+    return {
+      from: 'admin@function.gallery',
+      to: 'pmosi76@gmail.com',
+      subject: `User: ${data._doc.username}, Application Granted`,
+      html: `
+        <div style="background-color: #f2f2f2;
+        padding: 20px; border-radius: 10px;">
+
+        <h2 style="color: #000;
+        text-align: center;">Username: ${data._doc.username}</h2>   
+        <div style="color: #000;
+        text-align: center;">Application ID: ${data._doc._id}</div>  
+        <div style="color: #000;
+        text-align: center;">User ID: ${data._doc.id}</div>
+        <div style="color: #000;
+        text-align: center;">Email: ${data._doc.email}</div>
+        <div style="color: #000;
+        text-align: center;">Address: ${data._doc.address}</div>
+        <div style="color: #000;
+        text-align: center;">Website: ${data._doc.website}</div>
+        <div style="color: #000;
+        text-align: center;">Twitter: ${data._doc.twitter}</div>
+        <div style="color: #000;
+        text-align: center;">Description: ${data._doc.description}</div>
+
+        </div>
+        `,
+    };
+  }
+}
+
+/**
+ * Sends an authentication email to the user.
+ *
+ * @async
+ * @param {Object} user - The user to send the email to.
+ * @param {Object} req - The request object.
+ * @param {Object} res - The response object.
+ * @throws Will throw an error if the email cannot be sent.
+ */
+async function sendAuthenticationEmail(user, req, res) {
+  try {
+    const obj = generateVerificationToken(user);
+
+    // Save the verification token to database
+    const auth = new Auth(obj);
+    await auth.save();
+
+    const link = 'http://' + req.headers.host + '/api/auth/email/' + auth.token;
+
+    const mailOptions = {
+      subject: 'Authentication The Function Gallery',
+      to: user.email,
+      from: 'artist@spectra.gallery',
+      html: `
+      <html>
+  <head>
+
+    <title>Spectra Gallery</title>
+  </head>
+
+  <body>
+    <h1>Spectra</h1>
+    <h4>Authentication</h4>
+    <p>Welcome ${user.username}!</p>
+    <p>Please click the link below to authenticate</p>
+    <h4><a href="${link}">Authenticate ${user.email} now</a></h4>
+  </body>
+</html>
+        `,
+    };
+
+    await sendMail(mailOptions);
+
+    res.status(200).json(
+        {message: 'Processing authentication'});
+  } catch (error) {
+    res.status(500).json({message: error.message});
+  }
+}
+
+
+/**
+ * Sends a verification email to the given user.
+ *
+ * @param {Object} user - The user to send the verification email to.
+ * @param {Object} req - The HTTP request object.
+ * @param {Object} res - The HTTP response object.
+ */
+async function sendVerificationEmail(user, req, res) {
+  try {
+    const obj = generateVerificationToken(user);
+
+    // Save the verification token to database
+    const token = new Token(obj);
+    await token.save();
+
+    const link = 'http://' + req.headers.host + '/api/auth/verify/' + token.token;
+
+    const mailOptions = {
+      subject: 'Email Verification The Function Gallery',
+      to: user.email,
+      from: 'admin@function.gallery',
+      html: `
+      <html>
+ <head>
+   <title>The Function Gallery</title>
+   <style>
+   @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;1,100;1,200&family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700;1,900&family=Playfair:ital,opsz,wght@0,5..1200,300;0,5..1200,400;1,5..1200,300;1,5..1200,400&display=swap');
+
+     body {
+       text-align: center;
+       font-family: 'Montserrat';
+       background-color: #F2F0EC;
+       color: #212123;
+     }
+     img {
+       width: 200px;
+       height: auto;
+     }
+     h1 {
+       font-size: 36px;
+       line-height: 20px;
+       margin-top: 32px;
+       font-family: 'Playfair Display', serif;
+       font-weight: 500;
+       font-style: italic;
+     }
+     h4 {
+       font-family: 'Montserrat', helvetica, arial, sans-serif;
+       font-size: 1.5rem;
+       text-transform: uppercase;
+       font-weight: 400;
+     }
+     p {
+       font-size: 1rem;
+     }
+     a {
+       color: #D15937;
+       font-size: 1rem;
+       text-decoration: none;
+     }
+     a:hover {
+       color: #D15937;
+       text-decoration: underline;
+     }
+     .center {
+       text-align: center;
+     }
+   </style>
+ </head>
+ <body>
+   <br><br>
+   <img src="${BASE_URL}icons/function_logo_small_transparent.png"
+   alt="Function Gallery Logo">
+   <h1>The Function Gallery</h1>
+   <h4>Email Verification</h4><br>
+   <p>
+     Welcome ${user.username}!
+   </hp>
+
+   <p>Thanks for signing up for The Function Gallery!</p>
+   <p>Please click the link below to verify your email address:</p>
+   <h4><a href="${link}">Verify ${user.email} now</a></h4><br><br>
+   <p>We pledge to protect your privacy 
+   with integrity at all times.</p> <br><br>
+
+   Join our <a href="https://discord.gg/jSjn2JeMvD">Discord</a>. Follow us on <a href="https://twitter.com/functiongallery">Twitter</a>.
+ </body>
+
+</html>
+        `,
+    };
+
+    await sendMail(mailOptions);
+
+    res.status(200).json(
+        {message: 'Verification email sent to ' + user.email + '.'});
+  } catch (error) {
+    res.status(500).json({message: error.message});
+  }
+}
+
+generateVerificationToken = (user) => {
+  const obj = {
+    userId: user._id,
+    token: crypto.randomBytes(20).toString('hex'),
+  };
+
+  return obj;
+};
+
+
+const mail = {
+  sendMail,
+  getMailOptions,
+  sendVerificationEmail,
+  sendAuthenticationEmail,
+};
+module.exports = mail;

@@ -1,0 +1,101 @@
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const path = require('path');
+const app = express();
+
+require('dotenv').config();
+
+global.__basedir = __dirname;
+
+
+const corsOptions = {
+  origin: ['http://localhost:3000'],
+};
+
+app.use(cors(corsOptions));
+
+app.use(bodyParser.json());
+
+app.use(bodyParser.urlencoded({extended: true}));
+
+
+app.use(express.static(path.join(__dirname, 'ressources'),
+    {xframe: 'ALLOW-FROM *'}));
+
+
+app.get('/', (req, res) => {
+  res.json({message: 'Spectra API'});
+});
+
+
+require('./routes/auth.routes')(app);
+require('./routes/serie.routes')(app);
+require('./routes/playground.routes')(app);
+require('./routes/user.routes')(app);
+require('./routes/gallery.routes')(app);
+require('./routes/exhibition.routes')(app);
+
+// require('./routes/social.routes')(app);
+
+
+const PORT = process.env.PORT || 8000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}.`);
+});
+
+const db = require('./models');
+const Role = db.role;
+
+const dbConfig = require('./config/db.config');
+
+db.mongoose
+    .connect(`mongodb://${dbConfig.HOST}:${dbConfig.PORT}/${dbConfig.DB}`, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      useFindAndModify: false,
+    })
+    .then(() => {
+      console.log('Successfully connect to MongoDB.');
+      initial();
+    })
+    .catch((err) => {
+      console.error('Connection error', err);
+      process.exit();
+    });
+
+function initial() {
+  Role.estimatedDocumentCount((err, count) => {
+    if (!err && count === 0) {
+      new Role({
+        name: 'user',
+      }).save((err) => {
+        if (err) {
+          console.log('error', err);
+        }
+
+        console.log('added \'user\' to roles collection');
+      });
+
+      new Role({
+        name: 'admin',
+      }).save((err) => {
+        if (err) {
+          console.log('error', err);
+        }
+
+        console.log('added \'admin\' to roles collection');
+      });
+
+      new Role({
+        name: 'creator',
+      }).save((err) => {
+        if (err) {
+          console.log('error', err);
+        }
+
+        console.log('added \'creator\' to roles collection');
+      });
+    }
+  });
+}
