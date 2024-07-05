@@ -12,6 +12,7 @@ const Role = db.role;
 const Session = db.session;
 const RefreshToken = db.refreshToken;
 const Auth = db.auth;
+const Chain = db.chain;
 
 const bitcoin = require('bitcoinjs-lib');
 const ecc = require('tiny-secp256k1');
@@ -24,7 +25,6 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
 const crypto = require('crypto');
-const Chain = require('../models/chain.model');
 
 const CLIENT_URL = process.env.CLIENT_URL;
 // const BASE_URL = process.env.BASE_URL;
@@ -33,65 +33,66 @@ const CLIENT_URL = process.env.CLIENT_URL;
 exports.validateToken = (req, res) => {
   // check if user with given id exists in db if doesn't exist return 401 false
   User.findById(req.userId)
-      .populate('role', '-__v')
-      .exec(async (err, user) => {
-        if (!user) {
-          return res.status(403).send(false);
-        }
-        // if user found return true
-        res.status(200).send(true);
-      });
+    .populate('role', '-__v')
+    .exec(async (err, user) => {
+      if (!user) {
+        return res.status(403).send(false);
+      }
+      // if user found return true
+      res.status(200).send(true);
+    });
 };
 
 /* populate user object on the front end using state managment */
 // get User data from id
 exports.getUserData = (req, res) => {
   User.findById(req.userId)
-      .populate('role', '-__v')
-      .populate('section', '-__v')
-      .populate('twitter', '-__v')
-      .populate('discord', '-__v')
-      .populate('mediums', '-__v')
-      .exec(async (err, user) => {
-        if (!user) {
-          return res.status(403).send(false);
-        }
+    .populate('role', '-__v')
+    .populate('section', '-__v')
+    .populate('twitter', '-__v')
+    .populate('discord', '-__v')
+    .populate('mediums', '-__v')
+    .exec(async (err, user) => {
+      if (!user) {
+        return res.status(403).send(false);
+      }
 
-        const authorities = [];
+      const authorities = [];
 
-        for (const role of user.role) {
-          authorities.push({
-            id: role._id,
-            name: 'ROLE_' + role.name.toUpperCase(),
-          });
-        }
-
-        // if user found return true
-        res.status(200).send({
-          id: user._id,
-          username: user.username,
-          slug: user.slug,
-          email: user.email,
-          address: user.address,
-          role: authorities,
-          imageUrl: user.imageUrl,
-          website: user.website,
-          headline: user.headline,
-          bio: user.bio,
-          mediums: user.mediums,
-          twitter: user.twitter,
-          instagram: user.instagram,
-          discord: user.discord,
-          whitelisted: user.whitelisted,
-          verified: user.verified,
+      for (const role of user.role) {
+        authorities.push({
+          id: role._id,
+          name: 'ROLE_' + role.name.toUpperCase(),
         });
+      }
+
+      // if user found return true
+      res.status(200).send({
+        id: user._id,
+        username: user.username,
+        slug: user.slug,
+        email: user.email,
+        address: user.address,
+        role: authorities,
+        imageUrl: user.imageUrl,
+        website: user.website,
+        headline: user.headline,
+        bio: user.bio,
+        mediums: user.mediums,
+        twitter: user.twitter,
+        instagram: user.instagram,
+        discord: user.discord,
+        whitelisted: user.whitelisted,
+        verified: user.verified,
+        applied: user.applied,
       });
+    });
 };
 
 exports.generateStorageToken = (req, res) => {
   const slug = req.body.slug;
 
-  const token = jwt.sign({id: req.userId, slug}, config.secret, {
+  const token = jwt.sign({ id: req.userId, slug }, config.secret, {
     expiresIn: config.jwtExpiration, // 24 hours
   });
 
@@ -104,7 +105,7 @@ exports.generateStorageToken = (req, res) => {
 exports.generateSessionToken = (req, res) => {
   const sessionId = crypto.randomBytes(16).toString('base64');
 
-  const token = jwt.sign({id: sessionId}, sessionConfig.secret, {
+  const token = jwt.sign({ id: sessionId }, sessionConfig.secret, {
     expiresIn: sessionConfig.jwtExpiration, // 24 hours
   });
 
@@ -117,7 +118,7 @@ exports.generateSessionToken = (req, res) => {
 
   session.save((err, session) => {
     if (err) {
-      res.status(500).send({message: err});
+      res.status(500).send({ message: err });
       return;
     }
   });
@@ -130,9 +131,9 @@ exports.generateSessionToken = (req, res) => {
 
 // get last 10 sessions
 exports.getSessions = (req, res) => {
-  Session.find().sort({date: -1}).limit(10).exec((err, sessions) => {
+  Session.find().sort({ date: -1 }).limit(10).exec((err, sessions) => {
     if (err) {
-      res.status(500).send({message: err});
+      res.status(500).send({ message: err });
       return;
     }
 
@@ -201,7 +202,7 @@ exports.registerWeb3 = async (req, res) => {
     chain: [chainId],
   });
 
-  const role = await Role.findOne({name: 'user'});
+  const role = await Role.findOne({ name: 'user' });
   user.role = [role._id];
 
   user.save((err, user) => {
@@ -296,6 +297,7 @@ exports.web3Login = async (req, res) => {
         id: user._id,
         accessToken: token,
         refreshToken: refreshToken,
+        role: authorities,
       });
     } else {
       // User is not authenticated
@@ -335,7 +337,7 @@ exports.registerNewUser = async (req, res) => {
   await user.save();
 
 
-  const role = await Role.findOne({name: 'user'});
+  const role = await Role.findOne({ name: 'user' });
   user.role = [role._id];
 
   user.save((err, user) => {
@@ -478,29 +480,30 @@ exports.signin = (req, res) => {
         id: user._id,
         accessToken: token,
         refreshToken: refreshToken,
+        role: authorities,
       });
     });
 };
 
 exports.refreshToken = async (req, res) => {
-  const {refreshToken: requestToken} = req.body;
+  const { refreshToken: requestToken } = req.body;
 
   if (requestToken == null) {
-    return res.status(403).json({message: 'Refresh Token is required!'});
+    return res.status(403).json({ message: 'Refresh Token is required!' });
   }
 
   try {
-    const refreshToken = await RefreshToken.findOne({token: requestToken});
+    const refreshToken = await RefreshToken.findOne({ token: requestToken });
 
     if (!refreshToken) {
-      res.status(403).json({message: 'Refresh token is not in database!'});
+      res.status(403).json({ message: 'Refresh token is not in database!' });
       return;
     }
 
     if (RefreshToken.verifyExpiration(refreshToken)) {
       RefreshToken.findByIdAndRemove(refreshToken._id,
-          {useFindAndModify: false})
-          .exec();
+        { useFindAndModify: false })
+        .exec();
 
       res.status(403).json({
         message: 'Refresh token was expired. Please make a new signin request',
@@ -508,17 +511,17 @@ exports.refreshToken = async (req, res) => {
       return;
     }
 
-    const newAccessToken = jwt.sign({id: refreshToken.user._id},
-        config.secret, {
-          expiresIn: config.jwtExpiration,
-        });
+    const newAccessToken = jwt.sign({ id: refreshToken.user._id },
+      config.secret, {
+      expiresIn: config.jwtExpiration,
+    });
 
     return res.status(200).json({
       accessToken: newAccessToken,
       refreshToken: refreshToken.token,
     });
   } catch (err) {
-    return res.status(500).send({message: err});
+    return res.status(500).send({ message: err });
   }
 };
 
@@ -544,40 +547,40 @@ exports.editProfile = (req, res) => {
     // twitter: req.body.twitter,
     instagram: req.body.instagram,
     // discord: req.body.discord,
-  }, {new: false})
-      .then(async (user) => {
-        if (!user) {
-          return res.status(404).send({
-            message: 'User not found',
-          });
-        }
-        if (user.email !== req.body.email) {
-          user.verified = false;
-          await user.save();
-
-          // mail.sendVerificationEmail(user, req, res);
-        }
-
-        /*
-    const sections = req.body.section;
-
-    // add section to user
-    if (sections.length > 0) {
-      sections.forEach(async (section) => {
-        await user.section.push(section);
-      });
-    }
-
-    await user.save();
-    */
-        res.send({
-          id: user._id,
+  }, { new: false })
+    .then(async (user) => {
+      if (!user) {
+        return res.status(404).send({
+          message: 'User not found',
         });
-      }).catch((err) => {
-        return res.status(500).send({
-          message: 'Error editing profile id ' + req.body.id,
-        });
+      }
+      if (user.email !== req.body.email) {
+        user.verified = false;
+        await user.save();
+
+        // mail.sendVerificationEmail(user, req, res);
+      }
+
+      /*
+  const sections = req.body.section;
+
+  // add section to user
+  if (sections.length > 0) {
+    sections.forEach(async (section) => {
+      await user.section.push(section);
+    });
+  }
+
+  await user.save();
+  */
+      res.send({
+        id: user._id,
       });
+    }).catch((err) => {
+      return res.status(500).send({
+        message: 'Error editing profile id ' + req.body.id,
+      });
+    });
 };
 
 // Edit profile headline
@@ -588,22 +591,22 @@ exports.editProfileHeadline = (req, res) => {
 
   User.findByIdAndUpdate(userId, {
     headline: headline,
-  }, {new: true})
-      .then(async (user) => {
-        if (!user) {
-          return res.status(404).send({
-            message: 'User not found',
-          });
-        }
+  }, { new: true })
+    .then(async (user) => {
+      if (!user) {
+        return res.status(404).send({
+          message: 'User not found',
+        });
+      }
 
-        res.send({
-          headline: user.headline,
-        });
-      }).catch((err) => {
-        return res.status(500).send({
-          message: 'Error editing profile id ' + req.body.id,
-        });
+      res.send({
+        headline: user.headline,
       });
+    }).catch((err) => {
+      return res.status(500).send({
+        message: 'Error editing profile id ' + req.body.id,
+      });
+    });
 };
 
 // Edit Profile Bio
@@ -614,22 +617,22 @@ exports.editProfileBio = (req, res) => {
 
   User.findByIdAndUpdate(userId, {
     bio: bio,
-  }, {new: true})
-      .then(async (user) => {
-        if (!user) {
-          return res.status(404).send({
-            message: 'User not found',
-          });
-        }
+  }, { new: true })
+    .then(async (user) => {
+      if (!user) {
+        return res.status(404).send({
+          message: 'User not found',
+        });
+      }
 
-        res.send({
-          bio: user.bio,
-        });
-      }).catch((err) => {
-        return res.status(500).send({
-          message: 'Error editing profile id ' + req.body.id,
-        });
+      res.send({
+        bio: user.bio,
       });
+    }).catch((err) => {
+      return res.status(500).send({
+        message: 'Error editing profile id ' + req.body.id,
+      });
+    });
 };
 
 // edit Profile Image
@@ -640,22 +643,22 @@ exports.editProfileImage = (req, res) => {
 
   User.findByIdAndUpdate(userId, {
     imageUrl: imageUrl,
-  }, {new: true})
-      .then(async (user) => {
-        if (!user) {
-          return res.status(404).send({
-            message: 'User not found',
-          });
-        }
+  }, { new: true })
+    .then(async (user) => {
+      if (!user) {
+        return res.status(404).send({
+          message: 'User not found',
+        });
+      }
 
-        res.send({
-          imageUrl: user.imageUrl,
-        });
-      }).catch((err) => {
-        return res.status(500).send({
-          message: 'Error editing profile id ' + req.body.id,
-        });
+      res.send({
+        imageUrl: user.imageUrl,
       });
+    }).catch((err) => {
+      return res.status(500).send({
+        message: 'Error editing profile id ' + req.body.id,
+      });
+    });
 };
 
 exports.changeUsername = (req, res) => {
@@ -669,24 +672,24 @@ exports.changeUsername = (req, res) => {
   User.findByIdAndUpdate(req.userId, {
     username: req.body.username,
     slug: slug,
-  }, {new: true})
-      .then((user) => {
-        if (!user) {
-          return res.status(404).send({
-            message: 'User not found',
-          });
-        }
+  }, { new: true })
+    .then((user) => {
+      if (!user) {
+        return res.status(404).send({
+          message: 'User not found',
+        });
+      }
 
-        res.status(200).send({
-          id: user._id,
-          username: user.username,
-          slug: user.slug,
-        });
-      }).catch((err) => {
-        return res.status(500).send({
-          message: 'Error updating user with id ' + req.userId,
-        });
+      res.status(200).send({
+        id: user._id,
+        username: user.username,
+        slug: user.slug,
       });
+    }).catch((err) => {
+      return res.status(500).send({
+        message: 'Error updating user with id ' + req.userId,
+      });
+    });
 };
 
 exports.changeMedium = async (req, res) => {
@@ -772,6 +775,82 @@ exports.changeEmail = async (req, res) => {
   });
 };
 
+// addWallet
+exports.addWallet = async (req, res) => {
+  const userId = req.userId;
+
+  const address = req.body.address;
+
+  const user = await User.findById(userId);
+
+  if (!user) {
+    return res.status(404).send({
+      message: 'User not found',
+    });
+  }
+
+  user.address = address;
+
+  await user.save();
+
+  res.status(200).send({
+    id: user._id,
+    address: user.address,
+  });
+};
+
+// remove address
+exports.removeAddress = async (req, res) => {
+  const userId = req.userId;
+
+  const user = await User.findById(userId);
+
+  if (!user) {
+    return res.status(404).send({
+      message: 'User not found',
+    });
+  }
+
+  user.address = '';
+
+  await user.save();
+
+  res.status(200).send({
+    id: user._id,
+  });
+};
+
+// editProfileWebsite
+exports.editProfileWebsite = async (req, res) => {
+  const userId = req.userId;
+
+  const website = req.body.website;
+
+  if (!website || website === '') {
+    return res.status(400).send({
+      message: 'No Website provided',
+    });
+  }
+
+  const user = await User.findById(userId);
+
+  if (!user) {
+    return res.status(404).send({
+      message: 'User not found',
+    });
+  }
+
+  user.website = website;
+
+  await user.save();
+
+
+  res.status(200).send({
+    id: user._id,
+    website: user.website,
+  });
+};
+
 exports.definePassword = async (req, res) => {
   if (!req.body.password) {
     return res.status(400).send({
@@ -799,7 +878,7 @@ exports.definePassword = async (req, res) => {
 exports.loginWithPassword = async (req, res) => {
   const user = await User.findOne({
     email: req.body.email,
-  });
+  }).populate('role', '-__v');
 
   if (!user) {
     return res.status(404).send({
@@ -820,8 +899,8 @@ exports.loginWithPassword = async (req, res) => {
   }
 
   const passwordIsValid = bcrypt.compareSync(
-      req.body.password,
-      user.password,
+    req.body.password,
+    user.password,
   );
 
   if (!passwordIsValid) {
@@ -831,16 +910,23 @@ exports.loginWithPassword = async (req, res) => {
     });
   }
 
-  const token = jwt.sign({id: user._id}, config.secret, {
+  const token = jwt.sign({ id: user._id }, config.secret, {
     expiresIn: config.jwtExpiration, // 24 hours
   });
 
   const refreshToken = await RefreshToken.createToken(user);
 
+  var authorities = [];
+
+  for (let i = 0; i < user.role.length; i++) {
+    authorities.push("ROLE_" + user.role[i].name.toUpperCase());
+  }
+
   res.status(200).send({
     id: user._id,
     accessToken: token,
     refreshToken: refreshToken,
+    role: authorities,
   });
 
   // sendMail('info@function.gallery', user, 'adminLogin');
@@ -869,31 +955,31 @@ exports.adminEditUser = (req, res) => {
     website: req.body.website,
     headline: req.body.headline,
     bio: req.body.bio,
-  }, {new: true})
-      .then(async (user) => {
-        if (!user) {
-          return res.status(404).send({
-            message: 'User not found',
-          });
-        }
-        const sections = req.body.section;
-
-        // add section to user
-        if (sections.length > 0) {
-          sections.forEach(async (section) => {
-            await user.section.push(section);
-          });
-        }
-
-        await user.save();
-        res.send({
-          id: user._id,
+  }, { new: true })
+    .then(async (user) => {
+      if (!user) {
+        return res.status(404).send({
+          message: 'User not found',
         });
-      }).catch((err) => {
-        return res.status(500).send({
-          message: 'Error editing profile id ' + req.body.id,
+      }
+      const sections = req.body.section;
+
+      // add section to user
+      if (sections.length > 0) {
+        sections.forEach(async (section) => {
+          await user.section.push(section);
         });
+      }
+
+      await user.save();
+      res.send({
+        id: user._id,
       });
+    }).catch((err) => {
+      return res.status(500).send({
+        message: 'Error editing profile id ' + req.body.id,
+      });
+    });
 };
 
 /*
@@ -984,6 +1070,50 @@ exports.deleteUserComments = async (req, res) => {
   });
 };
 
+exports.changeUserRole = async (req, res) => {
+  const id = req.userId;
+  const roleId = req.body.role;
+
+  let user = await User.findOne({
+    _id: id,
+  });
+
+  user.role.push(roleId);
+  await user.save();
+
+  user = await User.findById(id).populate('role', '-__v');
+
+  const authorities = [];
+
+  for (const role of user.role) {
+    authorities.push({
+      id: role._id,
+      name: 'ROLE_' + role.name.toUpperCase(),
+    });
+  }
+
+  res.status(200).send({
+    role: authorities,
+  });
+};
+
+// remove user role
+exports.removeUserRole = async (req, res) => {
+  const id = req.userId;
+  const roleId = req.params.id;
+
+  let user = await User.findOne({
+    _id: id,
+  });
+
+  user.role.pull(roleId);
+  await user.save();
+
+  res.status(200).send({
+    roleId: roleId,
+  });
+}
+
 // admin delete user
 exports.deleteUserById = async (req, res) => {
   const id = req.params.id;
@@ -1008,41 +1138,116 @@ exports.deleteUser = async (req, res) => {
     _id: id,
   });
 
-  res.send({message: 'User was deleted successfully!'});
+  res.send({ message: 'User was deleted successfully!' });
+};
+
+// User forgot password
+exports.forgotPassword = async (req, res) => {
+  if (!req.body.email) {
+    return res.status(400).send({ message: 'Email is required' });
+  }
+
+  try {
+    const user = await User.findOne({ email: req.body.email });
+
+    if (!user) {
+      return res.status(400).send({ message: 'User not found' });
+    }
+
+    // send recovery email
+    const emailSent = mail.sendRecoveryEmail(user, req, res);
+
+    if (!emailSent) {
+      return res.status(500).send({ message: 'Error sending email' });
+    }
+
+    res.status(200).send({
+      message: 'Recovery email sent',
+    });
+  } catch (error) {
+    res.status(500).send({ message: error });
+  }
+};
+
+
+
+// verify recover password token from email
+exports.recover = async (req, res) => {
+  if (!req.params.token) {
+    return res.status(400)
+      .json({ message: 'We were unable to find a user for this token.' });
+  }
+
+  try {
+    // Find a matching token
+    const token = await Token.findOne({ token: req.params.token });
+
+    if (!token) {
+      return res.status(400)
+        .json({ message: 'We were unable to find a valid token' });
+    }
+
+    // If we found a token, find a matching user
+    const user = await User.findOne({ _id: token.userId });
+
+    if (!user) {
+      return res.status(400)
+        .json({ message: 'We were unable to find a user for this token.' });
+    }
+
+    // replace user password by a generated one
+    const password = crypto.randomBytes(20).toString('hex');
+    user.password = bcrypt.hashSync(password, 8);
+
+    // Save the new password
+    await user.save();
+
+    // send email with new password
+    const emailSent = mail.sendNewPassword(user, password, req, res);
+
+    if (!emailSent) {
+      return res.status(500).send({ message: 'Error sending email' });
+    }
+
+    res.redirect(`${CLIENT_URL}user/profile`);
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 
 exports.verify = async (req, res) => {
   if (!req.params.token) {
     return res.status(400)
-        .json({message: 'We were unable to find a user for this token.'});
+      .json({ message: 'We were unable to find a user for this token.' });
   }
 
   try {
     // Find a matching token
-    const token = await Token.findOne({token: req.params.token});
+    const token = await Token.findOne({ token: req.params.token });
 
     if (!token) {
       return res.status(400)
-          .json({message: 'We were unable to find a valid token'});
+        .json({ message: 'We were unable to find a valid token' });
     }
 
     // If we found a token, find a matching user
-    User.findOne({_id: token.userId}, (err, user) => {
+    User.findOne({ _id: token.userId }, (err, user) => {
       if (!user) {
         return res.status(400)
-            .json({message: 'We were unable to find a user for this token.'});
+          .json({ message: 'We were unable to find a user for this token.' });
       }
 
       if (user.verified) {
         return res.status(400)
-            .json({message: 'This user has already been verified.'});
+          .json({ message: 'This user has already been verified.' });
       }
 
       // Verify and save the user
       user.verified = true;
-      user.save(function(err) {
-        if (err) return res.status(500).json({message: err.message});
+      user.save(function (err) {
+        if (err) return res.status(500).json({ message: err.message });
 
         res.redirect(`${CLIENT_URL}user/edit`);
         /*
@@ -1090,41 +1295,62 @@ exports.verify = async (req, res) => {
       });
     });
   } catch (error) {
-    res.status(500).json({message: error.message});
+    res.status(500).json({ message: error.message });
   }
 };
 
 exports.verifyAuthenticationEmail = async (req, res) => {
   if (!req.params.token) {
     return res.status(400)
-        .json({message: 'We were unable to find a user for this token.'});
+      .json({ message: 'We were unable to find a user for this token.' });
   }
 
   try {
-    const auth = await Auth.findOne({token: req.params.token});
+    const auth = await Auth.findOne({ token: req.params.token });
 
     if (!auth) {
       return res.status(400)
-          .json({message: 'We were unable to find a valid token'});
+        .json({ message: 'We were unable to find a valid token' });
     }
 
-    User.findOne({_id: auth.userId}, (err, user) => {
+    User.findOne({ _id: auth.userId }, (err, user) => {
       if (!user) {
         return res.status(400)
-            .json({message: 'We were unable to find a user for this token.'});
+          .json({ message: 'We were unable to find a user for this token.' });
       }
 
-      const token = crypto.randomBytes(20).toString('hex');
+      const emailToken = crypto.randomBytes(20).toString('hex');
 
-      user.emailToken = token;
-      user.save(function(err) {
-        if (err) return res.status(500).json({message: err.message});
+      user.emailToken = emailToken;
+      user.save(async function (err) {
+        if (err) return res.status(500).json({ message: err.message });
 
-        res.redirect(`${CLIENT_URL}user/auth/${token}`);
+        var token = jwt.sign({ id: user.id }, config.secret, {
+          expiresIn: config.jwtExpiration, // 24 hours
+        });
+  
+        let refreshToken = await RefreshToken.createToken(user);
+  
+        var authorities = [];
+  
+        for (let i = 0; i < user.role.length; i++) {
+          authorities.push(user.role[i].name);
+        }
+
+        const userObj = {
+          id: user._id,
+          accessToken: token,
+          refreshToken: refreshToken,
+          role: authorities,
+        };
+
+
+        res.cookie('user', JSON.stringify(userObj), { httpOnly: true });
+        res.redirect(`${CLIENT_URL}`);
       });
     });
   } catch (error) {
-    res.status(500).json({message: error.message});
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -1133,27 +1359,55 @@ exports.sendVerificationEmail = async (req, res) => {
   const id = req.userId;
 
   User.findById(id, (err, user) => {
-    if (err) return res.status(500).json({message: err.message});
+    if (err) return res.status(500).json({ message: err.message });
 
     mail.sendVerificationEmail(user, req, res);
   });
+
+  res.status(200).send({
+    message: 'Verification email sent',
+  });
 };
+/*
+exports.sendAuthenticationEmail = async (req, res) => {
+  const email = req.body.email;
+
+  User.findOne({ email: email }, (err, user) => {
+    if (err) return res.status(500).json({ message: err.message });
+
+    mail.sendAuthenticationEmail(user, req, res);
+  });
+};
+*/
 
 exports.sendAuthenticationEmail = async (req, res) => {
   const email = req.body.email;
 
-  User.findOne({email: email}, (err, user) => {
-    if (err) return res.status(500).json({message: err.message});
+  let user;
 
-    mail.sendAuthenticationEmail(user, req, res);
-  });
+  user = await User.findOne({ email: email });
+
+  // if user does not exist create new user
+  if (!user) {
+    const username = Math.random().toString(36).substring(7);
+
+    user = new User({
+      username: username,
+      email: email,
+    });
+
+    await user.save();
+  }
+
+  mail.sendAuthenticationEmail(user, req, res);
+
 };
 
 exports.helpVisible = async (req, res) => {
   const id = req.sessionId;
   const state = req.body.state;
 
-  const session = await Session.findOne({sessionId: id});
+  const session = await Session.findOne({ sessionId: id });
 
   if (!session) {
     return res.status(404).send({
@@ -1172,7 +1426,7 @@ exports.helpVisible = async (req, res) => {
 exports.getSession = async (req, res) => {
   const id = req.sessionId;
 
-  const session = await Session.findOne({sessionId: id});
+  const session = await Session.findOne({ sessionId: id });
 
   if (!session) {
     return res.status(404).send({

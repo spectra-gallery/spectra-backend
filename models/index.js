@@ -16,6 +16,7 @@ db.trait = require('./trait.model');
 db.sketch = require('./sketch.model');
 db.gallery = require('./gallery.model');
 db.exhibition = require('./exhibition.model');
+db.palette = require('./palette.model');
 db.tag = require('./tag.model');
 db.category = require('./category.model');
 db.comment = require('./comment.model');
@@ -24,6 +25,7 @@ db.discord = require('./discord.model');
 db.session = require('./session.model');
 db.auth = require('./auth.model');
 db.refreshToken = require('./refreshToken.model');
+db.apply = require('./apply.model');
 
 db.ROLES = ['user', 'admin', 'creator'];
 

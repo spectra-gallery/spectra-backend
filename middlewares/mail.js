@@ -55,7 +55,7 @@ async function sendMail(mailOptions) {
 function getMailOptions(to, data, type) {
   if (type === 'content') {
     return {
-      from: 'admin@function.gallery',
+      from: 'artist@spectra.gallery',
       to: to,
       subject: `${data._id} created by ${data.artists[0]}`,
       html: `
@@ -77,7 +77,7 @@ function getMailOptions(to, data, type) {
     };
   } else if (type === 'newUser') {
     return {
-      from: 'admin@function.gallery',
+      from: 'artist@spectra.gallery',
       to: to,
       subject: `New User - ${data.username}`,
       html: `
@@ -96,7 +96,7 @@ function getMailOptions(to, data, type) {
     };
   } else if (type === 'inscription') {
     return {
-      from: 'admin@function.gallery',
+      from: 'artist@spectra.gallery',
       to: to,
       subject: `Inscription - ${data.identifier}`,
       html: `
@@ -134,7 +134,7 @@ function getMailOptions(to, data, type) {
     };
   } else if (type === 'autoPay') {
     return {
-      from: 'admin@function.gallery',
+      from: 'artist@spectra.gallery',
       to: to,
       subject: `AutoPay - ${data.txHash}`,
       html: `
@@ -151,7 +151,7 @@ function getMailOptions(to, data, type) {
     };
   } else if (type === 'transaction') {
     return {
-      from: 'admin@function.gallery',
+      from: 'artist@spectra.gallery',
       to: to,
       subject: `Transaction - ${data.txHash}`,
       html: `
@@ -167,7 +167,7 @@ function getMailOptions(to, data, type) {
     };
   } else if (type === 'walletSwitch') {
     return {
-      from: 'admin@function.gallery',
+      from: 'artist@spectra.gallery',
       to: to,
       subject: `Wallet Switch - ${data.id}`,
       html: `
@@ -183,7 +183,7 @@ function getMailOptions(to, data, type) {
     };
   } else if (type === 'bid') {
     return {
-      from: 'admin@function.gallery',
+      from: 'artist@spectra.gallery',
       to: to,
       subject: `Bid - ${data.tokenId}`,
       html: `
@@ -202,7 +202,7 @@ function getMailOptions(to, data, type) {
     };
   } else if (type === 'whitelist') {
     return {
-      from: 'admin@function.gallery',
+      from: 'artist@spectra.gallery',
       to: to,
       subject: `Whitelist - ${data._doc.username}`,
       html: `
@@ -222,7 +222,7 @@ function getMailOptions(to, data, type) {
     };
   } else if (type === 'application') {
     return {
-      from: 'admin@function.gallery',
+      from: 'artist@spectra.gallery',
       to: 'pmosi76@gmail.com',
       subject: `User: ${data._doc.username}, applied as Creator`,
       html: `
@@ -251,7 +251,7 @@ function getMailOptions(to, data, type) {
     };
   } else if (type === 'secret') {
     return {
-      from: 'admin@function.gallery',
+      from: 'artist@spectra.gallery',
       to: to,
       subject: `Secret Key`,
       html: `
@@ -266,7 +266,7 @@ function getMailOptions(to, data, type) {
     };
   } else if (type === 'adminLogin') {
     return {
-      from: 'admin@function.gallery',
+      from: 'artist@spectra.gallery',
       to: to,
       subject: `Admin Login - ${data.username}`,
       html: `
@@ -285,7 +285,7 @@ function getMailOptions(to, data, type) {
     };
   } else if (type === 'u2f') {
     return {
-      from: 'admin@function.gallery',
+      from: 'artist@spectra.gallery',
       to: to,
       subject: `Secret Key`,
       html: `
@@ -300,7 +300,7 @@ function getMailOptions(to, data, type) {
     };
   } else if (type === 'error') {
     return {
-      from: 'admin@function.gallery',
+      from: 'artist@spectra.gallery',
       to: to,
       subject: `Error`,
       html: `
@@ -315,7 +315,7 @@ function getMailOptions(to, data, type) {
     };
   } else if (type === 'apply_granted') {
     return {
-      from: 'admin@function.gallery',
+      from: 'artist@spectra.gallery',
       to: 'pmosi76@gmail.com',
       subject: `User: ${data._doc.username}, Application Granted`,
       html: `
@@ -373,14 +373,53 @@ async function sendAuthenticationEmail(user, req, res) {
   <head>
 
     <title>Spectra Gallery</title>
+
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
+
+     body {
+       font-family: "Roboto", sans-serif;
+       background-color: #f7f0e6;
+       color: #1d1d21;
+     }
+
+     .grid-container {
+        display: flex;
+        flex-wrap: wrap;  
+        padding: 20px;
+      }
+
+      .item {
+        flex: 1 1 calc(50% - 10px);
+        margin: 5px;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+    p {
+      margin-top: 24px;
+    }
+
+    h4 {
+      font-weight: 700;
+    }
+     
+   </style>
   </head>
 
   <body>
-    <h1>Spectra</h1>
-    <h4>Authentication</h4>
-    <p>Welcome ${user.username}!</p>
-    <p>Please click the link below to authenticate</p>
-    <h4><a href="${link}">Authenticate ${user.email} now</a></h4>
+    <div class="grid-container">
+      <div class="item">
+      <h1>Spectra Gallery</h1>
+      <h4>Authentication</h4>
+      </div>
+      <div class="item">
+      <p>Welcome ${user.username}!</p>
+      </div>
+      <div class="item">
+      <p>Please click the link below to authenticate</p>
+      <h4><a href="${link}">Authenticate ${user.email} now</a></h4>
+      </div>
+    </div>
   </body>
 </html>
         `,
@@ -416,72 +455,63 @@ async function sendVerificationEmail(user, req, res) {
     const mailOptions = {
       subject: 'Email Verification The Function Gallery',
       to: user.email,
-      from: 'admin@function.gallery',
+      from: 'artist@spectra.gallery',
       html: `
       <html>
  <head>
-   <title>The Function Gallery</title>
+   <title>Spectra Gallery</title>
    <style>
-   @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;1,100;1,200&family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700;1,900&family=Playfair:ital,opsz,wght@0,5..1200,300;0,5..1200,400;1,5..1200,300;1,5..1200,400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
 
      body {
-       text-align: center;
-       font-family: 'Montserrat';
-       background-color: #F2F0EC;
-       color: #212123;
+       font-family: "Roboto", sans-serif;
+       background-color: #f7f0e6;
+       color: #1d1d21;
      }
-     img {
-       width: 200px;
-       height: auto;
-     }
-     h1 {
-       font-size: 36px;
-       line-height: 20px;
-       margin-top: 32px;
-       font-family: 'Playfair Display', serif;
-       font-weight: 500;
-       font-style: italic;
-     }
-     h4 {
-       font-family: 'Montserrat', helvetica, arial, sans-serif;
-       font-size: 1.5rem;
-       text-transform: uppercase;
-       font-weight: 400;
-     }
-     p {
-       font-size: 1rem;
-     }
-     a {
-       color: #D15937;
-       font-size: 1rem;
-       text-decoration: none;
-     }
-     a:hover {
-       color: #D15937;
-       text-decoration: underline;
-     }
-     .center {
-       text-align: center;
-     }
+
+     .grid-container {
+        display: flex;
+        flex-wrap: wrap;  
+        padding: 20px;
+      }
+
+      .item {
+        flex: 1 1 calc(50% - 10px);
+        margin: 5px;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    h4 {
+      font-weight: 700;
+    }
+     
    </style>
  </head>
  <body>
    <br><br>
    <img src="${BASE_URL}icons/function_logo_small_transparent.png"
-   alt="Function Gallery Logo">
+   <div class="grid-container">
+      <div class="item">
+   alt="Spectra Gallery Logo">
    <h1>The Function Gallery</h1>
    <h4>Email Verification</h4><br>
+    </div>
+    <div class="item">
    <p>
      Welcome ${user.username}!
-   </hp>
-
-   <p>Thanks for signing up for The Function Gallery!</p>
+   </p>
+    </div>
+    <div class="item">
    <p>Please click the link below to verify your email address:</p>
    <h4><a href="${link}">Verify ${user.email} now</a></h4><br><br>
-   <p>We pledge to protect your privacy 
-   with integrity at all times.</p> <br><br>
+    </div>
+    <div class="item">
+      <h3>Thank you for joining Spectra Gallery!</h3>
+      <h4>spectra.gallery</h4>
+    </div>
+   </div>
 
-   Join our <a href="https://discord.gg/jSjn2JeMvD">Discord</a>. Follow us on <a href="https://twitter.com/functiongallery">Twitter</a>.
  </body>
 
 </html>
@@ -489,13 +519,168 @@ async function sendVerificationEmail(user, req, res) {
     };
 
     await sendMail(mailOptions);
-
+    /*
     res.status(200).json(
         {message: 'Verification email sent to ' + user.email + '.'});
+        */
+       console.log('Verification email sent to ' + user.email + '.');
   } catch (error) {
-    res.status(500).json({message: error.message});
+    console.log(error);
+    // res.status(500).json({message: error.message});
   }
 }
+
+// recover password email
+const sendRecoveryEmail = async (user, req, res) => {
+  try {
+    const obj = generateVerificationToken(user);
+
+    // Save the verification token to database
+    const token = new Token(obj);
+    await token.save();
+
+    const link = 'http://' + req.headers.host + '/api/auth/recover/' + token.token;
+
+    const mailOptions = {
+      subject: 'Password Recovery The Function Gallery',
+      to: user.email,
+      from: 'artist@spectra.gallery',
+      html: `
+      <html>
+  <head>
+  
+      <title>Spectra Gallery</title>
+      <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
+
+     body {
+       font-family: "Roboto", sans-serif;
+       background-color: #f7f0e6;
+       color: #1d1d21;
+     }
+
+     .grid-container {
+        display: flex;
+        flex-wrap: wrap;  
+        padding: 20px;
+      }
+
+      .item {
+        flex: 1 1 calc(50% - 10px);
+        margin: 5px;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    h4 {
+      font-weight: 700;
+    }
+     
+   </style>
+  </head>
+
+  <body>
+    <div class="grid-container">
+      <div class="item">
+      <h1>Spectra Gallery</h1>
+      <h4>Password Recovery</h4>
+      </div>
+      <div class="item">
+      <p>Welcome ${user.username}!</p>
+      </div>
+      <div class="item">
+      <p>Please click the link below to recover your password</p>
+      <h4><a href="${link}">Recover Password</a></h4>
+      </div>
+    </div>
+
+  </body>
+
+</html>
+
+        `,
+    };
+
+    await sendMail(mailOptions);
+
+    return true;
+  }
+  catch (error) {
+    return false;
+  }
+}
+
+// send user the new password
+const sendNewPassword = async (user, password, req, res) => {
+  try {
+    const mailOptions = {
+      subject: 'New Password Spectra Gallery',
+      to: user.email,
+      from: 'artist@spectra.gallery',
+      html: `
+      <html>
+  <head>
+  
+        <title>Spectra Gallery</title>
+
+        <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
+
+     body {
+       font-family: "Roboto", sans-serif;
+       background-color: #f7f0e6;
+       color: #1d1d21;
+     }
+
+     .grid-container {
+        display: flex;
+        flex-wrap: wrap;  
+        padding: 20px;
+      }
+
+      .item {
+        flex: 1 1 calc(50% - 10px);
+        margin: 5px;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    h4 {
+      font-weight: 700;
+    }
+     
+   </style>
+  </head>
+
+  <body>
+    <div class="grid-container">
+      <div class="item">
+      <h1>Spectra</h1>
+      <h4>New Password</h4>
+      </div>
+      <div class="item">
+      <p>Welcome ${user.username}!</p>
+      <p>Your new password is: ${password}</p>
+      <p>Please change your password after logging in</p>
+      </div>
+    </div>
+
+  </body>
+
+</html>
+
+        `,
+    };
+
+    await sendMail(mailOptions);
+
+    return true;
+  }
+  catch (error) {
+    return false;
+  }
+}
+
 
 generateVerificationToken = (user) => {
   const obj = {
@@ -512,5 +697,7 @@ const mail = {
   getMailOptions,
   sendVerificationEmail,
   sendAuthenticationEmail,
+  sendRecoveryEmail,
+  sendNewPassword,
 };
 module.exports = mail;
