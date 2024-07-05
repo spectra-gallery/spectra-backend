@@ -44,6 +44,29 @@ checkDuplicateEmail = (req, res, next) => {
   }
 };
 
+// check duplicate address
+checkDuplicateAddress = (req, res, next) => {
+  if (req.body.address) {
+    User.findOne({
+      address: req.body.address,
+    }).exec((err, user) => {
+      if (err) {
+        res.status(500).send({message: err});
+        return;
+      }
+
+      if (user) {
+        res.status(400).send({message: 'Address is already in use!'});
+        return;
+      }
+
+      next();
+    });
+  } else {
+    next();
+  }
+};
+
 checkRolesExisted = (req, res, next) => {
   if (req.body.role) {
     for (const role of req.body.role) {
@@ -73,6 +96,7 @@ checkPassword = (req, res, next) => {
 const verifySignUp = {
   checkDuplicateUsername,
   checkDuplicateEmail,
+  checkDuplicateAddress,
   checkRolesExisted,
   checkPassword,
 };

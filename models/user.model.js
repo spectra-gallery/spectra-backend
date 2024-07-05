@@ -1,4 +1,5 @@
 const { address } = require('bitcoinjs-lib');
+const { application } = require('express');
 const mongoose = require('mongoose');
 
 const User = mongoose.model(
@@ -36,11 +37,19 @@ const User = mongoose.model(
           ref: 'Medium',
         },
       ],
+      sketches: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Sketch',
+        },
+      ],
       channelId: String,
       emailToken: String,
       volume: {type: Number, default: 0},
       whitelisted: {type: Boolean, default: false},
+      creator: {type: Boolean, default: false},
       verified: {type: Boolean, default: false},
+      applied: {type: Boolean, default: false},
       date: {type: String, default: new Date().toISOString()},
       lastLogin: {type: String, default: new Date().toISOString()},
       role: [
@@ -49,6 +58,13 @@ const User = mongoose.model(
           ref: 'Role',
         },
       ],
+      like: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+      ],
+      likes: {type: Number, default: 0},
 
 
     }),

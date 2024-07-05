@@ -1,6 +1,6 @@
 /* eslint-disable max-len */
 // const {verifySignUp} = require('../middlewares');
-const {authJwt} = require('../middlewares');
+const {authJwt, verifySignUp} = require('../middlewares');
 const {objectId} = require('../middlewares');
 const controller = require('../controllers/user.controller');
 
@@ -96,8 +96,8 @@ module.exports = function(app) {
   });
 
   // fetchArtistByCollection
-  app.get('/api/user/collection/:id', [authJwt.verifySession, objectId.isValidObjectId], (req, res) => {
-    const elements = controller.fetchArtistByCollection(req, res);
+  app.get('/api/user/serie/:id', [authJwt.verifySession, objectId.isValidObjectId], (req, res) => {
+    const elements = controller.fetchArtistBySerie(req, res);
     elements.then((elements) => {
       res.status(200).send({
         ...elements,
@@ -139,7 +139,7 @@ module.exports = function(app) {
   });
 
   // get user roles
-  app.get('/api/user/roles', [authJwt.verifySession], controller.getUserRoles);
+  app.get('/api/user/roles', [authJwt.verifySession], controller.getRoles);
 
   // set featured artists
   app.post('/api/user/featured', [authJwt.verifyToken, authJwt.isAdmin], controller.setFeaturedArtists);
@@ -158,8 +158,14 @@ module.exports = function(app) {
   // grant application
   app.post('/api/user/apply/grant/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId], controller.grantApplication);
 
+  // getApplications
+  app.get('/api/user/applications', [authJwt.verifyToken], controller.getApplications);
+
   // change user role
   app.post('/api/user/role/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId], controller.changeUserRole);
+
+  // changeAddress
+  app.post('/api/user/address/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId, verifySignUp.checkDuplicateAddress], controller.changeAddress);
 
   app.post('/api/user/whitelistreq', [authJwt.verifyToken], controller.whitelistAddressReq);
 
@@ -167,6 +173,9 @@ module.exports = function(app) {
 
   // whitelistUserById
   app.post('/api/user/whitelistid/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId], controller.whitelistUserById);
+
+  // remove apply
+  app.delete('/api/user/apply/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId], controller.removeApply);
 
   app.delete('/api/user/comment/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.deleteComment);
 

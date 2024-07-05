@@ -21,6 +21,16 @@ module.exports = function(app) {
   // slugToId
   app.get('/api/serie/slug/:slug', controller.slugToId);
 
+  // fetchSerieName
+  app.get('/api/serie/name', [authJwt.verifyToken], (req, res) => {
+    const elements = controller.fetchSerieName(req, res);
+    elements.then((elements) => {
+      res.status(200).send({
+        ...elements,
+      });
+    });
+  });
+
   // create serie
   // app.post('/api/serie', [authJwt.verifyToken, authJwt.isCreator, verifySerie.checkDuplicateName], controller.createSerie);
 
@@ -322,8 +332,14 @@ module.exports = function(app) {
   // updateSerieRoyalty
   app.post('/api/serie/royalty/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.updateSerieRoyalty);
 
+  // updateSerieVolume
+  app.post('/api/serie/volume/update/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId], controller.updateSerieVolume);
+
   // update serie total supply
-  app.post('/api/serie/supply/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.updateSerieTotalSupply);
+  app.post('/api/serie/totalsupply/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.updateSerieTotalSupply);
+
+  // update serie supply
+  app.post('/api/serie/supply/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId], controller.updateSerieSupply);
 
   app.post('/api/serie/like/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.likeSerie);
 
@@ -353,6 +369,15 @@ module.exports = function(app) {
 
   // updateSerieSketchUrl
   app.post('/api/serie/sketch/update', controller.updateSerieSketchUrl);
+
+  // remove trait
+  app.post('/api/serie/trait/remove/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.removeSerieTrait);
+
+  // remove category
+  app.post('/api/serie/category/remove/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.removeSerieCategory);
+
+  // removeSerieTrait
+  // app.delete('/api/exhibition/serie/trait/remove/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.removeSerieTrait);
 
   // deleteSerieInscriptions
   // app.delete('/api/serie/deleteinscriptions', controller.deleteSerieInscriptions);

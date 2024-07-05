@@ -1,10 +1,13 @@
 const db = require('../models');
 const mail = require('../middlewares/mail');
+const { address } = require('bitcoinjs-lib');
 // const discord = require('../middlewares/discord');
 require('dotenv').config();
 const User = db.user;
 const Role = db.role;
 const Medium = db.medium;
+const Apply = db.apply;
+const Serie = db.serie;
 
 
 // username to user id
@@ -29,63 +32,63 @@ exports.usernameToId = async (req, res) => {
 exports.fetchUsers = (req, res) => {
   const sort = parseInt(req.query.sort);
 
-  let sorting = {username: 1};
+  let sorting = { username: 1 };
   if (sort === 0) {
-    sorting = {trendingIndex: -1};
+    sorting = { trendingIndex: -1 };
   } else if (sort === 1) {
-    sorting = {username: 1};
+    sorting = { username: 1 };
   } else if (sort === 2) {
-    sorting = {username: -1};
+    sorting = { username: -1 };
   } else if (sort === 3) {
-    sorting = {date: -1};
+    sorting = { date: -1 };
   } else if (sort === 4) {
-    sorting = {date: 1};
+    sorting = { date: 1 };
   }
 
   const promise = new Promise((resolve, reject) => {
     User.find({})
-        .sort(sorting)
-    // .skip((page - 1) * 10)
-    /* .populate({
-          path: 'comments',
-          populate: {
-            path: 'author',
-            select: 'username _id imageUrl',
-          },
-          select: 'content author date',
-        }) */
+      .sort(sorting)
+      // .skip((page - 1) * 10)
+      /* .populate({
+            path: 'comments',
+            populate: {
+              path: 'author',
+              select: 'username _id imageUrl',
+            },
+            select: 'content author date',
+          }) */
+      .populate('like', 'username _id imageUrl')
+      .populate('role', '-__v').exec((err, user) => {
+        const userObj = [];
+        for (const usr of user) {
+          userObj.push({
+            id: usr._id,
+            username: usr.username,
+            slug: usr.slug,
+            address: usr.address,
+            // bannerUrl: usr.bannerUrl,
+            imageUrl: usr.imageUrl,
+            role: usr.role,
+            // website: usr.website,
+            headline: usr.headline,
+            bio: usr.bio,
+            // twitter: usr.twitter,
+            whitelisted: usr.whitelisted,
+            verified: usr.verified,
+            applied: usr.applied,
+            creator: usr.creator,
+            // trendingIndex: usr.trendingIndex,
+            // featured: usr.featured,
+            // date: usr.date,
+            comments: usr.comments,
+            channelId: usr.channelId,
+            lastLogin: usr.lastLogin,
+          });
+        }
 
-        .populate('role', '-__v').exec((err, user) => {
-          const userObj = [];
-          for (const usr of user) {
-            userObj.push({
-              id: usr._id,
-              username: usr.username,
-              slug: usr.slug,
-              cardinalAddress: usr.cardinalAddress,
-              ordinalAddress: usr.ordinalAddress,
-              // bannerUrl: usr.bannerUrl,
-              imageUrl: usr.imageUrl,
-              role: usr.role,
-              // website: usr.website,
-              headline: usr.headline,
-              bio: usr.bio,
-              // twitter: usr.twitter,
-              whitelisted: usr.whitelisted,
-              // verified: usr.verified,
-              // applied: usr.applied,
-              // trendingIndex: usr.trendingIndex,
-              // featured: usr.featured,
-              // date: usr.date,
-              comments: usr.comments,
-              channelId: usr.channelId,
-              lastLogin: usr.lastLogin,
-            });
-          }
-
-          resolve(userObj);
-          if (err) reject(err);
-        });
+        resolve(userObj);
+        if (err) reject(err);
+      });
   });
   return promise;
 };
@@ -94,25 +97,25 @@ exports.fetchUsers = (req, res) => {
 exports.fetchLastLoggedInUsers = (req, res) => {
   const promise = new Promise((resolve, reject) => {
     User.find({})
-        .sort({lastLogin: -1})
-        .limit(10)
-        .populate('role', '-__v').exec((err, user) => {
-          const userObj = [];
-          for (const usr of user) {
-            userObj.push({
-              id: usr._id,
-              username: usr.username,
-              slug: usr.slug,
-              cardinalAddress: usr.cardinalAddress,
-              ordinalAddress: usr.ordinalAddress,
-              role: usr.role,
-              lastLogin: usr.lastLogin,
-            });
-          }
+      .sort({ lastLogin: -1 })
+      .limit(10)
+      .populate('role', '-__v').exec((err, user) => {
+        const userObj = [];
+        for (const usr of user) {
+          userObj.push({
+            id: usr._id,
+            username: usr.username,
+            slug: usr.slug,
+            cardinalAddress: usr.cardinalAddress,
+            ordinalAddress: usr.ordinalAddress,
+            role: usr.role,
+            lastLogin: usr.lastLogin,
+          });
+        }
 
-          if (err) reject(err);
-          else resolve(userObj);
-        });
+        if (err) reject(err);
+        else resolve(userObj);
+      });
   });
   return promise;
 };
@@ -121,17 +124,17 @@ exports.fetchLastLoggedInUsers = (req, res) => {
 exports.fetchArtists = (req, res) => {
   const sort = parseInt(req.query.sort);
 
-  let sorting = {username: 1};
+  let sorting = { username: 1 };
   if (sort === 0) {
-    sorting = {trendingIndex: -1};
+    sorting = { trendingIndex: -1 };
   } else if (sort === 1) {
-    sorting = {username: 1};
+    sorting = { username: 1 };
   } else if (sort === 2) {
-    sorting = {username: -1};
+    sorting = { username: -1 };
   } else if (sort === 3) {
-    sorting = {date: -1};
+    sorting = { date: -1 };
   } else if (sort === 4) {
-    sorting = {date: 1};
+    sorting = { date: 1 };
   }
 
   const promise = new Promise((resolve, reject) => {
@@ -144,50 +147,49 @@ exports.fetchArtists = (req, res) => {
         return resolve([]);
       }
 
-      User.find({role: role._id})
-          .sort(sorting)
-          // .skip((page - 1) * 10)
-      /* .populate({
-          path: 'comments',
-          populate: {
-            path: 'author',
-            select: 'username _id imageUrl',
-          },
-          select: 'content author date',
-        }) */
+      User.find({ role: role._id })
+        .sort(sorting)
+        // .skip((page - 1) * 10)
+        /* .populate({
+            path: 'comments',
+            populate: {
+              path: 'author',
+              select: 'username _id imageUrl',
+            },
+            select: 'content author date',
+          }) */
+          .populate('like', 'username _id imageUrl')
+        .populate('role', '-__v').exec((err, user) => {
+          const userObj = [];
+          for (const usr of user) {
+            userObj.push({
+              id: usr._id,
+              username: usr.username,
+              slug: usr.slug,
+              address: usr.address,
+              // bannerUrl: usr.bannerUrl,
+              imageUrl: usr.imageUrl,
+              role: usr.role,
+              // website: usr.website,
+              headline: usr.headline,
+              bio: usr.bio,
+              // twitter: usr.twitter,
+              whitelisted: usr.whitelisted,
+              verified: usr.verified,
+              applied: usr.applied,
+              creator: usr.creator,
+              // trendingIndex: usr.trendingIndex,
+              // featured: usr.featured,
+              // date: usr.date,
+              like: usr.like,
+              likes: usr.likes,
 
-          .populate('role', '-__v').exec((err, user) => {
-            const userObj = [];
-            for (const usr of user) {
-              userObj.push({
-                id: usr._id,
-                username: usr.username,
-                slug: usr.slug,
-                cardinalAddress: usr.cardinalAddress,
-                ordinalAddress: usr.ordinalAddress,
-                // bannerUrl: usr.bannerUrl,
-                imageUrl: usr.imageUrl,
-                role: usr.role,
-                // website: usr.website,
-                headline: usr.headline,
-                bio: usr.bio,
-                // twitter: usr.twitter,
-                whitelisted: usr.whitelisted,
-                // verified: usr.verified,
-                // applied: usr.applied,
-                // trendingIndex: usr.trendingIndex,
-                // featured: usr.featured,
-                // date: usr.date,
-                like: usr.like,
-                likes: usr.likes,
-                comments: usr.comments,
-                channelId: usr.channelId,
-              });
-            }
+            });
+          }
 
-            resolve(userObj);
-            if (err) reject(err);
-          });
+          resolve(userObj);
+          if (err) reject(err);
+        });
     })();
   });
   return promise;
@@ -274,72 +276,9 @@ exports.fetchArtistById = (req, res) => {
         _id: req.params.id,
         role: role._id,
       })
-          .populate({
-            path: 'comments',
-            options: {sort: {'date': -1}},
-            populate: [
-              {
-                path: 'author',
-                select: 'username _id imageUrl',
-              },
-              {
-                path: 'discord',
-                select: 'username id',
-              },
-            ],
-            select: 'content author date discord',
-          })
-          .populate('section', '-__v')
-          .populate('twitter', '-__v')
-          .populate('discord', '-__v')
-          .populate('role', '-__v')
-          .exec((err, user) => {
-            if (!user) {
-              return resolve({});
-            }
-
-            const userObj = {
-              id: user._id,
-              username: user.username,
-              slug: user.slug,
-              cardinalAddress: user.cardinalAddress,
-              ordinalAddress: user.ordinalAddress,
-              bannerUrl: user.bannerUrl,
-              imageUrl: user.imageUrl,
-              role: user.role,
-              website: user.website,
-              headline: user.headline,
-              bio: user.bio,
-              twitter: user.twitter,
-              instagram: user.instagram,
-              discord: user.discord,
-              whitelisted: user.whitelisted,
-              verified: user.verified,
-              applied: user.applied,
-              trendingIndex: user.trendingIndex,
-              featured: user.featured,
-              date: user.date,
-              section: user.section,
-              comments: user.comments,
-              channelId: user.channelId,
-              like: user.like,
-              likes: user.likes,
-            };
-
-            resolve(userObj);
-            if (err) reject(err);
-          });
-    })();
-  });
-  return promise;
-};
-
-
-exports.fetchUserById = (req, res) => {
-  const promise = new Promise((resolve, reject) => {
-    User.findById(req.params.id)
-        /* .populate({
+        .populate({
           path: 'comments',
+          options: { sort: { 'date': -1 } },
           populate: [
             {
               path: 'author',
@@ -351,10 +290,138 @@ exports.fetchUserById = (req, res) => {
             },
           ],
           select: 'content author date discord',
-        }) */
-        // .populate('section', '-__v')
+        })
+        .populate('section', '-__v')
         .populate('twitter', '-__v')
         .populate('discord', '-__v')
+        .populate('like', 'username _id imageUrl')
+        .populate('role', '-__v')
+        .exec((err, user) => {
+          if (!user) {
+            return resolve({});
+          }
+
+          const userObj = {
+            id: user._id,
+            username: user.username,
+            slug: user.slug,
+            cardinalAddress: user.cardinalAddress,
+            ordinalAddress: user.ordinalAddress,
+            bannerUrl: user.bannerUrl,
+            imageUrl: user.imageUrl,
+            role: user.role,
+            website: user.website,
+            headline: user.headline,
+            bio: user.bio,
+            twitter: user.twitter,
+            instagram: user.instagram,
+            discord: user.discord,
+            whitelisted: user.whitelisted,
+            verified: user.verified,
+            applied: user.applied,
+            trendingIndex: user.trendingIndex,
+            featured: user.featured,
+            date: user.date,
+            section: user.section,
+            comments: user.comments,
+            channelId: user.channelId,
+            like: user.like,
+            likes: user.likes,
+          };
+
+          resolve(userObj);
+          if (err) reject(err);
+        });
+    })();
+  });
+  return promise;
+};
+
+
+exports.fetchUserById = (req, res) => {
+  const promise = new Promise((resolve, reject) => {
+    User.findById(req.params.id)
+      /* .populate({
+        path: 'comments',
+        populate: [
+          {
+            path: 'author',
+            select: 'username _id imageUrl',
+          },
+          {
+            path: 'discord',
+            select: 'username id',
+          },
+        ],
+        select: 'content author date discord',
+      }) */
+      // .populate('section', '-__v')
+      .populate('twitter', '-__v')
+      .populate('discord', '-__v')
+      .populate('mediums', '-__v')
+      .populate('chains', '-__v')
+      .populate('like', 'username _id imageUrl')
+      .populate('role', '-__v').exec((err, user) => {
+        if (!user) {
+          return resolve({});
+        }
+
+        const userObj = {
+          id: user._id,
+          username: user.username,
+          slug: user.slug,
+          address: user.address,
+          bannerUrl: user.bannerUrl,
+          imageUrl: user.imageUrl,
+          role: user.role,
+          website: user.website,
+          headline: user.headline,
+          bio: user.bio,
+          twitter: user.twitter,
+          instagram: user.instagram,
+          discord: user.discord,
+          whitelisted: user.whitelisted,
+          verified: user.verified,
+          creator: user.creator,
+          applied: user.applied,
+          date: user.date,
+          mediums: user.mediums,
+          chains: user.chains,
+          like: user.like,
+          likes: user.likes,
+        };
+
+        resolve(userObj);
+        if (err) reject(err);
+      });
+  });
+  return promise;
+};
+
+// fetch artist by ordinal address
+exports.fetchArtistByOrdinalAddress = (req, res) => {
+  const promise = new Promise((resolve, reject) => {
+    (async () => {
+      const role = await Role.findOne({
+        name: 'creator',
+      });
+      User.findOne({
+        ordinalAddress: req.params.address,
+        role: role._id,
+      })
+        .populate({
+          path: 'comments',
+          populate: {
+            path: 'author',
+            select: 'username _id imageUrl',
+          },
+          populate: {
+            path: 'discord',
+            select: 'username id',
+          },
+          select: 'content author date discord',
+        })
+        .populate('section', '-__v')
         .populate('role', '-__v').exec((err, user) => {
           if (!user) {
             return resolve({});
@@ -381,144 +448,82 @@ exports.fetchUserById = (req, res) => {
             trendingIndex: user.trendingIndex,
             featured: user.featured,
             date: user.date,
+            section: user.section,
+            comments: user.comments,
             channelId: user.channelId,
-            like: user.like,
-            likes: user.likes,
           };
 
           resolve(userObj);
           if (err) reject(err);
         });
-  });
-  return promise;
-};
-
-// fetch artist by ordinal address
-exports.fetchArtistByOrdinalAddress = (req, res) => {
-  const promise = new Promise((resolve, reject) => {
-    (async () => {
-      const role = await Role.findOne({
-        name: 'creator',
-      });
-      User.findOne({
-        ordinalAddress: req.params.address,
-        role: role._id,
-      })
-          .populate({
-            path: 'comments',
-            populate: {
-              path: 'author',
-              select: 'username _id imageUrl',
-            },
-            populate: {
-              path: 'discord',
-              select: 'username id',
-            },
-            select: 'content author date discord',
-          })
-          .populate('section', '-__v')
-          .populate('role', '-__v').exec((err, user) => {
-            if (!user) {
-              return resolve({});
-            }
-
-            const userObj = {
-              id: user._id,
-              username: user.username,
-              slug: user.slug,
-              cardinalAddress: user.cardinalAddress,
-              ordinalAddress: user.ordinalAddress,
-              bannerUrl: user.bannerUrl,
-              imageUrl: user.imageUrl,
-              role: user.role,
-              website: user.website,
-              headline: user.headline,
-              bio: user.bio,
-              twitter: user.twitter,
-              instagram: user.instagram,
-              discord: user.discord,
-              whitelisted: user.whitelisted,
-              verified: user.verified,
-              applied: user.applied,
-              trendingIndex: user.trendingIndex,
-              featured: user.featured,
-              date: user.date,
-              section: user.section,
-              comments: user.comments,
-              channelId: user.channelId,
-            };
-
-            resolve(userObj);
-            if (err) reject(err);
-          });
     })();
   });
   return promise;
 };
 
 // fetch artist of a collection
-exports.fetchArtistByCollection = (req, res) => {
+exports.fetchArtistBySerie = (req, res) => {
   const promise = new Promise((resolve, reject) => {
     (async () => {
       const role = await Role.findOne({
         name: 'creator',
       });
-      const collection = await Collection.findById(req.params.id);
+      const serie = await Serie.findById(req.params.id);
 
-      if (!collection) {
+      if (!serie) {
         return;
       }
 
-      const artists = collection.artists;
+      const artists = serie.artists;
 
       const ids = artists.map((artist) => artist._id);
 
       User.find({
-        _id: {$in: ids},
+        _id: { $in: ids },
         role: role._id,
       })
-      /* .populate({
-          path: 'comments',
-          populate: {
-            path: 'author',
-            select: 'username _id imageUrl',
-          },
-          select: 'content author date',
-        }) */
-      // .populate('section', '-__v')
-      // .populate('role', '-__v')
-          .exec((err, user) => {
-            if (!user) {
-              return resolve({});
-            }
+        /* .populate({
+            path: 'comments',
+            populate: {
+              path: 'author',
+              select: 'username _id imageUrl',
+            },
+            select: 'content author date',
+          }) */
+        // .populate('section', '-__v')
+        // .populate('role', '-__v')
+        .populate('like', 'username _id imageUrl')
+        .exec((err, user) => {
+          if (!user) {
+            return resolve({});
+          }
 
-            const userObj = [];
+          const userObj = [];
 
-            for (const usr of user) {
-              userObj.push({
-                id: usr._id,
-                username: usr.username,
-                slug: usr.slug,
-                // cardinalAddress: usr.cardinalAddress,
-                // ordinalAddress: usr.ordinalAddress,
-                // bannerUrl: usr.bannerUrl,
-                imageUrl: usr.imageUrl,
-                // role: usr.role,
-                website: usr.website,
-                headline: usr.headline,
-                bio: usr.bio,
-                // twitter: usr.twitter,
-                // section: usr.section,
-                comments: usr.comments,
-                channelId: usr.channelId,
+          for (const usr of user) {
+            userObj.push({
+              id: usr._id,
+              username: usr.username,
+              slug: usr.slug,
+              // cardinalAddress: usr.cardinalAddress,
+              // ordinalAddress: usr.ordinalAddress,
+              // bannerUrl: usr.bannerUrl,
+              imageUrl: usr.imageUrl,
+              // role: usr.role,
+              website: usr.website,
+              headline: usr.headline,
+              bio: usr.bio,
+              like: usr.like,
+              // twitter: usr.twitter,
+              // section: usr.section,
 
-              });
-            }
+            });
+          }
 
-            resolve(userObj);
+          resolve(userObj);
 
-            if (err) reject(err);
-          });
+          if (err) reject(err);
+        });
     })();
   });
   return promise;
@@ -536,51 +541,52 @@ exports.fetchFeaturedArtists = (req, res) => {
         return resolve([]);
       }
 
-      User.find({featured: true,
+      User.find({
+        featured: true,
         role: role._id,
       })
-      /* .populate({
-          path: 'comments',
-          populate: {
-            path: 'author',
-            select: 'username _id imageUrl',
-          },
-          select: 'content author date',
-        }) */
-          .populate('role', '-__v')
-          .exec((err, user) => {
-            const userObj = [];
-            for (const usr of user) {
-              userObj.push({
-                id: usr._id,
-                username: usr.username,
-                slug: usr.slug,
-                cardinalAddress: usr.cardinalAddress,
-                ordinalAddress: usr.ordinalAddress,
-                // bannerUrl: usr.bannerUrl,
-                imageUrl: usr.imageUrl,
-                role: usr.role,
-                website: usr.website,
-                // headline: usr.headline,
-                bio: usr.bio,
-                twitter: usr.twitter,
-                instagram: usr.instagram,
-                discord: usr.discord,
-                whitelisted: usr.whitelisted,
-                verified: usr.verified,
-                // applied: usr.applied,
-                // trendingIndex: usr.trendingIndex,
-                // featured: usr.featured,
-                // date: usr.date,
-                comments: usr.comments,
-                channelId: usr.channelId,
-              });
-            }
+        /* .populate({
+            path: 'comments',
+            populate: {
+              path: 'author',
+              select: 'username _id imageUrl',
+            },
+            select: 'content author date',
+          }) */
+        .populate('role', '-__v')
+        .exec((err, user) => {
+          const userObj = [];
+          for (const usr of user) {
+            userObj.push({
+              id: usr._id,
+              username: usr.username,
+              slug: usr.slug,
+              cardinalAddress: usr.cardinalAddress,
+              ordinalAddress: usr.ordinalAddress,
+              // bannerUrl: usr.bannerUrl,
+              imageUrl: usr.imageUrl,
+              role: usr.role,
+              website: usr.website,
+              // headline: usr.headline,
+              bio: usr.bio,
+              twitter: usr.twitter,
+              instagram: usr.instagram,
+              discord: usr.discord,
+              whitelisted: usr.whitelisted,
+              verified: usr.verified,
+              // applied: usr.applied,
+              // trendingIndex: usr.trendingIndex,
+              // featured: usr.featured,
+              // date: usr.date,
+              comments: usr.comments,
+              channelId: usr.channelId,
+            });
+          }
 
-            resolve(userObj);
+          resolve(userObj);
 
-            if (err) reject(err);
-          });
+          if (err) reject(err);
+        });
     })();
   });
   return promise;
@@ -598,8 +604,8 @@ exports.fetchHighestVolumeArtists = async (req, res) => {
     });
   }
 
-  const artists = await User.find({role: role._id})
-      .limit(6);
+  const artists = await User.find({ role: role._id })
+    .limit(6);
   const collections = await Collection.find({});
 
 
@@ -676,49 +682,49 @@ exports.setFeaturedArtists = async (req, res) => {
     }
   }
 
-  res.send({message: 'Featured artists updated'});
+  res.send({ message: 'Featured artists updated' });
 };
 
 // like user
 exports.likeUser = (req, res) => {
   User.findById(req.params.id)
-      .then((user) => {
-        if (!user) {
-          return res.status(404).send({
-            message: 'User not found',
-          });
-        }
-
-        const like = user.like;
-        let likes = user.likes;
-        const id = req.userId;
-
-        if (like.includes(id)) {
-          const index = like.findIndex((user) => user == id);
-          if (index > -1) {
-            like.splice(index, 1);
-            if (likes > 0) likes -= 1;
-          }
-        } else {
-          like.push(id);
-          likes += 1;
-        }
-
-        user.like = like;
-        user.likes = likes;
-
-        user.save();
-
-        res.status(200).send({
-          id: user._id,
-          like: user.like,
-          likes: user.likes,
+    .then((user) => {
+      if (!user) {
+        return res.status(404).send({
+          message: 'User not found',
         });
-      }).catch((err) => {
-        return res.status(500).send({
-          message: 'Error liking user',
-        });
+      }
+
+      const like = user.like;
+      let likes = user.likes;
+      const id = req.userId;
+
+      if (like.includes(id)) {
+        const index = like.findIndex((user) => user == id);
+        if (index > -1) {
+          like.splice(index, 1);
+          if (likes > 0) likes -= 1;
+        }
+      } else {
+        like.push(id);
+        likes += 1;
+      }
+
+      user.like = like;
+      user.likes = likes;
+
+      user.save();
+
+      res.status(200).send({
+        id: user._id,
+        like: user.like,
+        likes: user.likes,
       });
+    }).catch((err) => {
+      return res.status(500).send({
+        message: 'Error liking user',
+      });
+    });
 };
 
 /*
@@ -760,27 +766,27 @@ exports.fetchLikedUsers = (req, res) => {
         like: id,
         role: role._id,
       })
-          .populate('role', '-__v')
-          .exec((err, user) => {
-            if (!user) {
-              return resolve([]);
-            }
+        .populate('role', '-__v')
+        .exec((err, user) => {
+          if (!user) {
+            return resolve([]);
+          }
 
-            const userObj = [];
-            for (const usr of user) {
-              userObj.push({
-                id: usr._id,
-                username: usr.username,
-                slug: usr.slug,
-                // bannerUrl: usr.bannerUrl,
-                imageUrl: usr.imageUrl,
-                headline: usr.headline,
-              });
-            }
+          const userObj = [];
+          for (const usr of user) {
+            userObj.push({
+              id: usr._id,
+              username: usr.username,
+              slug: usr.slug,
+              // bannerUrl: usr.bannerUrl,
+              imageUrl: usr.imageUrl,
+              headline: usr.headline,
+            });
+          }
 
-            resolve(userObj);
-            if (err) reject(err);
-          });
+          resolve(userObj);
+          if (err) reject(err);
+        });
     })();
   });
   return promise;
@@ -792,15 +798,15 @@ exports.commentCreator = async (req, res) => {
   const _id = req.params.id;
   const userId = req.userId;
   const user = await User.findById(userId)
-  // populate user comments.author with username imageUrl and id
-      .populate({
-        path: 'comments',
-        populate: {
-          path: 'author',
-          select: 'username _id imageUrl',
-        },
-        select: '_id content author date',
-      });
+    // populate user comments.author with username imageUrl and id
+    .populate({
+      path: 'comments',
+      populate: {
+        path: 'author',
+        select: 'username _id imageUrl',
+      },
+      select: '_id content author date',
+    });
 
   const comment = new Comment({
     content: req.body.content,
@@ -808,43 +814,43 @@ exports.commentCreator = async (req, res) => {
     discord: user.discord,
   });
   comment.save()
-      .then((data) => {
-        addComment(data._id);
-        res.send({
-          id: data._id,
-          userId: _id,
-          username: user.username,
-          imageUrl: user.imageUrl,
-          content: data.content,
-          author: data.author,
-          date: data.date,
-        });
-      }).catch((err) => {
-        res.status(500).send({
-          message: err.message || 'Error creating comment',
-        });
+    .then((data) => {
+      addComment(data._id);
+      res.send({
+        id: data._id,
+        userId: _id,
+        username: user.username,
+        imageUrl: user.imageUrl,
+        content: data.content,
+        author: data.author,
+        date: data.date,
       });
+    }).catch((err) => {
+      res.status(500).send({
+        message: err.message || 'Error creating comment',
+      });
+    });
 
   const addComment = (id) => {
     User.findById(_id)
-        .then((_user) => {
-          if (!_user) {
-            return res.status(404).send({
-              message: 'User not found',
-            });
-          }
-          _user.comments.push(id);
-          _user.save();
+      .then((_user) => {
+        if (!_user) {
+          return res.status(404).send({
+            message: 'User not found',
+          });
+        }
+        _user.comments.push(id);
+        _user.save();
 
-          discord.sendMessageToChannel(comment.content,
-              _user.channelId, user.username);
+        discord.sendMessageToChannel(comment.content,
+          _user.channelId, user.username);
 
         // res.send({});
-        }).catch((err) => {
-          return res.status(500).send({
-            message: 'Error saving comment',
-          });
+      }).catch((err) => {
+        return res.status(500).send({
+          message: 'Error saving comment',
         });
+      });
   };
 };
 
@@ -859,51 +865,51 @@ exports.deleteComment = async (req, res) => {
   const isAdmin = await userIsAdmin(userId);
 
   Comment.findByIdAndRemove(req.params.id)
-      .then((comment) => {
-        if (!comment) {
-          return res.status(404).send({
-            message: 'Comment not found id ' + req.params.id,
-          });
-        }
-
-        // if user is not the owner of the profile nor the author of the comment
-        if (comment.author._id != req.userId &&
-          _user._id != req.userId && !isAdmin) {
-          return res.status(403).send({
-            message: 'You are not the owner of this comment',
-          });
-        }
-      }).catch((err) => {
-        if (err.kind === 'ObjectId' || err.name === 'NotFound') {
-          return res.status(404).send({
-            message: 'Comment not found id ' + req.params.id,
-          });
-        }
-        return res.status(500).send({
-          message: 'Comment not delete id ' + req.params.id,
+    .then((comment) => {
+      if (!comment) {
+        return res.status(404).send({
+          message: 'Comment not found id ' + req.params.id,
         });
+      }
+
+      // if user is not the owner of the profile nor the author of the comment
+      if (comment.author._id != req.userId &&
+        _user._id != req.userId && !isAdmin) {
+        return res.status(403).send({
+          message: 'You are not the owner of this comment',
+        });
+      }
+    }).catch((err) => {
+      if (err.kind === 'ObjectId' || err.name === 'NotFound') {
+        return res.status(404).send({
+          message: 'Comment not found id ' + req.params.id,
+        });
+      }
+      return res.status(500).send({
+        message: 'Comment not delete id ' + req.params.id,
       });
+    });
 
   // delete comment from user, find user by the comment id in comments array
   User.findOne({
     comments: req.params.id,
   })
-      .then((user) => {
-        if (!user) {
-          return res.status(404).send({
-            message: 'User not found',
-          });
-        }
-        user.comments.pull(req.params.id);
-        user.save();
-
-        res.send({
-          id: req.params.id,
-          userId: user._id,
+    .then((user) => {
+      if (!user) {
+        return res.status(404).send({
+          message: 'User not found',
         });
-      }).catch((err) => {
-        console.log(err);
+      }
+      user.comments.pull(req.params.id);
+      user.save();
+
+      res.send({
+        id: req.params.id,
+        userId: user._id,
       });
+    }).catch((err) => {
+      console.log(err);
+    });
 };
 
 const userIsAdmin = async (userId) => {
@@ -913,7 +919,7 @@ const userIsAdmin = async (userId) => {
     return false;
   }
 
-  const roles = await Role.find({_id: {$in: user.role}});
+  const roles = await Role.find({ _id: { $in: user.role } });
 
   for (const role of roles) {
     if (role.name === 'admin') {
@@ -1003,10 +1009,23 @@ exports.deleteUserById = async (req, res) => {
   });
 };
 
-// get user rolles
-exports.getUserRoles = async (req, res) => {
-  const roles = await Role.find({});
-  res.status(200).send(roles);
+
+exports.getRoles = async (req, res) => {
+  const roles = await Role.find();
+
+  const rolesArray = [];
+
+  for (const role of roles) {
+    rolesArray.push({
+      id: role._id,
+      name: role.name,
+    });
+  }
+
+
+  res.status(200).send({
+    roles: rolesArray,
+  });
 };
 
 // change user role
@@ -1018,11 +1037,70 @@ exports.changeUserRole = async (req, res) => {
     _id: id,
   });
 
-  user.role = roleId;
+  if (!user) {
+    return res.status(404).send({
+      message: 'User not found',
+    });
+  }
+
+  const role = await Role.findById(roleId);
+
+  if (user.role.includes(roleId)) {
+    user.role.pull(roleId);
+
+    if (role.name === 'creator') {
+      user.creator = false;
+    }
+  } else {
+
+    user.role.push(roleId);
+
+    if (role.name === 'creator') {
+      user.creator = true;
+    }
+
+  }
+  await user.save();
+
+  const newUser = await User.findOne({ _id: id }).populate('role', '-__v');
+
+  const authorities = [];
+
+  for (const role of newUser.role) {
+    authorities.push({
+      id: role._id,
+      name: 'ROLE_' + role.name.toUpperCase(),
+    });
+  }
+
+  res.status(200).send({
+    id: id,
+    role: authorities,
+  });
+};
+
+// change ethereum address
+exports.changeAddress = async (req, res) => {
+  const id = req.params.id;
+
+  const address = req.body.address;
+
+  const user = await User.findOne({
+    _id: id,
+  });
+
+  if (!user) {
+    return res.status(404).send({
+      message: 'User not found',
+    });
+  }
+
+  user.address = address;
   await user.save();
 
   res.status(200).send({
     id: id,
+    address: user.address,
   });
 };
 
@@ -1040,21 +1118,17 @@ exports.creatorApply = async (req, res) => {
     });
   }
 
-  if (user.applied) {
+  if (user.applied || user.creator) {
     return res.status(403).send({
       message: 'User already applied',
     });
   }
 
   const apply = new Apply({
-    id: user._id,
-    email: user.email || req.body.email,
-    username: user.username,
-    address: user.cardinalAddress,
-    website: user.website || req.body.website,
-    twitter: user.twitter || req.body.twitter,
-    description: req.body.description,
-
+    type: req.body.type,
+    about: req.body.about,
+    links: req.body.links,
+    user: id,
   });
 
   await apply.save();
@@ -1062,20 +1136,63 @@ exports.creatorApply = async (req, res) => {
   user.applied = true;
   await user.save();
 
-  const mailAddress = 'info@function.gallery';
-
-  const options = mail.getMailOptions(mailAddress, apply, 'application');
-
-  mail.sendMail(options, (err, info) => {
-    if (err) {
-      // console.log(err);
-    } else {
-      // console.log(info);
-    }
-  });
-
   res.status(200).send({
     id: apply._id,
+  });
+};
+
+// removeApply
+exports.removeApply = async (req, res) => {
+  const userId = req.userId;
+
+  const id = req.params.id;
+  const user = await User.findOne({
+    _id: userId,
+  });
+
+  const apply = await Apply.findOne({
+    _id: id,
+  });
+
+  if (!apply) {
+    return res.status(404).send({
+      message: 'Application not found',
+    });
+  }
+
+  if (apply.user != userId) {
+    return res.status(403).send({
+      message: 'User not authorized',
+    });
+  }
+
+  await apply.remove();
+
+  user.applied = false;
+  await user.save();
+
+  res.status(200).send({
+    id: id,
+    message: 'Application removed',
+  });
+};
+
+// get applications by user id
+exports.getApplications = async (req, res) => {
+  const id = req.userId;
+
+  const applications = await Apply.find({
+    user: id,
+  });
+
+  if (!applications) {
+    return res.status(404).send({
+      message: 'Applications not found',
+    });
+  }
+
+  res.status(200).send({
+    applications: applications,
   });
 };
 
@@ -1083,7 +1200,7 @@ exports.creatorApply = async (req, res) => {
 exports.getCreatorApplications = async (req, res) => {
   // get granted false applications
   const applications = await Apply.find({})
-      .populate('grantedBy', 'username _id imageUrl');
+    .populate('grantedBy', 'username _id imageUrl');
 
   res.status(200).send(applications);
 };
@@ -1157,18 +1274,18 @@ exports.grantApplication = async (req, res) => {
 exports.fetchSection = (req, res) => {
   const promise = new Promise((resolve, reject) => {
     Section.findById(req.params.id).populate('user', '-__v')
-        .exec((err, section) => {
-          if (err) {
-            reject(err);
-          }
-          const sectionObj = {
-            id: section._doc._id,
-            title: section._doc.title,
-            content: section._doc.content,
-            mediaUrls: section._doc.mediaUrls,
-          };
-          resolve(sectionObj);
-        });
+      .exec((err, section) => {
+        if (err) {
+          reject(err);
+        }
+        const sectionObj = {
+          id: section._doc._id,
+          title: section._doc.title,
+          content: section._doc.content,
+          mediaUrls: section._doc.mediaUrls,
+        };
+        resolve(sectionObj);
+      });
   });
   return promise;
 };
@@ -1179,26 +1296,26 @@ exports.fetchSections = (req, res) => {
     User.find({
       _id: req.params.id,
     })
-        .populate('section', '-__v')
-        .exec((err, user) => {
-          if (err) {
-            reject(err);
-          }
-          const sectionObj = [];
+      .populate('section', '-__v')
+      .exec((err, user) => {
+        if (err) {
+          reject(err);
+        }
+        const sectionObj = [];
 
-          // iterate over every users
-          for (const usr of user) {
-            for (const sec of usr.section) {
-              sectionObj.push({
-                id: sec._doc._id,
-                title: sec._doc.title,
-                content: sec._doc.content,
-                mediaUrls: sec._doc.mediaUrls,
-              });
-            }
+        // iterate over every users
+        for (const usr of user) {
+          for (const sec of usr.section) {
+            sectionObj.push({
+              id: sec._doc._id,
+              title: sec._doc.title,
+              content: sec._doc.content,
+              mediaUrls: sec._doc.mediaUrls,
+            });
           }
-          resolve(sectionObj);
-        });
+        }
+        resolve(sectionObj);
+      });
   });
   return promise;
 };

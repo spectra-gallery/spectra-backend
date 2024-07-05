@@ -55,6 +55,15 @@ module.exports = function(app) {
   // changeEmail
   app.post('/api/auth/changeemail', [authJwt.verifyToken, verifySignUp.checkDuplicateEmail], controller.changeEmail);
 
+  // addWallet
+  app.post('/api/auth/wallet/add', [authJwt.verifyToken], controller.addWallet);
+
+  // removeAddress
+  app.delete('/api/auth/wallet/remove', [authJwt.verifyToken], controller.removeAddress);
+
+  // editProfileWebsite
+  app.post('/api/auth/edit/website', [authJwt.verifyToken], controller.editProfileWebsite);
+
   app.post('/api/auth/admin/edituser', [authJwt.verifyToken, authJwt.isAdmin], controller.adminEditUser);
 
   app.post('/api/user/img', [authJwt.verifyToken], uploadController.uploadMatterImg);
@@ -91,6 +100,8 @@ module.exports = function(app) {
 
   app.get('/api/auth/verify/:token', controller.verify);
 
+  app.get('/api/auth/recover/:token', controller.recover);
+
   app.post('/api/auth/verifymail', [authJwt.verifyToken], controller.sendVerificationEmail);
 
   // sendAuthenticationEmail
@@ -100,6 +111,9 @@ module.exports = function(app) {
   app.get('/api/auth/email/:token', controller.verifyAuthenticationEmail);
 
   app.get('/api/auth/verifytoken', [authJwt.verifyToken], controller.validateToken);
+
+  // forgotPassword
+  app.post('/api/auth/forgotpassword', [authJwt.verifySession], controller.forgotPassword);
 
   // definePassword
   app.post('/api/auth/definepassword', [authJwt.verifyToken, authJwt.isAdmin], controller.definePassword);
@@ -112,6 +126,12 @@ module.exports = function(app) {
 
   // getSession
   app.get('/api/auth/session', [authJwt.verifySession], controller.getSession);
+
+  // changeUserRole
+  app.post('/api/auth/role', [authJwt.verifyToken], controller.changeUserRole);
+
+  // removeUserRole
+  app.delete('/api/auth/role/:id', [authJwt.verifyToken], controller.removeUserRole);
 
   // deleteUserComments
   app.delete('/api/auth/comments/delete', controller.deleteUserComments);

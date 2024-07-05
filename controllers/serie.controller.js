@@ -30,6 +30,34 @@ exports.slugToId = async (req, res) => {
   });
 };
 
+// get all serie name and id
+exports.fetchSerieName = (req, res) => {
+  const promise = new Promise((resolve, reject) => {
+    Serie.find({}, 'name slug')
+      .exec((err, series) => {
+        if (!series) {
+          return resolve([]);
+        }
+
+        const seriesObj = [];
+
+        for (const serie of series) {
+          seriesObj.push({
+            id: serie._id,
+            name: serie.name,
+            slug: serie.slug,
+          });
+        }
+
+        if (err) reject(err);
+        else {
+          resolve(seriesObj);
+        }
+      });
+  });
+  return promise;
+};
+
 
 exports.fetchSeries = (req, res) => {
   // const page = req.params.page;
@@ -54,8 +82,10 @@ exports.fetchSeries = (req, res) => {
       .populate('artists', 'username _id imageUrl slug')
       .populate('media', '_id url ratio type')
       .populate('category', '-__v')
+      .populate('chain', '-__v')
+      .populate('category', '-__v')
       // .populate('sketch', '_id hash url sizeBytes')
-      // .populate("like", "username _id imageUrl slug")
+      .populate("like", "username _id imageUrl slug")
       .exec((err, collections) => {
         if (!collections) {
           return resolve([]);
@@ -72,25 +102,33 @@ exports.fetchSeries = (req, res) => {
             description: coll.description,
             // sketch: coll.sketch,
             artists: coll.artists,
-            // category: coll.category,
             // captureDelay: coll.captureDelay,
-            // onSale: coll.onSale,
             supply: coll.supply,
             totalSupply: coll.totalSupply,
             price: coll.price,
-            // royalty: coll.royalty,
-            // volume: coll.volume,
+            priceUSD: coll.priceUSD,
+            royalty: coll.royalty,
+            volume: coll.volume,
             // link: coll.link,
             image: coll.image,
             media: coll.media,
+            category: coll.category,
+            type: coll.type,
+            chain: coll.chain,
+            display: coll.display,
+            onChain: coll.onChain,
+            onSale: coll.onSale,
             likes: coll.likes,
+            rank: coll.rank,
             date: coll.date,
+            modified: coll.modified,
             // featured: coll.featured,
             like: coll.like,
           });
         }
         if (err) reject(err);
         else {
+    
           resolve(collectionObj);
         }
       });
@@ -152,7 +190,7 @@ exports.fetchAllSeriesByNumber = (req, res) => {
       .populate('media', '_id url ratio type')
       // .populate('whitelist', '-__v')
       // .populate('sketch', '_id hash url sizeBytes')
-      // .populate("like", "username _id imageUrl slug")
+      .populate("like", "username _id imageUrl slug")
       .exec((err, collections) => {
         if (!collections) {
           return resolve([]);
@@ -168,7 +206,7 @@ exports.fetchAllSeriesByNumber = (req, res) => {
             description: coll.description,
             // sketch: coll.sketch,
             artists: coll.artists,
-            // category: coll.category,
+            category: coll.category,
             // captureDelay: coll.captureDelay,
             onSale: coll.onSale,
             supply: coll.supply,
@@ -225,7 +263,7 @@ exports.fetchSerieById = (req, res) => {
       .populate('media', '_id url ratio type')
       .populate('trait', '_id trait_type value')
       // .populate('whitelist', '-__v')
-      // .populate("like", "username _id imageUrl slug")
+      .populate("like", "username _id imageUrl slug")
       .exec((err, serie) => {
         if (!serie) {
           return resolve({});
@@ -383,14 +421,13 @@ exports.generateSketch = async (req, res) => {
   const sizeBytes = req.body.sizeBytes;
 
   const sketch = new Sketch({
-    htmlContent: htmlContent,
+    html: htmlContent,
     url: fileUrl,
     hash: '',
     sizeBytes: sizeBytes,
   });
 
   await sketch.save();
-
   res.status(200).send({
     id: sketch._id,
   });
@@ -1025,7 +1062,7 @@ exports.fetchTrendingSeries = (req, res) => {
       // .populate('whitelist', '-__v')
       // .populate('category', '-__v')
       // .populate('sketch', '_id hash url sizeBytes')
-      // .populate("like", "username _id imageUrl slug")
+      .populate("like", "username _id imageUrl slug")
 
       .exec((err, serie) => {
         if (!serie) {
@@ -1291,7 +1328,7 @@ exports.fetchLatestSeries = (req, res) => {
       // .populate('whitelist', '-__v')
       // .populate('category', '-__v')
       // .populate('sketch', '_id hash url sizeBytes')
-      // .populate("like", "username _id imageUrl slug")
+      .populate("like", "username _id imageUrl slug")
 
       .exec((err, serie) => {
         if (!serie) {
@@ -1737,14 +1774,14 @@ exports.fetchSerieByArtist = (req, res) => {
       .populate('category', '-__v')
       .populate('trait', '-__v')
       // .populate('whitelist', '-__v')
-      // .populate("like", "username _id imageUrl slug")
+      .populate("like", "username _id imageUrl slug")
       .exec((err, serie) => {
         if (!serie) {
           return resolve([]);
         }
         if (err) reject(err);
         else {
-
+         
           resolve(serie);
         }
       });
@@ -1753,9 +1790,11 @@ exports.fetchSerieByArtist = (req, res) => {
 };
 
 // set serie on sale
-exports.setSerieOnSale = (req, res) => {
+exports.setSerieOnSale = async(req, res) => {
   const id = req.params.id;
   const onSale = req.body.onSale;
+
+  const isAdmin = await userIsAdmin(req.userId);
 
   Serie.findById(id)
     .then((serie) => {
@@ -1766,7 +1805,7 @@ exports.setSerieOnSale = (req, res) => {
       }
 
       // check if serie.artists array contains userId
-      if (!serie.artists.includes(req.userId)) {
+      if (!serie.artists.includes(req.userId) && !isAdmin) {
         return res.status(401).send({
           message: 'Unauthorized',
         });
@@ -1778,6 +1817,7 @@ exports.setSerieOnSale = (req, res) => {
         .then((serie) => {
           res.send({
             id: serie._id,
+            onSale: serie.onSale,
           });
         }).catch((err) => {
           res.status(500).send({
@@ -1797,8 +1837,10 @@ exports.setSerieOnSale = (req, res) => {
 };
 
 // set serie on display
-exports.setSerieOnDisplay = (req, res) => {
+exports.setSerieOnDisplay = async(req, res) => {
   const id = req.params.id;
+
+  const isAdmin = await userIsAdmin(req.userId);
 
   Serie.findById(id)
     .then((serie) => {
@@ -1809,7 +1851,7 @@ exports.setSerieOnDisplay = (req, res) => {
       }
 
       // check if serie.artists array contains userId
-      if (!serie.artists.includes(req.userId)) {
+      if (!serie.artists.includes(req.userId) && !isAdmin) {
         return res.status(401).send({
           message: 'Unauthorized',
         });
@@ -1841,10 +1883,12 @@ exports.setSerieOnDisplay = (req, res) => {
 };
 
 // edit serie description
-exports.editSerieDescription = (req, res) => {
+exports.editSerieDescription = async (req, res) => {
   const id = req.params.id;
 
   const userId = req.userId;
+
+  const isAdmin = await userIsAdmin(userId);
 
   Serie.findById(id)
     .then((serie) => {
@@ -1855,7 +1899,7 @@ exports.editSerieDescription = (req, res) => {
       }
 
       // check if serie.artists array contains userId
-      if (!serie.artists.includes(userId)) {
+      if (!serie.artists.includes(userId) && !isAdmin) {
         return res.status(401).send({
           message: 'Unauthorized',
         });
@@ -1892,6 +1936,9 @@ exports.editSerieName = async (req, res) => {
   const id = req.params.id;
 
   const userId = req.userId;
+  const name = req.body.name;
+
+  const slug = name.toLowerCase().replace(/ /g, '-');
 
   const serie = await Serie.findById(id);
 
@@ -1901,8 +1948,10 @@ exports.editSerieName = async (req, res) => {
     });
   }
 
+  const isAdmin = await userIsAdmin(userId);
+
   // check if serie.artists array contains userId
-  if (!serie.artists.includes(userId)) {
+  if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: 'Unauthorized',
     });
@@ -1915,13 +1964,15 @@ exports.editSerieName = async (req, res) => {
     });
   }
 
-  serie.name = req.body.name;
+  serie.name = name;
+  serie.slug = slug;
 
   await serie.save();
 
   res.status(200).send({
     id: serie._id,
     name: serie.name,
+    slug: serie.slug,
   });
 };
 
@@ -1939,8 +1990,10 @@ exports.editSerieSubtitle = async (req, res) => {
     });
   }
 
+  const isAdmin = await userIsAdmin(userId);
+
   // check if serie.artists array contains userId
-  if (!serie.artists.includes(userId)) {
+  if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: 'Unauthorized',
     });
@@ -2028,8 +2081,10 @@ exports.updateSerieTrait = async (req, res) => {
     });
   }
 
+  const isAdmin = await userIsAdmin(userId);
+
   // check if serie.artists array contains userId
-  if (!serie.artists.includes(userId)) {
+  if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: 'Unauthorized',
     });
@@ -2039,6 +2094,7 @@ exports.updateSerieTrait = async (req, res) => {
   // check if each traits exists with same trait_type and value
   const traits = [];
   const traitArray = req.body.traits;
+  const newTraits = [];
 
   for (const trait of traitArray) {
     const traitType = trait.trait_type;
@@ -2062,13 +2118,61 @@ exports.updateSerieTrait = async (req, res) => {
     }
   }
 
-  serie.trait = traits;
+  serie.trait.push(...traits);
+
+  await serie.save();
+
+  for (const trait of traits) {
+    const fetchTrait = await Trait.findById(trait);
+    newTraits.push(fetchTrait);
+  }
+
+  res.status(200).send({
+    id: serie._id,
+    trait: newTraits,
+  });
+};
+
+// remove serie trait
+exports.removeSerieTrait = async (req, res) => {
+  const id = req.params.id;
+
+  const userId = req.userId;
+
+  const serie = await Serie.findById(id);
+
+  if (!serie) {
+    return res.status(404).send({
+      message: 'Serie not found id ' + id,
+    });
+  }
+
+  const isAdmin = await userIsAdmin(userId);
+
+  // check if serie.artists array contains userId
+  if (!serie.artists.includes(userId) && !isAdmin) {
+    return res.status(401).send({
+      message: 'Unauthorized',
+    });
+  }
+
+  const traitId = req.body.traitId;
+
+  const traitIndex = serie.trait.indexOf(traitId);
+
+  if (traitIndex === -1) {
+    return res.status(404).send({
+      message: 'Trait not found id ' + traitId,
+    });
+  }
+
+  serie.trait.splice(traitIndex, 1);
 
   await serie.save();
 
   res.status(200).send({
     id: serie._id,
-    trait: serie.trait,
+    traitId: traitId,
   });
 };
   
@@ -2086,14 +2190,17 @@ exports.updateSerieCategory = async (req, res) => {
     });
   }
 
+  const isAdmin = await userIsAdmin(userId);
+
   // check if serie.artists array contains userId
-  if (!serie.artists.includes(userId)) {
+  if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: 'Unauthorized',
     });
   }
   const categories = [];
   const categoryArray = req.body.category;
+  const newCategories = [];
 
   for (const cat of categoryArray) {
 
@@ -2113,13 +2220,63 @@ exports.updateSerieCategory = async (req, res) => {
     }
   }
 
-  serie.category = categories;
+  serie.category.push(...categories);
 
   await serie.save();
 
+  for (const cat of categories) {
+    const fetchCategory = await Category.findById(cat);
+    newCategories.push(fetchCategory);
+  }
+
   res.status(200).send({
     id: serie._id,
-    category: serie.category,
+    categories: newCategories,
+  });
+};
+
+// removeSerieCategory
+exports.removeSerieCategory = async (req, res) => {
+  const id = req.params.id;
+
+  const userId = req.userId;
+
+  const serie = await Serie.findById(id);
+
+  if (!serie) {
+    return res.status(404).send({
+      message: 'Serie not found id ' + id,
+    });
+  }
+
+  const isAdmin = await userIsAdmin(userId);
+
+  // check if serie.artists array contains userId
+  if (!serie.artists.includes(userId) && !isAdmin) {
+    return res.status(401).send({
+      message: 'Unauthorized',
+    });
+  }
+
+  const categoryId = req.body.categoryId;
+
+  const categoryIndex = serie.category.indexOf(categoryId);
+
+  if (categoryIndex === -1) {
+    return res.status(404).send({
+      message: 'Category not found id ' + categoryId,
+    });
+  }
+
+  serie.category.splice(categoryIndex, 1);
+
+  await serie.save();
+
+
+
+  res.status(200).send({
+    id: serie._id,
+    categoryId: categoryId,
   });
 };
 
@@ -2138,8 +2295,10 @@ exports.updateSeriePrice = async (req, res) => {
     });
   }
 
+  const isAdmin = await userIsAdmin(userId);
+
   // check if serie.artists array contains userId
-  if (!serie.artists.includes(userId)) {
+  if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: 'Unauthorized',
     });
@@ -2169,8 +2328,10 @@ exports.updateSeriePriceUSD = async (req, res) => {
     });
   }
 
+  const isAdmin = await userIsAdmin(userId);
+
   // check if serie.artists array contains userId
-  if (!serie.artists.includes(userId)) {
+  if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: 'Unauthorized',
     });
@@ -2200,8 +2361,10 @@ exports.updateSerieRoyalty = async (req, res) => {
     });
   }
 
+  const isAdmin = await userIsAdmin(userId);
+
   // check if serie.artists array contains userId
-  if (!serie.artists.includes(userId)) {
+  if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: 'Unauthorized',
     });
@@ -2214,6 +2377,61 @@ exports.updateSerieRoyalty = async (req, res) => {
   res.status(200).send({
     id: serie._id,
     royalty: serie.royalty,
+  });
+};
+
+// updateSerieVolume
+exports.updateSerieVolume = async (req, res) => {
+  const id = req.params.id;
+
+
+
+  const serie = await Serie.findById(id);
+
+  if (!serie) {
+    return res.status(404).send({
+      message: 'Serie not found id ' + id,
+    });
+  }
+
+  
+
+  serie.volume = req.body.volume;
+
+  await serie.save();
+
+  res.status(200).send({
+    id: serie._id,
+    volume: serie.volume,
+  });
+};
+
+// updateSerieSupply
+exports.updateSerieSupply = async (req, res) => {
+  const id = req.params.id;
+
+  const serie = await Serie.findById(id);
+
+  if (!serie) {
+    return res.status(404).send({
+      message: 'Serie not found id ' + id,
+    });
+  }
+
+  if (serie.supply > 0 && req.body.supply > serie.totalSupply) {
+    return res.status(404).send({
+      message: 'Supply cannot be greater than ' +
+        serie.totalSupply,
+    });
+  }
+
+  serie.supply = req.body.supply;
+
+  await serie.save();
+
+  res.status(200).send({
+    id: serie._id,
+    supply: serie.supply,
   });
 };
 
@@ -2231,8 +2449,10 @@ exports.updateSerieTotalSupply = async (req, res) => {
     });
   }
 
+  const isAdmin = await userIsAdmin(userId);
+
   // check if serie.artists array contains userId
-  if (!serie.artists.includes(userId)) {
+  if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: 'Unauthorized',
     });
@@ -2378,7 +2598,7 @@ const userIsAdmin = async (userId) => {
     });
   };
   */
-
+/*
 exports.likeSerie = (req, res) => {
   Serie.findById(req.params.id)
     .then((serie) => {
@@ -2420,6 +2640,49 @@ exports.likeSerie = (req, res) => {
         message: 'Error liking Serie',
       });
     });
+};
+*/
+
+exports.likeSerie = async (req, res) => {
+  const id = req.params.id;
+  let serie;
+
+  serie = await Serie.findById(id);
+
+  if (!serie) {
+    return res.status(404).send({
+      message: 'Serie not found id ' + id,
+    });
+  }
+
+  const like = serie.like;
+  let likes = serie.likes;
+  const userId = req.userId;
+
+  if (like.includes(userId)) {
+    const index = like.findIndex((user) => user == userId);
+    if (index > -1) {
+      like.splice(index, 1);
+      if (likes > 0) likes -= 1;
+    }
+  } else {
+    like.push(userId);
+    likes += 1;
+  }
+
+  serie.like = like;
+  serie.likes = likes;
+  serie.rank += 5;
+  await serie.save();
+
+  serie = await Serie.findById(id)
+    .populate('like', 'username _id imageUrl slug');
+
+  res.status(200).send({
+    id: serie._id,
+    like: serie.like,
+    likes: serie.likes,
+  });
 };
 
 // total number of collections
