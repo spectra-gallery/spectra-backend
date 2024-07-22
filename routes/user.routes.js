@@ -158,6 +158,9 @@ module.exports = function(app) {
   // grant application
   app.post('/api/user/apply/grant/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId], controller.grantApplication);
 
+  // denyApplication
+  app.post('/api/user/apply/deny/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId], controller.denyApplication);
+
   // getApplications
   app.get('/api/user/applications', [authJwt.verifyToken], controller.getApplications);
 
@@ -176,6 +179,9 @@ module.exports = function(app) {
 
   // remove apply
   app.delete('/api/user/apply/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId], controller.removeApply);
+
+  // adminRemoveApplication
+  app.delete('/api/user/removeapply/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId], controller.adminRemoveApplication);
 
   app.delete('/api/user/comment/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.deleteComment);
 

@@ -26,6 +26,9 @@ const bcrypt = require('bcryptjs');
 
 const crypto = require('crypto');
 
+const { TezosToolkit } = require('@taquito/taquito');
+const { verifySignature } = require('@taquito/utils');
+
 const CLIENT_URL = process.env.CLIENT_URL;
 // const BASE_URL = process.env.BASE_URL;
 
@@ -280,19 +283,7 @@ exports.web3Login = async (req, res) => {
       for (let i = 0; i < user.role.length; i++) {
         authorities.push("ROLE_" + user.role[i].name.toUpperCase());
       }
-      /*
-      res.status(200).send({
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        imageUrl: user.imageUrl,
-        role: authorities,
-        accessToken: token,
-        refreshToken: refreshToken,
-        address: user.address
-      });
-      */
-
+    
       res.status(200).send({
         id: user._id,
         accessToken: token,
@@ -525,6 +516,101 @@ exports.refreshToken = async (req, res) => {
   }
 };
 
+// generateChallenge
+exports.generateChallenge = async (req, res) => {
+
+  const challenge = crypto.randomBytes(32).toString('hex');
+
+  res.status(200).send({
+    challenge: challenge,
+  });
+};
+
+exports.tezosSignUp = async (req, res) => {
+  const address = req.body.address;
+
+  const username = Math.random().toString(36).substring(7);
+
+  const chain = new Chain({
+    name: 'tezos',
+    address: address
+  });
+
+  const chainId = chain._id;
+
+  const user = new User({
+    address: address,
+    username: username,
+    email: "",
+    password: "",
+    imageUrl: "",
+    chain: [chainId],
+  });
+
+  const role = await Role.findOne({ name: 'user' });
+  user.role = [role._id];
+
+  user.save((err, user) => {
+    if (err) {
+      res.status(500).send({ message: err });
+      return res.status(200).send(false);
+    }
+
+    // return true if user is created
+    res.status(200).send(true);
+  });
+
+};
+
+// verifySignature
+exports.verifyTezosSignature = async (req, res) => {
+  const challenge = req.body.challenge;
+  const signature = req.body.signature;
+  const publicKey = req.body.publicKey;
+
+  const address = req.body.address;
+
+  const user = await User.findOne({
+    address: address
+  });
+
+  try {
+    const isValid = verifySignature(challenge, signature, publicKey);
+
+    if (isValid) {
+      var token = jwt.sign({
+        id: user._id,
+        address: user.address
+      }, config.secret, {
+        expiresIn: config.jwtExpiration, // 24 hours
+      });
+      
+      let refreshToken = await RefreshToken.createToken(user);
+
+      var authorities = [];
+
+      for (let i = 0; i < user.role.length; i++) {
+        authorities.push("ROLE_" + user.role[i].name.toUpperCase());
+      }
+    
+      res.status(200).send({
+        id: user._id,
+        accessToken: token,
+        refreshToken: refreshToken,
+        role: authorities,
+      });
+    } else {
+      res.status(401).send({
+        message: 'Invalid Signature'
+      });
+    }
+  } catch (err) {
+    res.status(500).send({
+      message: err
+    })
+  }
+
+};
 exports.editProfile = (req, res) => {
   if (!req.body.username) {
     return res.status(400).send({
