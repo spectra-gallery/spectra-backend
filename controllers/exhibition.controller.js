@@ -715,6 +715,43 @@ exports.likeExhibition = async (req, res) => {
 
 }
 
+// likedExhibitionsByUserId
+exports.likedExhibitionsByUserId = async (req, res) => {
+  const id = req.params.id;
+
+  const number = req.query.number;
+
+  const exhibitions = await Exhibition.find({ like: id })
+    .limit(parseInt(number))
+    .populate({ path: 'like', select: '_id slug username imageUrl' })
+    .populate({ path: 'media', select: '_id url ratio type' })
+    .exec();
+
+  if (!exhibitions) {
+    return res.status(404).send({
+      message: 'Exhibitions not found',
+    });
+  }
+
+  const exhibitionsArray = [];
+
+  for (const exhibition of exhibitions) {
+    exhibitionsArray.push({
+      id: exhibition._id,
+      slug: exhibition.slug,
+      name: exhibition.name,
+      media: exhibition.media,
+      opening: exhibition.opening,
+      closing: exhibition.closing,
+    });
+  }
+
+  res.status(200).send({
+    exhibitions: exhibitionsArray,
+  });
+
+}
+
 exports.fetchPalette = () => {
   const promise = new Promise((resolve, reject) => {
     Palette.find({}).exec((err, colors) => {

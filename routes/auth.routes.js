@@ -91,6 +91,15 @@ module.exports = function(app) {
   });
 
   /* ------------------ */
+  /* ----- Tezos Login ----- */
+
+  // generate challenge
+  app.get('/api/auth/tezos/challenge', [authJwt.verifySession], controller.generateChallenge);
+
+  // verify signature
+  app.post('/api/auth/tezos/verify', [authJwt.verifySession], controller.verifyTezosSignature);
+
+  /* ------------------ */
   /* ----- NOT SAFE ----- */
   // registerNewUser
   app.post('/api/auth/createuser', controller.registerNewUser);

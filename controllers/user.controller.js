@@ -158,7 +158,7 @@ exports.fetchArtists = (req, res) => {
             },
             select: 'content author date',
           }) */
-          .populate('like', 'username _id imageUrl')
+        .populate('like', 'username _id imageUrl')
         .populate('role', '-__v').exec((err, user) => {
           const userObj = [];
           for (const usr of user) {
@@ -220,7 +220,7 @@ exports.fetchArtistById = (req, res) => {
             ],
             select: 'content author date discord',
           })
-          .populate('section', '-__v')
+          
           .populate('twitter', '-__v')
           .populate('discord', '-__v')
           .populate('role', '-__v')
@@ -291,7 +291,7 @@ exports.fetchArtistById = (req, res) => {
           ],
           select: 'content author date discord',
         })
-        .populate('section', '-__v')
+
         .populate('twitter', '-__v')
         .populate('discord', '-__v')
         .populate('like', 'username _id imageUrl')
@@ -305,8 +305,7 @@ exports.fetchArtistById = (req, res) => {
             id: user._id,
             username: user.username,
             slug: user.slug,
-            cardinalAddress: user.cardinalAddress,
-            ordinalAddress: user.ordinalAddress,
+            address: user.address,
             bannerUrl: user.bannerUrl,
             imageUrl: user.imageUrl,
             role: user.role,
@@ -318,13 +317,11 @@ exports.fetchArtistById = (req, res) => {
             discord: user.discord,
             whitelisted: user.whitelisted,
             verified: user.verified,
+            creator: user.creator,
             applied: user.applied,
-            trendingIndex: user.trendingIndex,
-            featured: user.featured,
             date: user.date,
-            section: user.section,
-            comments: user.comments,
-            channelId: user.channelId,
+            mediums: user.mediums,
+            chains: user.chains,
             like: user.like,
             likes: user.likes,
           };
@@ -355,7 +352,7 @@ exports.fetchUserById = (req, res) => {
         ],
         select: 'content author date discord',
       }) */
-      // .populate('section', '-__v')
+      // 
       .populate('twitter', '-__v')
       .populate('discord', '-__v')
       .populate('mediums', '-__v')
@@ -421,7 +418,7 @@ exports.fetchArtistByOrdinalAddress = (req, res) => {
           },
           select: 'content author date discord',
         })
-        .populate('section', '-__v')
+
         .populate('role', '-__v').exec((err, user) => {
           if (!user) {
             return resolve({});
@@ -490,7 +487,7 @@ exports.fetchArtistBySerie = (req, res) => {
             },
             select: 'content author date',
           }) */
-        // .populate('section', '-__v')
+        // 
         // .populate('role', '-__v')
         .populate('like', 'username _id imageUrl')
         .exec((err, user) => {
@@ -1200,9 +1197,33 @@ exports.getApplications = async (req, res) => {
 exports.getCreatorApplications = async (req, res) => {
   // get granted false applications
   const applications = await Apply.find({})
-    .populate('grantedBy', 'username _id imageUrl');
+    .populate('grantedBy', 'username _id imageUrl')
+    .populate('user', 'username _id imageUrl');
 
-  res.status(200).send(applications);
+  if (!applications) {
+    return res.status(404).send({
+      message: 'Applications not found',
+    });
+  }
+
+  const applicationsArray = [];
+
+  for (const application of applications) {
+    applicationsArray.push({
+      id: application._id,
+      type: application.type,
+      about: application.about,
+      links: application.links,
+      user: application.user,
+      granted: application.granted,
+      grantedBy: application.grantedBy,
+      status: application.status,
+    });
+  }
+
+  res.status(200).send({
+    applications: applicationsArray,
+  });
 };
 
 // grant application
@@ -1211,11 +1232,17 @@ exports.grantApplication = async (req, res) => {
 
   const userId = req.userId;
 
-  const roleId = req.body.role;
-
-  const apply = await Apply.findOne({
-    _id: id,
+  const role = await Role.findOne({
+    name: 'creator',
   });
+
+  const roleId = role._id;
+  let apply;
+
+  apply = await Apply.findOne({
+    _id: id,
+  })
+    .populate('user', 'username _id imageUrl');
 
   if (!apply) {
     return res.status(404).send({
@@ -1224,7 +1251,7 @@ exports.grantApplication = async (req, res) => {
   }
 
   const user = await User.findOne({
-    _id: apply.id,
+    _id: apply.user._id,
   });
 
   if (!user) {
@@ -1246,13 +1273,16 @@ exports.grantApplication = async (req, res) => {
   }
 
   user.role.push(roleId);
+  user.creator = true;
   user.whitelisted = true;
   await user.save();
 
   apply.granted = true;
   apply.grantedBy = userId;
+  apply.status = 'granted';
   await apply.save();
 
+  /*
   const mailAddress = 'info@function.gallery';
 
   const options = mail.getMailOptions(mailAddress, apply, 'apply_granted');
@@ -1264,9 +1294,100 @@ exports.grantApplication = async (req, res) => {
       // console.log(info);
     }
   });
+  */
+
+  apply = await Apply.findOne({
+    _id: id,
+  })
+    .populate('grantedBy', 'username _id imageUrl');
+
 
   res.status(200).send({
     id: apply._id,
+    granted: apply.granted,
+    grantedBy: apply.grantedBy,
+    status: apply.status,
+  });
+};
+
+// deny application
+exports.denyApplication = async (req, res) => {
+  const id = req.params.id;
+
+  let apply;
+
+  apply = await Apply.findOne({
+    _id: id,
+  })
+    .populate('user', 'username _id imageUrl');
+
+  if (!apply) {
+    return res.status(404).send({
+      message: 'Application not found',
+    });
+  }
+
+  const user = await User.findOne({
+    _id: apply.user._id,
+  });
+
+  if (!user) {
+    return res.status(404).send({
+      message: 'User not found',
+    });
+  }
+
+  const role = await Role.findOne({
+    name: 'creator',
+  });
+
+  const roleId = role._id;
+
+  if (user.role.includes(roleId)) {
+    user.role.pull(roleId);
+  }
+
+  user.whitelisted = false;
+  user.creator = false;
+  await user.save();
+
+  apply.granted = false;
+  apply.status = 'denied';
+
+  await apply.save();
+
+  apply = await Apply.findOne({
+    _id: id,
+  })
+    .populate('grantedBy', 'username _id imageUrl');
+
+  res.status(200).send({
+    id: apply._id,
+    granted: apply.granted,
+    grantedBy: apply.grantedBy,
+    status: apply.status,
+  });
+};
+
+// admin remove application
+exports.adminRemoveApplication = async (req, res) => {
+  const id = req.params.id;
+
+  const apply = await Apply.findOne({
+    _id: id,
+  });
+
+  if (!apply) {
+    return res.status(404).send({
+      message: 'Application not found',
+    });
+  }
+
+  await apply.remove();
+
+  res.status(200).send({
+    id: id,
+    message: 'Application removed',
   });
 };
 
@@ -1296,7 +1417,7 @@ exports.fetchSections = (req, res) => {
     User.find({
       _id: req.params.id,
     })
-      .populate('section', '-__v')
+
       .exec((err, user) => {
         if (err) {
           reject(err);

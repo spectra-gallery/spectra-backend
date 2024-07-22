@@ -75,6 +75,9 @@ module.exports = function(app) {
   // likeExhibition
   app.post('/api/exhibition/like/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.likeExhibition);
 
+  // likedExhibitionsByUserId
+  app.get('/api/exhibition/liked/:id', [authJwt.verifySession, objectId.isValidObjectId], controller.likedExhibitionsByUserId);
+
   // remove Serie
   app.delete('/api/exhibition/serie/remove/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.removeSerie);
 

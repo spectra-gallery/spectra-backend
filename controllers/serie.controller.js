@@ -2706,15 +2706,15 @@ exports.numberOfLikedSeries = async (req, res) => {
 exports.fetchLikedSeries = (req, res) => {
   const id = req.params.id;
   const number = req.query.number;
-
   const promise = new Promise((resolve, reject) => {
     Serie.find({
+      // look for user id in like array
       like: id,
     })
       .limit(parseInt(number))
       .populate('artists', 'username _id imageUrl slug')
       .populate('category', '-__v')
-      .populate('whitelist', '-__v')
+      // .populate('whitelist', '-__v')
       // .populate("like", "username _id imageUrl slug")
       .exec((err, serie) => {
         if (!serie) {
