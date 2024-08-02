@@ -13,11 +13,22 @@ const Session = db.session;
 const RefreshToken = db.refreshToken;
 const Auth = db.auth;
 const Chain = db.chain;
+const Bitcoin = db.bitcoin;
 
 const bitcoin = require('bitcoinjs-lib');
 const ecc = require('tiny-secp256k1');
 
+const mainnet = bitcoin.networks.bitcoin;
+
 bitcoin.initEccLib(ecc);
+
+const bitcoinMessage = require('bitcoinjs-message');
+
+const {verifyMessage} = require('@unisat/wallet-utils');
+
+const {Verifier} = require('bip322-js');
+
+const walletController = require('./wallet.controller');
 
 var ethUtil = require('ethereumjs-util');
 
@@ -51,6 +62,7 @@ exports.validateToken = (req, res) => {
 exports.getUserData = (req, res) => {
   User.findById(req.userId)
     .populate('role', '-__v')
+    .populate('bitcoin', '_id cardinalAddress ordinalAddress')
     .populate('section', '-__v')
     .populate('twitter', '-__v')
     .populate('discord', '-__v')
@@ -77,6 +89,7 @@ exports.getUserData = (req, res) => {
         email: user.email,
         address: user.address,
         role: authorities,
+        bitcoin: user.bitcoin,
         imageUrl: user.imageUrl,
         website: user.website,
         headline: user.headline,
@@ -225,6 +238,31 @@ exports.getNonce = async (req, res) => {
 
     address: req.params.address
   })
+
+  if (user) {
+    res.status(200).send({
+      nonce: user.nonce
+    });
+  } else {
+    res.status(200).send(false);
+  }
+}
+
+exports.getBtcNonce = async (req, res) => {
+
+  const bitcoin = await Bitcoin.findOne({
+    cardinalAddress: req.params.address,
+  });
+
+  if (!bitcoin) {
+    return res.status(404).send({
+      message: 'Address not found',
+    });
+  }
+
+  const user = await User.findOne({
+    bitcoin: bitcoin._id,
+  });
 
   if (user) {
     res.status(200).send({
@@ -611,6 +649,240 @@ exports.verifyTezosSignature = async (req, res) => {
   }
 
 };
+
+exports.bitcoinLogin = async (req, res) => {
+  const address = req.body.cardinalAddress;
+  const signature = req.body.signature;
+  const publicKey = req.body.publicKey;
+  const wallet = req.body.wallet;
+
+  const bitcoin = await Bitcoin.findOne({
+    cardinalAddress: address,
+  });
+
+  if (!bitcoin) {
+    // no address found
+    return res.status(404).send({
+      message: 'Address not found',
+    });
+  }
+
+  // get user from database
+  const user = await User.findOne({
+    bitcoin: bitcoin._id,
+  })
+  .populate("role", "-__v");
+
+
+  if (user) {
+    const message = 'Login to Spectra Gallery. \n nonce: ' +
+    user.nonce + '\n address: ' + bitcoin.cardinalAddress;
+
+    // hash message
+
+    let valid = false;
+
+    // get address type
+    const isP2SHAddress = walletController.isP2SHAddress(address, mainnet);
+    const isBech32Address = walletController.isBech32(address);
+
+    if (wallet === 'xverse') {
+      if (isP2SHAddress) {
+        valid = bitcoinMessage.verify(message, address, signature);
+      } else if (isBech32Address) {
+        valid = Verifier.verifySignature(address, message, signature);
+      }
+    } else if (wallet === 'hiro') {
+      // verify BIP-322 messages
+      valid = Verifier.verifySignature(address, message, signature);
+    } else if (wallet === 'unisat') {
+      valid = verifyMessage(publicKey, message, signature);
+    }
+
+    if (valid) {
+      // Change user nonce
+      user.nonce = Math.floor(Math.random() * 1000000);
+      user.lastLogin = new Date().toISOString();
+      await user.save();
+
+      const token = jwt.sign({
+        id: user._id,
+        address: user.cardinalAddress,
+      }, config.secret, {
+        expiresIn: config.jwtExpiration, // 24 hours
+      });
+
+      const refreshToken = await RefreshToken.createToken(user);
+
+      var authorities = [];
+
+      for (let i = 0; i < user.role.length; i++) {
+        authorities.push("ROLE_" + user.role[i].name.toUpperCase());
+      }
+
+      res.status(200).send({
+        id: user._id,
+        accessToken: token,
+        refreshToken: refreshToken,
+        role: authorities,
+      });
+    } else {
+      // User is not authenticated
+      res.status(401).send({
+        message: 'Invalid signature',
+      });
+    }
+  } else {
+    res.send({
+      message: 'User does not exist',
+    });
+  }
+};
+
+exports.isBitcoinRegistered = async (req, res) => {
+ 
+  const bitcoin = await Bitcoin.findOne({
+    cardinalAddress: req.params.address,
+  });
+
+  if (!bitcoin) {
+    return res.status(200).send({
+      registered: false,
+    });
+  }
+
+  const user = await User.findOne({
+    bitcoin: bitcoin._id,
+  });
+
+  if (user) {
+    res.status(200).send({
+      registered: true,
+    });
+  } else {
+    res.status(200).send({
+      registered: false,
+    });
+  }
+};
+
+exports.registerBitcoin = async (req, res) => {
+  // create new user with address
+
+  // generate a random username
+  const username = Math.random().toString(36).substring(7);
+
+  const slug = username.toLowerCase().replace(/ /g, '-');
+
+  const bitcoin = new Bitcoin({
+    cardinalAddress: req.body.cardinalAddress,
+    ordinalAddress: req.body.ordinalAddress,
+    cardinalPublicKey: req.body.cardinalPublicKey,
+    ordinalPublicKey: req.body.ordinalPublicKey,
+  });
+
+  await bitcoin.save();
+
+  const user = new User({
+    bitcoin: bitcoin._id,
+    username: username,
+    slug: slug,
+    email: '',
+    password: '',
+    imageUrl: '',
+  });
+
+
+  const role = await Role.findOne({name: 'user'});
+  user.role = [role._id];
+
+  user.save((err, user) => {
+    if (err) {
+      return res.status(200).send({
+        registered: false,
+      });
+    }
+
+    // return true if user is created
+    res.status(200).send({
+      registered: true,
+    });
+
+    // sendMail('pmosi76@gmail.com', user, 'newUser');
+  });
+};
+
+exports.connectBitcoinAddress = async (req, res) => {
+  const userId = req.userId;
+
+  const bitcoin = await Bitcoin.findOne({
+    cardinalAddress: req.body.cardinalAddress,
+  });
+
+  if (bitcoin) {
+    return res.status(400).send({
+      message: 'Address already exists',
+    });
+  }
+  const newBitcoin = new Bitcoin({
+    cardinalAddress: req.body.cardinalAddress,
+    ordinalAddress: req.body.ordinalAddress,
+    cardinalPublicKey: req.body.cardinalPublicKey,
+    ordinalPublicKey: req.body.ordinalPublicKey,
+  });
+
+  await newBitcoin.save();
+
+  const user = await User.findById(userId);
+
+  if (!user) {
+    return res.status(404).send({
+      message: 'User not found',
+    });
+  }
+
+  user.bitcoin = newBitcoin._id;
+  
+  await user.save();
+
+
+  res.status(200).send({
+    id: user._id,
+    bitcoin: newBitcoin,
+  });
+};
+
+exports.removeBtcAddress = async (req, res) => {
+  const userId = req.userId;
+
+  const user = await User.findById(userId);
+
+  if (!user) {
+    return res.status(404).send({
+      message: 'User not found',
+    });
+  }
+
+  if (!user.address && user.email === '') {
+    return res.status(404).send({
+      message: 'User has no address',
+    });
+  }
+
+  const bitcoin = await Bitcoin.findById(user.bitcoin);
+
+  await bitcoin.remove();
+
+  user.bitcoin = null;
+
+  await user.save();
+
+  res.status(200).send({
+    removed: true,
+  });
+};
+
+
 exports.editProfile = (req, res) => {
   if (!req.body.username) {
     return res.status(400).send({
@@ -897,6 +1169,12 @@ exports.removeAddress = async (req, res) => {
     });
   }
 
+  if (!user.bitcoin && user.email === '') {
+    return res.status(404).send({
+      message: 'User has no address',
+    });
+  }
+
   user.address = '';
 
   await user.save();
@@ -1015,7 +1293,7 @@ exports.loginWithPassword = async (req, res) => {
     role: authorities,
   });
 
-  // sendMail('info@function.gallery', user, 'adminLogin');
+  // sendMail('pmosi76@gmail.com', user, 'adminLogin');
 };
 
 exports.adminEditUser = (req, res) => {

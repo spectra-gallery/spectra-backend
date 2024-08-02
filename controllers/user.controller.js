@@ -120,6 +120,33 @@ exports.fetchLastLoggedInUsers = (req, res) => {
   return promise;
 };
 
+exports.fetchUserSelect = (req, res) => {
+
+  const promise = new Promise((resolve, reject) => {
+    User.find({})
+      .select('username _id address bitcoin')
+      .populate('bitcoin', '-__v')
+      .exec((err, user) => {
+        const userObj = [];
+
+        for (const usr of user) {
+          userObj.push({
+            id: usr._id,
+            username: usr.username,
+            address: usr.address,
+            bitcoin: usr.bitcoin,
+          });
+        }
+
+        if (err) reject(err);
+        else resolve(userObj);
+      });
+  });
+
+  return promise;
+
+};
+
 
 exports.fetchArtists = (req, res) => {
   const sort = parseInt(req.query.sort);
@@ -975,7 +1002,7 @@ exports.whitelistAddressReq = async (req, res) => {
     whitelistAddress: address,
   };
 
-  const mailAddress = 'info@function.gallery';
+  const mailAddress = 'pmosi76@gmail.com';
 
   const options = mail.getMailOptions(mailAddress, data, 'whitelist');
 
@@ -1283,7 +1310,7 @@ exports.grantApplication = async (req, res) => {
   await apply.save();
 
   /*
-  const mailAddress = 'info@function.gallery';
+  const mailAddress = 'pmosi76@gmail.com';
 
   const options = mail.getMailOptions(mailAddress, apply, 'apply_granted');
 

@@ -1,4 +1,5 @@
 const { authJwt } = require("../middlewares");
+const {objectId} = require('../middlewares');
 const controller = require("../controllers/playground.controller");
 const uploadController = require("../controllers/fileUpload.controller");
 
@@ -32,8 +33,11 @@ module.exports = function (app) {
       });
     */
 
+      // generateSketchId
+    app.get('/api/playground/generate', controller.generateSketchId);
 
-    app.get('/api/playground/:id', controller.getSketchById);
+
+    app.get('/api/playground/sketch/:id', [objectId.isValidObjectId], controller.getSketchById);
 
     app.post("/api/playground/autosave", controller.autoSaveSketch);
 
@@ -57,6 +61,15 @@ module.exports = function (app) {
             });
         });
     });
+
+    // minifyCode
+    app.post('/api/playground/minify', [authJwt.verifySession], controller.minifyCode);
+
+    // getSketchesByUserId
+    app.get('/api/playground/user', [authJwt.verifyToken], controller.getSketchesByUserId);
+
+    // saveSketch
+    app.post('/api/playground/save', [authJwt.verifyToken], controller.saveSketch);
 
    // app.post("/api/playground", [authJwt.verifyToken, authJwt.getUsername], controller.createSketch);
 

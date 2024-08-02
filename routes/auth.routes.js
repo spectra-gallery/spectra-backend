@@ -78,6 +78,20 @@ module.exports = function(app) {
   // web3 login
   app.post("/api/auth/web3/login", controller.web3Login);
 
+  app.get('/api/auth/bitcoin/register/:address', controller.isBitcoinRegistered);
+
+  app.post('/api/auth/bitcoin', controller.registerBitcoin);
+
+   // bitcoin login
+   app.post('/api/auth/bitcoin/login', controller.bitcoinLogin);
+
+   // connectBitcoinAddress
+    app.post('/api/auth/bitcoin/connect', [authJwt.verifyToken], controller.connectBitcoinAddress);
+
+    // removeBtcAddress
+    app.delete('/api/auth/bitcoin/remove', [authJwt.verifyToken], controller.removeBtcAddress);
+
+
   // get user data
   app.get('/api/auth/user', [authJwt.verifyToken], controller.getUserData);
 
@@ -106,6 +120,8 @@ module.exports = function(app) {
 
   // get nonce for web3
   app.get('/api/auth/web3/nonce/:address', controller.getNonce);
+
+  app.get('/api/auth/bitcoin/nonce/:address', controller.getBtcNonce);
 
   app.get('/api/auth/verify/:token', controller.verify);
 

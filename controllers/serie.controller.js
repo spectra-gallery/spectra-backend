@@ -122,13 +122,15 @@ exports.fetchSeries = (req, res) => {
             rank: coll.rank,
             date: coll.date,
             modified: coll.modified,
+            reviewed: coll.reviewed,
+            published: coll.published,
             // featured: coll.featured,
             like: coll.like,
           });
         }
         if (err) reject(err);
         else {
-    
+
           resolve(collectionObj);
         }
       });
@@ -188,7 +190,7 @@ exports.fetchAllSeriesByNumber = (req, res) => {
       .populate('artists', 'username _id imageUrl slug')
       .populate('category', '-__v')
       .populate('media', '_id url ratio type')
-      // .populate('whitelist', '-__v')
+      .populate('whitelist', '-__v')
       // .populate('sketch', '_id hash url sizeBytes')
       .populate("like", "username _id imageUrl slug")
       .exec((err, collections) => {
@@ -219,6 +221,8 @@ exports.fetchAllSeriesByNumber = (req, res) => {
             media: coll.media,
             likes: coll.likes,
             date: coll.date,
+            reviewed: coll.reviewed,
+            published: coll.published,
             // featured: coll.featured,
             like: coll.like,
             whitelist: coll.whitelist
@@ -259,11 +263,12 @@ exports.fetchSerieById = (req, res) => {
     Serie.findById(id)
       .populate('artists', 'username _id imageUrl slug')
       .populate('category', '-__v')
-      .populate('sketch', '_id hash url sizeBytes')
+      .populate('sketch', '_id html css javascript hash url sizeBytes')
       .populate('media', '_id url ratio type')
       .populate('trait', '_id trait_type value')
-      // .populate('whitelist', '-__v')
+      .populate('whitelist', '-__v')
       .populate("like", "username _id imageUrl slug")
+      .populate('chain', '-__v')
       .exec((err, serie) => {
         if (!serie) {
           return resolve({});
@@ -302,12 +307,15 @@ exports.fetchSerieById = (req, res) => {
           volume: serie._doc.volume,
           date: serie._doc.date,
           modified: serie._doc.modified,
+          reviewed: serie._doc.reviewed,
+          published: serie._doc.published,
           category: serie._doc.category,
           link: serie._doc.link,
           whitelist: serie._doc.whitelist,
         };
         if (err) reject(err);
         else {
+  
           resolve(data);
         }
       });
@@ -433,6 +441,30 @@ exports.generateSketch = async (req, res) => {
   });
 };
 
+// assignSketchUrl
+exports.assignSketchUrl = async (req, res) => {
+  const id = req.body.id;
+
+  const url = req.body.fileUrl;
+
+  const sketch = await Sketch.findById(id);
+
+  if (!sketch) {
+    return res.status(404).send({
+      message: 'Sketch not found id ' + id,
+    });
+  }
+
+  sketch.url = url;
+
+  await sketch.save();
+
+  res.status(200).send({
+    id: sketch._id,
+    url: sketch.url,
+  });
+};
+
 exports.createSerie = async (req, res) => {
   if (!req.body.name || !req.body.description) {
     return res.status(400).send({
@@ -499,15 +531,21 @@ exports.createSerie = async (req, res) => {
           return sketch.save();
         }
       })
-      .then((sketch) => {
+      .then(async (sketch) => {
         const slug = req.body.name.toLowerCase().replace(/ /g, '-');
 
-        const whitelistIds = req.body.whitelisted.map((wh) => {
-          return new Whitelist({
-            address: wh.address,
-            value: Math.floor(wh.value * Math.pow(10, 8)),
-          }).save()._id;
-        });
+        const whitelistIds = await Promise.all(
+          req.body.whitelisted.map(async (wh) => {
+            const newWhitelist = new Whitelist({
+              chain: chainId,
+              address: wh.address,
+              value: Math.floor(wh.value * Math.pow(10, 8)),
+              spot: wh.spot,
+            });
+            const savedWhitelist = await newWhitelist.save();
+            return savedWhitelist._id;
+          })
+        );
 
 
         new Serie({
@@ -569,7 +607,7 @@ exports.createSerie = async (req, res) => {
               slug: serie.slug,
             });
             /*
-            const emailTo = user.email || 'info@function.gallery';
+            const emailTo = user.email || 'pmosi76@gmail.com';
 
             sendMail(emailTo, serie, 'content');
 
@@ -598,12 +636,18 @@ exports.createSerie = async (req, res) => {
   } else if (serieType === 'mixmedia') {
     const slug = req.body.name.toLowerCase().replace(/ /g, '-');
 
-    const whitelistIds = req.body.whitelisted.map((wh) => {
-      return new Whitelist({
-        address: wh.address,
-        value: Math.floor(wh.value * Math.pow(10, 8)),
-      }).save()._id;
-    });
+    const whitelistIds = await Promise.all(
+      req.body.whitelisted.map(async (wh) => {
+        const newWhitelist = new Whitelist({
+          chain: chainId,
+          address: wh.address,
+          value: Math.floor(wh.value * Math.pow(10, 8)),
+          spot: wh.spot,
+        });
+        const savedWhitelist = await newWhitelist.save();
+        return savedWhitelist._id;
+      })
+    );
 
 
     const serie = new Serie({
@@ -687,120 +731,142 @@ function sendMail(to, data, type) {
   });
 }
 
+// parse sketch
+exports.parseSketch = async (req, res) => {
 
-exports.createUserSerie = (req, res) => {
-  if (!req.body.name || !req.body.description) {
-    return res.status(400).send({
-      message: 'Fields cannot be empty',
-    });
-  }
-  // const loggedInUser = loginController.getLoggedInUserObject(req, res);
-  const sketchId = req.body.sketch.id;
+  const htmlContent = req.body.htmlContent;
+  const hash = req.body.hash;
+
+  const hashedContent = generateIframe(htmlContent, hash);
+
+  res.status(200).send({
+    htmlContent: hashedContent,
+  });
+};
+
+const generateIframe = (htmlContent, hash) => {
+
+  const hashFunction = `let injectSeed = "${hash}";`
+
+  htmlContent = htmlContent.replace('___FIDDLER__HASH___', hashFunction)
+
+  return htmlContent
+};
 
 
-  // get sketch by id
-  Sketch.findById(sketchId)
-    .then((sketch) => {
-      if (!sketch) {
-        return res.status(404).send({
-          message: 'Sketch not found id ' + sketchId,
-        });
-      }
-
-      sketch.hash = req.body.sketch.hash;
-      sketch.save();
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
-        return res.status(404).send({
-          message: 'Sketch not found id ' + sketchId,
-        });
-      }
-      return res.status(500).send({
-        message: 'Sketch not update id ' + sketchId,
+  exports.createUserSerie = (req, res) => {
+    if (!req.body.name || !req.body.description) {
+      return res.status(400).send({
+        message: 'Fields cannot be empty',
       });
+    }
+    // const loggedInUser = loginController.getLoggedInUserObject(req, res);
+    const sketchId = req.body.sketch.id;
+
+
+    // get sketch by id
+    Sketch.findById(sketchId)
+      .then((sketch) => {
+        if (!sketch) {
+          return res.status(404).send({
+            message: 'Sketch not found id ' + sketchId,
+          });
+        }
+
+        sketch.hash = req.body.sketch.hash;
+        sketch.save();
+      }).catch((err) => {
+        if (err.kind === 'ObjectId') {
+          return res.status(404).send({
+            message: 'Sketch not found id ' + sketchId,
+          });
+        }
+        return res.status(500).send({
+          message: 'Sketch not update id ' + sketchId,
+        });
+      });
+
+    const slug = req.body.name.toLowerCase().replace(/ /g, '-');
+
+    const whitelistIds = req.body.whitelisted.map((wh) => {
+      return new Whitelist({
+        address: wh.address,
+        value: Math.floor(wh.value * Math.pow(10, 8)),
+      }).save()._id;
     });
 
-  const slug = req.body.name.toLowerCase().replace(/ /g, '-');
+    const serie = new Serie({
+      name: req.body.name,
+      slug: slug,
+      subtitle: req.body.subtitle,
+      description: req.body.description,
+      type: req.body.type,
+      sketch: sketchId,
+      artists: [req.body.collabs],
+      captureDelay: req.body.captureDelay,
+      cssSelector: req.body.cssSelector || 'body',
+      backgroundColor: req.body.backgroundColor,
+      display: req.body.display,
+      onSale: req.body.onSale,
+      totalSupply: req.body.totalSupply,
+      price: req.body.price,
+      royalty: req.body.royalty,
+      link: req.body.link,
+      image: req.body.image,
+      whitelist: whitelistIds,
+    });
+    serie.save()
+      .then(async (serie) => {
+        const categoryArray = req.body.category;
 
-  const whitelistIds = req.body.whitelisted.map((wh) => {
-    return new Whitelist({
-      address: wh.address,
-      value: Math.floor(wh.value * Math.pow(10, 8)),
-    }).save()._id;
-  });
-
-  const serie = new Serie({
-    name: req.body.name,
-    slug: slug,
-    subtitle: req.body.subtitle,
-    description: req.body.description,
-    type: req.body.type,
-    sketch: sketchId,
-    artists: [req.body.collabs],
-    captureDelay: req.body.captureDelay,
-    cssSelector: req.body.cssSelector || 'body',
-    backgroundColor: req.body.backgroundColor,
-    display: req.body.display,
-    onSale: req.body.onSale,
-    totalSupply: req.body.totalSupply,
-    price: req.body.price,
-    royalty: req.body.royalty,
-    link: req.body.link,
-    image: req.body.image,
-    whitelist: whitelistIds,
-  });
-  serie.save()
-    .then(async (serie) => {
-      const categoryArray = req.body.category;
-
-      const categoryPromises = categoryArray.map(async (cat) => {
-        const element = await Category.findOne({
-          name: cat,
-        });
-
-        if (!element) {
-          const category = new Category({
+        const categoryPromises = categoryArray.map(async (cat) => {
+          const element = await Category.findOne({
             name: cat,
           });
 
-          await category.save()
-            .then((data) => {
-              serie.category.push(data._id);
-            }).catch((err) => {
-              console.log(err);
+          if (!element) {
+            const category = new Category({
+              name: cat,
             });
-        }
-        if (element) {
-          serie.category.push(element._id);
-        }
+
+            await category.save()
+              .then((data) => {
+                serie.category.push(data._id);
+              }).catch((err) => {
+                console.log(err);
+              });
+          }
+          if (element) {
+            serie.category.push(element._id);
+          }
+        });
+
+        await Promise.all(categoryPromises);
+        await serie.save();
+
+
+        res.send({
+          id: serie._id,
+        });
+      }).catch((err) => {
+        res.status(500).send({
+          message: err.message || 'Error Creating Serie',
+        });
       });
 
-      await Promise.all(categoryPromises);
-      await serie.save();
-
-
-      res.send({
-        id: serie._id,
-      });
-    }).catch((err) => {
-      res.status(500).send({
-        message: err.message || 'Error Creating Serie',
-      });
+    /*
+    const options = mail.getMailOptions('pmosi76@gmail.com', req, 'content');
+  
+  
+    mail.sendMail(options, (err, info) => {
+      if (err) {
+        console.log(err);
+      } else {
+        console.log(info);
+      }
     });
-
-  /*
-  const options = mail.getMailOptions('info@function.gallery', req, 'content');
-
-
-  mail.sendMail(options, (err, info) => {
-    if (err) {
-      console.log(err);
-    } else {
-      console.log(info);
-    }
-  });
-  */
-};
+    */
+  };
 
 exports.createCategory = async (req, res) => {
   if (!req.body.name) {
@@ -1773,15 +1839,16 @@ exports.fetchSerieByArtist = (req, res) => {
       .populate('artists', 'username _id imageUrl slug')
       .populate('category', '-__v')
       .populate('trait', '-__v')
-      // .populate('whitelist', '-__v')
+      .populate('whitelist', '-__v')
       .populate("like", "username _id imageUrl slug")
+      .populate('chain', '-__v')
       .exec((err, serie) => {
         if (!serie) {
           return resolve([]);
         }
         if (err) reject(err);
         else {
-         
+
           resolve(serie);
         }
       });
@@ -1790,7 +1857,7 @@ exports.fetchSerieByArtist = (req, res) => {
 };
 
 // set serie on sale
-exports.setSerieOnSale = async(req, res) => {
+exports.setSerieOnSale = async (req, res) => {
   const id = req.params.id;
   const onSale = req.body.onSale;
 
@@ -1837,7 +1904,7 @@ exports.setSerieOnSale = async(req, res) => {
 };
 
 // set serie on display
-exports.setSerieOnDisplay = async(req, res) => {
+exports.setSerieOnDisplay = async (req, res) => {
   const id = req.params.id;
 
   const isAdmin = await userIsAdmin(req.userId);
@@ -2175,7 +2242,7 @@ exports.removeSerieTrait = async (req, res) => {
     traitId: traitId,
   });
 };
-  
+
 // update serie category
 exports.updateSerieCategory = async (req, res) => {
   const id = req.params.id;
@@ -2394,7 +2461,7 @@ exports.updateSerieVolume = async (req, res) => {
     });
   }
 
-  
+
 
   serie.volume = req.body.volume;
 
@@ -2485,6 +2552,7 @@ exports.updateSerieWhitelist = async (req, res) => {
   const whitelistIds = [];
 
   for (const wh of whitelisted) {
+  
     const value = Math.floor(wh.value * Math.pow(10, 8));
 
     const whitelist = new Whitelist({
@@ -2518,6 +2586,7 @@ exports.updateSerieWhitelist = async (req, res) => {
         .then((serie) => {
           res.send({
             id: serie._id,
+            whitelist: whitelisted
           });
         }).catch((err) => {
           res.status(500).send({
@@ -2534,6 +2603,28 @@ exports.updateSerieWhitelist = async (req, res) => {
         message: 'Serie not update id ' + id,
       });
     });
+};
+
+exports.toggleReviewSerie = async (req, res) => {
+  const id = req.params.id;
+
+
+  const serie = await Serie.findById(id);
+
+  if (!serie) {
+    return res.status(404).send({
+      message: 'Serie not found id ' + id,
+    });
+  }
+
+  serie.reviewed = !serie.reviewed;
+
+  await serie.save();
+
+  res.status(200).send({
+    id: serie._id,
+    reviewed: serie.reviewed,
+  });
 };
 
 const userIsAdmin = async (userId) => {

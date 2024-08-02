@@ -18,6 +18,10 @@ const Element = mongoose.model(
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Sketch',
       },
+      ordinal: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Ordinal',
+      },
       artists: [
         {
           type: mongoose.Schema.Types.ObjectId,

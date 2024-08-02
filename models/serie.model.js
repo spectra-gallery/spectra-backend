@@ -49,6 +49,8 @@ const Serie = mongoose.model(
       likes: {type: Number, default: 0},
       date: {type: String, default: new Date().toISOString()},
       modified: {type: String},
+      reviewed: {type: Boolean, default: false},
+      published: {type: Boolean, default: false},
       category: [
         {
           type: mongoose.Schema.Types.ObjectId,
