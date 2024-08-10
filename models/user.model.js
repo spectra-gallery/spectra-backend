@@ -1,6 +1,7 @@
 const { address } = require('bitcoinjs-lib');
 const { application } = require('express');
 const mongoose = require('mongoose');
+const { bitcoin, customer } = require('.');
 
 const User = mongoose.model(
     'User',
@@ -8,6 +9,10 @@ const User = mongoose.model(
       username: String,
       slug: String,
       address: String,
+      bitcoin: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Bitcoin',
+      },
       nonce: { type: Number, default: Math.floor(Math.random() * 1000000) },
       email: String,
       password: String,
@@ -50,6 +55,7 @@ const User = mongoose.model(
       creator: {type: Boolean, default: false},
       verified: {type: Boolean, default: false},
       applied: {type: Boolean, default: false},
+      customer: {type: Boolean, default: false},
       date: {type: String, default: new Date().toISOString()},
       lastLogin: {type: String, default: new Date().toISOString()},
       role: [

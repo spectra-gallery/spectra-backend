@@ -42,6 +42,12 @@ module.exports = function(app) {
   // generateSketch
   app.post('/api/serie/sketch', [authJwt.verifyToken], controller.generateSketch);
 
+  // parseSketch
+  app.post('/api/serie/sketch/parse', [authJwt.verifySession], controller.parseSketch);
+
+  // assignSketchUrl
+  app.post('/api/serie/sketchurl', [authJwt.verifyToken], controller.assignSketchUrl);
+
   // upload serie sketch data
   app.post('/api/serie/data', [authJwt.verifyToken], uploadController.htmlUpload);
 
@@ -345,6 +351,9 @@ module.exports = function(app) {
 
   // createCategory
   app.post('/api/serie/category', [authJwt.verifyToken, authJwt.isAdmin], controller.createCategory);
+
+  // toggleReviewSerie
+  app.post('/api/serie/review/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId], controller.toggleReviewSerie);
 
   // remeoveWhitelistAddress
   // app.post('/api/serie/whitelist/remove/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.removeWhitelistAddress);

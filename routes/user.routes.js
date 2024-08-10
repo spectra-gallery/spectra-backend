@@ -138,6 +138,16 @@ module.exports = function(app) {
     });
   });
 
+  // fetchUserSelect
+  app.get('/api/user/select', [authJwt.verifySession], (req, res) => {
+    const elements = controller.fetchUserSelect(req, res);
+    elements.then((elements) => {
+      res.status(200).send({
+        ...elements,
+      });
+    });
+  });
+
   // get user roles
   app.get('/api/user/roles', [authJwt.verifySession], controller.getRoles);
 

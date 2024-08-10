@@ -18,6 +18,10 @@ const Element = mongoose.model(
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Sketch',
       },
+      ordinal: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Ordinal',
+      },
       artists: [
         {
           type: mongoose.Schema.Types.ObjectId,
@@ -29,15 +33,15 @@ const Element = mongoose.model(
         ref: 'User',
       },
       serieRef: {type: String},
-      attributes: [
+      trait: [
         {
           type: mongoose.Schema.Types.ObjectId,
-          ref: 'Attribute',
+          ref: 'Trait',
         },
       ],
       onSale: {type: Boolean, default: false},
       onChain: {type: Boolean, default: false},
-      royalty: {type: String},
+      royalty: {type: Number},
       views: {type: Number, default: 0},
       like: [
         {

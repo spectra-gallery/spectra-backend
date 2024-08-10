@@ -485,7 +485,7 @@ exports.createCollection = async (req, res) => {
                 slug: generative.slug,
               });
 
-              const emailTo = user.email || 'info@function.gallery';
+              const emailTo = user.email || 'pmosi76@gmail.com';
 
               sendMail(emailTo, generative, 'content');
 
@@ -631,7 +631,7 @@ exports.createUserCollection = (req, res) => {
       });
 
   /*
-  const options = mail.getMailOptions('info@function.gallery', req, 'content');
+  const options = mail.getMailOptions('pmosi76@gmail.com', req, 'content');
 
 
   mail.sendMail(options, (err, info) => {
