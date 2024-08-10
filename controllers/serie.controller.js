@@ -753,6 +753,9 @@ const generateIframe = (htmlContent, hash) => {
   return htmlContent
 };
 
+// exports generateIframe with params
+exports.generateIframe = generateIframe;
+
 
   exports.createUserSerie = (req, res) => {
     if (!req.body.name || !req.body.description) {

@@ -1,7 +1,7 @@
 const { address } = require('bitcoinjs-lib');
 const { application } = require('express');
 const mongoose = require('mongoose');
-const { bitcoin } = require('.');
+const { bitcoin, customer } = require('.');
 
 const User = mongoose.model(
     'User',
@@ -55,6 +55,7 @@ const User = mongoose.model(
       creator: {type: Boolean, default: false},
       verified: {type: Boolean, default: false},
       applied: {type: Boolean, default: false},
+      customer: {type: Boolean, default: false},
       date: {type: String, default: new Date().toISOString()},
       lastLogin: {type: String, default: new Date().toISOString()},
       role: [

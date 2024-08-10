@@ -30,6 +30,12 @@ const Serie = mongoose.model(
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Chain',
       },
+      elements: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Element',
+        }
+      ],
       onChain: {type: Boolean, default: false},
       onSale: {type: Boolean, default: false},
       display: {type: Boolean, default: true},
@@ -39,6 +45,7 @@ const Serie = mongoose.model(
       priceUSD: {type: Number, default: 0},
       royalty: {type: Number, default: 0},
       volume: {type: Number, default: 0},
+      volumeUSD: {type: Number, default: 0},
       rank: {type: Number, default: 0},
       like: [
         {

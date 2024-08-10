@@ -6,6 +6,8 @@ const keyManager = require('../middlewares/keyManager');
 const walletManager = require('../middlewares/walletManager');
 require('dotenv').config();
 const Wallet = db.wallet;
+const Serie = db.serie;
+const Fiat = db.fiat;
 const Transaction = db.transaction;
 const Payment = db.payment;
 
@@ -17,6 +19,8 @@ const ecc = require('tiny-secp256k1');
 
 const Web3 = require('web3');
 const web3 = new Web3();
+
+const stripe = require("stripe")('sk_test_51INl1iHxwzCEp0yUOSY7MHhyKuXu0IHD8Q4IIkLmDJBbV1FUa6B3JORUxpEiLvvCOtNFgx3VPqudTlcxKZ23Tsdq00ul7qZ5PA');
 
 // eslint-disable-next-line new-cap
 const ECPair = ECPairFactory.ECPairFactory(ecc);
@@ -1924,6 +1928,38 @@ async function getBalance(address) {
     console.log(error);
   }
 }
+
+/** ----- Print Payment Controller ---- */
+exports.createPrintPaymentIntent = async (req, res) => {
+
+  const id = req.params.id;
+  const price = req.body.price * 100;
+  const currency = req.body.currency;
+
+  const userId = req.userId;
+
+  const serie = await Serie.findById(id);
+  const amount = serie.priceUSD * 100;
+
+  if (amount !== price) {
+    return res.status(400).send({message: 'Price mismatch.'});
+  }
+
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: amount,
+    currency: currency,
+    // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
+    automatic_payment_methods: {
+      enabled: true,
+    },
+  });
+
+  res.status(200).send({
+    clientSecret: paymentIntent.client_secret,
+  });
+
+};
+
 
 /**
  * Sends an email.

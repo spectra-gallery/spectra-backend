@@ -44,6 +44,24 @@ exports.uploadStorageHtml = async (content, userId, slug, id) => {
   return {previewUrl, contentUrl};
 };
 
+exports.uploadStoragePrint = async (content, userId, slug, id) => {
+  const token = await generateSessionToken(userId, slug);
+
+  const response = await axios.post(
+      BASE_URL + 'storage/print/upload',
+      {content, id},
+      {
+        headers: {
+          'Content-Type': 'Application/json',
+          'session-token': token,
+        },
+      },
+  );
+  const contentUrl = response.data.contentUrl;
+
+  return contentUrl;
+};
+
 exports.uploadStorageImg = async (previewUrl,
     captureDelay, cssSelector, hash, userId, slug) => {
   const token = await generateSessionToken(userId, slug);

@@ -104,6 +104,15 @@ module.exports = function(app) {
     });
   });
 
+  // createCustomer
+  app.post('/api/auth/customer/create', [authJwt.verifyToken], controller.createCustomer);
+
+  // loadMyCustomerData
+  app.get('/api/auth/customer/data', [authJwt.verifyToken], controller.loadMyCustomerData);
+
+  // deleteCustomer
+  app.delete('/api/auth/customer/delete', [authJwt.verifyToken], controller.deleteCustomer);
+
   /* ------------------ */
   /* ----- Tezos Login ----- */
 

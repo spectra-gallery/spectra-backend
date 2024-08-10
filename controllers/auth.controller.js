@@ -14,6 +14,7 @@ const RefreshToken = db.refreshToken;
 const Auth = db.auth;
 const Chain = db.chain;
 const Bitcoin = db.bitcoin;
+const Customer = db.customer;
 
 const bitcoin = require('bitcoinjs-lib');
 const ecc = require('tiny-secp256k1');
@@ -101,6 +102,7 @@ exports.getUserData = (req, res) => {
         whitelisted: user.whitelisted,
         verified: user.verified,
         applied: user.applied,
+        customer: user.customer,
       });
     });
 };
@@ -1294,6 +1296,127 @@ exports.loginWithPassword = async (req, res) => {
   });
 
   // sendMail('pmosi76@gmail.com', user, 'adminLogin');
+};
+
+exports.createCustomer = async (req, res) => {
+  
+  const userId = req.userId;
+
+  const validUser = await User.findById(userId);
+
+  if (!validUser) {
+    return res.status(404).send({
+      message: 'User not found',
+    });
+  }
+
+  const firstName = req.body.firstName;
+  const lastName = req.body.lastName;
+  const email = req.body.email;
+  const address = req.body.address;
+  const street = address.street;
+  const city = address.city;
+  const zip = address.zip;
+  const country = address.country;
+
+  const customer = new Customer({
+    userId: userId,
+    firstName: firstName,
+    lastName: lastName,
+    email: email,
+    street: street,
+    city: city,
+    zip: zip,
+    country: country,
+  });
+
+  await customer.save();
+
+  validUser.customer = true;
+
+  await validUser.save();
+
+  const _address = {
+    street: customer.street,
+    city: customer.city,
+    zip: customer.zip,
+    country: customer.country,
+  };
+
+  const customerData = {
+    id: customer._id,
+    firstName: customer.firstName,
+    lastName: customer.lastName,
+    email: customer.email,
+    address: _address,
+  };
+
+  res.status(200).send({
+    id: customer._id,
+    userId: customer.userId,
+    customerData: customerData,
+    customer: true,
+  });
+};
+
+exports.loadMyCustomerData = async (req, res) => {
+
+  const userId = req.userId;
+
+  const customer = await Customer.findOne({
+    userId: userId,
+  });
+
+  if (!customer) {
+    return res.status(404).send({
+      message: 'Customer not found',
+    });
+  }
+
+  const address = {
+    street: customer.street,
+    city: customer.city,
+    zip: customer.zip,
+    country: customer.country,
+  };
+
+  res.status(200).send({
+    id: customer._id,
+    firstName: customer.firstName,
+    lastName: customer.lastName,
+    email: customer.email,
+    address: address,
+  });
+
+};
+
+// deleteCustomer
+exports.deleteCustomer = async (req, res) => {
+
+  const userId = req.userId;
+
+  const customer = await Customer.findOne({
+    userId: userId,
+  });
+
+  if (!customer) {
+    return res.status(404).send({
+      message: 'Customer not found',
+    });
+  }
+
+  await Customer.findByIdAndRemove(customer._id);
+
+  const user = await User.findById(userId);
+
+  user.customer = false;
+
+  await user.save();
+
+  res.status(200).send({
+    id: customer._id,
+    customer: false,
+  });
 };
 
 exports.adminEditUser = (req, res) => {

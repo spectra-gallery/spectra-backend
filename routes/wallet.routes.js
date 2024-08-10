@@ -1,5 +1,6 @@
 /* eslint-disable max-len */
 const {authJwt} = require('../middlewares');
+const {objectId} = require('../middlewares');
 const controller = require('../controllers/wallet.controller');
 
 module.exports = function(app) {
@@ -83,4 +84,7 @@ module.exports = function(app) {
 
   // generateWallet
   app.post('/api/wallet/generate', [authJwt.verifyToken], controller.generateWallet);
+
+  // createPrintPaymentIntent
+  app.post('/api/wallet/print/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.createPrintPaymentIntent);
 };
