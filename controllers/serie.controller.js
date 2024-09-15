@@ -1844,6 +1844,7 @@ exports.fetchSerieByArtist = (req, res) => {
       .populate('trait', '-__v')
       .populate('whitelist', '-__v')
       .populate("like", "username _id imageUrl slug")
+      .populate('media', 'url width height ratio type')
       .populate('chain', '-__v')
       .exec((err, serie) => {
         if (!serie) {

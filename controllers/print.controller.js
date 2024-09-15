@@ -131,7 +131,11 @@ exports.getCountryCode = async (req, res) => {
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
 
     try {
-        const response = await axios.get(url);
+        const response = await axios.get(url, {
+            headers: {
+                'User-Agent': 'spectra/v1 (https://spectra.gallery)',
+            },
+        });
         const data = response.data;
 
         if (data.address && data.address.country_code) {

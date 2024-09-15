@@ -50,11 +50,4 @@ const Gallery = mongoose.model(
     }),
 );
 
-Gallery.schema.pre('save', (next) => {
-  const currentDate = new Date().toISOString();
-  // eslint-disable-next-line no-invalid-this
-  this.date = currentDate;
-  next();
-});
-
 module.exports = Gallery;
