@@ -1973,6 +1973,7 @@ exports.fetchLikedPosts = (req, res) => {
       .limit(parseInt(number))
       .populate('author', 'username _id imageUrl slug')
       .populate('category', '-__v')
+      .populate('media', 'url width height ratio type')
       // .populate('whitelist', '-__v')
       // .populate("like", "username _id imageUrl slug")
       .exec((err, post) => {

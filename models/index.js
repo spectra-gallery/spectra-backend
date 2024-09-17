@@ -43,6 +43,6 @@ db.bid = require('./bid.model');
 db.mint = require('./mint.model');
 db.buying = require('./buying.model');
 
-db.ROLES = ['user', 'admin', 'creator'];
+db.ROLES = ['user', 'admin', 'creator', 'thinker', 'myself'];
 
 module.exports = db;

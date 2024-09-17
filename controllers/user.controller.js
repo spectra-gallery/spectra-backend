@@ -58,6 +58,7 @@ exports.fetchUsers = (req, res) => {
             },
             select: 'content author date',
           }) */
+      .populate('trait', '-__v')
       .populate('like', 'username _id imageUrl')
       .populate('role', '-__v').exec((err, user) => {
         const userObj = [];
@@ -78,6 +79,7 @@ exports.fetchUsers = (req, res) => {
             verified: usr.verified,
             applied: usr.applied,
             creator: usr.creator,
+            trait: usr.trait,
             // trendingIndex: usr.trendingIndex,
             // featured: usr.featured,
             // date: usr.date,
@@ -187,6 +189,7 @@ exports.fetchArtists = (req, res) => {
             select: 'content author date',
           }) */
         .populate('like', 'username _id imageUrl')
+        .populate('trait', '-__v')
         .populate('role', '-__v').exec((err, user) => {
           const userObj = [];
           for (const usr of user) {
@@ -206,6 +209,7 @@ exports.fetchArtists = (req, res) => {
               verified: usr.verified,
               applied: usr.applied,
               creator: usr.creator,
+              trait: usr.trait,
               // trendingIndex: usr.trendingIndex,
               // featured: usr.featured,
               // date: usr.date,

@@ -100,6 +100,26 @@ function initial() {
 
         console.log('added \'creator\' to roles collection');
       });
+
+      new Role({
+        name: 'thinker',
+      }).save((err) => {
+        if (err) {
+          console.log('error', err);
+        }
+
+        console.log('added \'thinker\' to roles collection');
+      });
+
+      new Role({
+        name: 'myself',
+      }).save((err) => {
+        if (err) {
+          console.log('error', err);
+        }
+
+        console.log('added \'myself\' to roles collection');
+      });
     }
   });
 }

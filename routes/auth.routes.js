@@ -43,6 +43,12 @@ module.exports = function(app) {
   // editProfileBio
   app.post('/api/auth/editprofilebio', [authJwt.verifyToken], controller.editProfileBio);
 
+  // createTrait
+  app.post('/api/auth/traits/create', [authJwt.verifyToken], controller.createTrait);
+
+  // removeTrait
+  app.delete('/api/auth/traits/remove', [authJwt.verifyToken], controller.removeTrait);
+
   // changeMedium
   app.post('/api/auth/changemedium', [authJwt.verifyToken], controller.changeMedium);
 
