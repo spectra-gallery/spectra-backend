@@ -105,6 +105,16 @@ module.exports = function(app) {
     });
   });
 
+  // fetchArtistByPost
+  app.get('/api/user/post/:id', [authJwt.verifySession, objectId.isValidObjectId], (req, res) => {
+    const elements = controller.fetchArtistByPost(req, res);
+    elements.then((elements) => {
+      res.status(200).send({
+        ...elements,
+      });
+    });
+  });
+
   // fetchHighestVolumeArtists
   app.get('/api/user/highestvolume', [authJwt.verifySession], controller.fetchHighestVolumeArtists);
 

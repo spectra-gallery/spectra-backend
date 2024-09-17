@@ -71,7 +71,10 @@ const User = mongoose.model(
         },
       ],
       likes: {type: Number, default: 0},
-
+      trait: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Trait',
+      }
 
     }),
 );

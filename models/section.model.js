@@ -5,7 +5,7 @@ const Comment = mongoose.model(
     new mongoose.Schema({
       title: {type: String, default: '', trim: true},
       content: {type: String, default: '', trim: true, required: true},
-      mediaUrls: [{type: String}],
+      imageUrl: {type: String},
     }),
 );
 

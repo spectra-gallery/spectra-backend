@@ -10,11 +10,5 @@ const Auth = mongoose.model(
     }),
 );
 
-Auth.schema.pre('save', (next) => {
-  const currentDate = new Date().toISOString();
-  // eslint-disable-next-line no-invalid-this
-  this.date = currentDate;
-  next();
-});
 
 module.exports = Auth;

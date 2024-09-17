@@ -15,6 +15,7 @@ const Auth = db.auth;
 const Chain = db.chain;
 const Bitcoin = db.bitcoin;
 const Customer = db.customer;
+const Trait = db.trait;
 
 const bitcoin = require('bitcoinjs-lib');
 const ecc = require('tiny-secp256k1');
@@ -63,6 +64,7 @@ exports.validateToken = (req, res) => {
 exports.getUserData = (req, res) => {
   User.findById(req.userId)
     .populate('role', '-__v')
+    .populate('trait', '-__v')
     .populate('bitcoin', '_id cardinalAddress ordinalAddress')
     .populate('section', '-__v')
     .populate('twitter', '-__v')
@@ -95,6 +97,7 @@ exports.getUserData = (req, res) => {
         website: user.website,
         headline: user.headline,
         bio: user.bio,
+        trait: user.trait,
         mediums: user.mediums,
         twitter: user.twitter,
         instagram: user.instagram,
@@ -1298,6 +1301,64 @@ exports.loginWithPassword = async (req, res) => {
   // sendMail('pmosi76@gmail.com', user, 'adminLogin');
 };
 
+// export create Trait
+exports.createTrait = async (req, res) => {
+  const userId = req.userId;
+
+  const user = await User.findById(userId);
+
+  if (!user) {
+    return res.status(404).send({
+      message: 'User not found',
+    });
+  }
+
+  let trait;
+
+  trait = await Trait.findOne({
+    trait_type: req.body.trait_type,
+    value: req.body.value,
+  });
+
+  if (!trait) {
+    trait = new Trait({
+      trait_type: req.body.trait_type,
+      value: req.body.value,
+    });
+
+    await trait.save();
+  }
+
+  user.trait = trait._id;
+
+  await user.save();
+
+  res.status(200).send({
+    id: user._id,
+    trait: trait,
+  });
+};
+
+exports.removeTrait = async (req, res) => {
+  const userId = req.userId;
+
+  const user = await User.findById(userId);
+
+  if (!user) {
+    return res.status(404).send({
+      message: 'User not found',
+    });
+  }
+
+  user.trait = null;
+
+  await user.save();
+
+  res.status(200).send({
+    id: user._id,
+  });
+};
+
 exports.createCustomer = async (req, res) => {
   
   const userId = req.userId;
@@ -1902,7 +1963,7 @@ exports.helpVisible = async (req, res) => {
     });
   }
 
-  session.helpOff = state;
+  session.helpOff = !state;
   await session.save();
 
   res.status(200).send({
