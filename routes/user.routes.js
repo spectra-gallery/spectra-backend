@@ -128,6 +128,16 @@ module.exports = function(app) {
     });
   });
 
+  // addressToUser
+  app.get('/api/user/address/:address', [authJwt.verifySession], (req, res) => {
+    const elements = controller.addressToUser(req, res);
+    elements.then((elements) => {
+      res.status(200).send({
+        elements,
+      });
+    });
+  });
+
   // addressToUsername
   app.get('/api/user/username/:address', [authJwt.verifySession], (req, res) => {
     const elements = controller.addressToUsername(req, res);
@@ -171,6 +181,9 @@ module.exports = function(app) {
   app.post('/api/user/like/:id', [authJwt.verifyToken], controller.likeUser);
 
   app.post('/api/user/comment/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.commentCreator);
+
+  // getApplyId
+  app.get('/api/user/applyid/:address', [authJwt.verifyToken, authJwt.isAdmin], controller.getApplyId);
 
   // creator apply
   app.post('/api/user/apply', [authJwt.verifyToken], controller.creatorApply);

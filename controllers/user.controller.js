@@ -1195,6 +1195,30 @@ exports.changeAddress = async (req, res) => {
   });
 };
 
+// get apply id by user address
+exports.getApplyId = async (req, res) => {
+
+  const address = req.params.address;
+
+  const user = await User.findOne({
+    address: address,
+  });
+
+  const apply = await Apply.findOne({
+    user: user._id,
+  });
+
+  if (!apply) {
+    return res.status(404).send({
+      message: 'Application not found',
+    });
+  }
+
+  res.status(200).send({
+    id: apply._id,
+  });
+};
+
 // creator apply
 exports.creatorApply = async (req, res) => {
   const id = req.userId;
@@ -1533,6 +1557,25 @@ exports.fetchSections = (req, res) => {
       });
   });
   return promise;
+};
+
+exports.addressToUser = async (req, res) => {
+  const address = req.params.address;
+
+  const user = await User.findOne({
+    address: address.toLowerCase(),
+  });
+
+  if (!user) {
+    return null;
+  } else {
+    return {
+      id: user._id,
+      username: user.username,
+      slug: user.slug,
+      imageUrl: user.imageUrl,
+    };
+  }
 };
 
 exports.addressToUsername = async (req, res) => {
