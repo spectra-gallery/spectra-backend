@@ -243,9 +243,16 @@ exports.fetchPortfolioById = (req, res) => {
       .populate("tag", "-__v")
       .populate("medias", "_id url ratio type")
       .populate("like", "username _id imageUrl slug")
-      .populate("scope", "-__v")
       .populate({
-        path: "comments",
+        path: "scopes",
+        populate: {
+            path: "medias",
+            select: "_id url ratio type",
+        },
+        select: "_id title content medias",
+      })
+      .populate({
+        path: "comment",
         populate: {
           path: "authors",
           select: "username _id imageUrl slug",
@@ -270,21 +277,22 @@ exports.fetchPortfolioById = (req, res) => {
           medias: portfolio._doc.medias,
           authors: portfolio._doc.authors,
           display: portfolio._doc.display,
-          scope: portfolio._doc.scope,
+          scopes: portfolio._doc.scopes,
           views: portfolio._doc.views,
           like: portfolio._doc.like,
           likes: portfolio._doc.likes,
-          comments: portfolio._doc.comments,
+          comment: portfolio._doc.comment,
           date: portfolio._doc.date,
           lastModified: portfolio._doc.lastModified,
           reviewed: portfolio._doc.reviewed,
           published: portfolio._doc.published,
           tag: portfolio._doc.tag,
-          links: portfolio._doc.link,
+          links: portfolio._doc.links,
           references: portfolio._doc.references,
         };
         if (err) reject(err);
         else {
+         
           resolve(data);
         }
       });
@@ -426,7 +434,7 @@ exports.createPortfolio = async (req, res) => {
     subtitle: req.body.subtitle,
     description: req.body.description,
     authors: [userId, ...req.body.collabs],
-    scopes: req.body.scope,
+    scopes: req.body.scopes,
     display: req.body.display,
     links: req.body.links,
     references: req.body.references,
@@ -1118,7 +1126,7 @@ exports.editUserPortfolio = async (req, res) => {
 };
 
 exports.createScope = async (req, res) => {
-  if (!req.body.title || !req.body.description) {
+  if (!req.body.title || !req.body.content) {
     return res.status(400).send({
       message: "Scope Fields cannot be empty",
     });
@@ -1143,7 +1151,7 @@ exports.createScope = async (req, res) => {
 
   const scope = new Scope({
     title: req.body.title,
-    description: req.body.description,
+    content: req.body.content,
     medias: mediaIds,
   });
   scope
