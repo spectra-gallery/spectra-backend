@@ -365,7 +365,7 @@ async function sendAuthenticationEmail(user, req, res) {
     const link = 'http://' + req.headers.host + '/api/auth/email/' + auth.token;
 
     const mailOptions = {
-      subject: 'Authentication The Function Gallery',
+      subject: 'Authentication Spectra Gallery',
       to: user.email,
       from: 'artist@spectra.gallery',
       html: `
@@ -453,7 +453,7 @@ async function sendVerificationEmail(user, req, res) {
     const link = 'http://' + req.headers.host + '/api/auth/verify/' + token.token;
 
     const mailOptions = {
-      subject: 'Email Verification The Function Gallery',
+      subject: 'Email Verification Spectra Gallery',
       to: user.email,
       from: 'artist@spectra.gallery',
       html: `
@@ -490,11 +490,10 @@ async function sendVerificationEmail(user, req, res) {
  </head>
  <body>
    <br><br>
-   <img src="${BASE_URL}icons/function_logo_small_transparent.png"
+   <img src="${BASE_URL}icons/spectra.svg" width="200" height="200" alt="Spectra Gallery Logo">
    <div class="grid-container">
       <div class="item">
-   alt="Spectra Gallery Logo">
-   <h1>The Function Gallery</h1>
+   <h1>Spectra Gallery</h1>
    <h4>Email Verification</h4><br>
     </div>
     <div class="item">
@@ -542,7 +541,7 @@ const sendRecoveryEmail = async (user, req, res) => {
     const link = 'http://' + req.headers.host + '/api/auth/recover/' + token.token;
 
     const mailOptions = {
-      subject: 'Password Recovery The Function Gallery',
+      subject: 'Password Recovery Spectra Gallery',
       to: user.email,
       from: 'artist@spectra.gallery',
       html: `

@@ -1622,9 +1622,35 @@ exports.changeUserRole = async (req, res) => {
   const id = req.userId;
   const roleId = req.body.role;
 
+  const role = await Role.findById(roleId);
+
+  if (!role) {
+    return res.status(404).send({
+      message: 'Role not found',
+    });
+  }
+
+  if (role.name === 'admin') {
+    return res.status(400).send({
+      message: 'Cannot change to admin',
+    });
+  } else if (role.name === 'creator' || role.name === 'thinker') {
+    return res.status(400).send({
+      message: 'Cannot change to role, Require membership request',
+    });
+  }
+
   let user = await User.findOne({
     _id: id,
   });
+
+  const roles = user.role;
+
+  if (roles.includes(roleId)) {
+    return res.status(400).send({
+      message: 'User already has role',
+    });
+  }
 
   user.role.push(roleId);
   await user.save();
@@ -1650,9 +1676,30 @@ exports.removeUserRole = async (req, res) => {
   const id = req.userId;
   const roleId = req.params.id;
 
+  const role = await Role.findById(roleId);
+
+  if (!role) {
+    return res.status(404).send({
+      message: 'Role not found',
+    });
+  }
+
+  if (role.name === 'user') {
+    return res.status(400).send({
+      message: 'Cannot remove user role, delete user instead',
+    });
+  }
+
   let user = await User.findOne({
     _id: id,
   });
+
+  // check if user has role
+  if (!user.role.includes(roleId)) {
+    return res.status(400).send({
+      message: 'User does not have role',
+    });
+  }
 
   user.role.pull(roleId);
   await user.save();

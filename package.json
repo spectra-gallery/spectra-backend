@@ -42,6 +42,7 @@
     "discord.js": "^14.14.1",
     "ecpair": "^2.1.0",
     "ethereumjs-util": "^7.1.5",
+    "ethers": "^5.7.2",
     "express": "^4.17.1",
     "express-http-proxy": "^1.6.3",
     "express-session": "^1.17.3",

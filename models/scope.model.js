@@ -1,12 +1,17 @@
 const mongoose = require('mongoose');
 
-const Section = mongoose.model(
-    'Section',
+const Scope = mongoose.model(
+    'Scope',
     new mongoose.Schema({
       title: {type: String, default: '', trim: true},
       content: {type: String, default: '', trim: true, required: true},
-      imageUrl: {type: String},
+      medias: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Media',
+        },
+      ]
     }),
 );
 
-module.exports = Section;
+module.exports = Scope;
