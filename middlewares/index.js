@@ -2,6 +2,7 @@ const authJwt = require('./authJwt');
 const verifySignUp = require('./verifySignUp');
 const verifySerie = require('./verifySerie');
 const verifyPost = require('./verifyPost');
+const verifyPortfolio = require('./verifyPortfolio');
 const objectId = require('./isValidObjectId');
 const uploadFileMiddleware = require('./upload');
 const storageUpload = require('./storageUpload');
@@ -15,6 +16,7 @@ module.exports = {
   verifySignUp,
   verifySerie,
   verifyPost,
+  verifyPortfolio,
   objectId,
   uploadFileMiddleware,
   storageUpload,
