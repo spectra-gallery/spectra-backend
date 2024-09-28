@@ -9,6 +9,7 @@ const Medium = db.medium;
 const Apply = db.apply;
 const Serie = db.serie;
 const Post = db.post;
+const Portfolio = db.portfolio;
 
 
 // username to user id
@@ -618,6 +619,68 @@ exports.fetchArtistByPost = (req, res) => {
     })();
   });
   return promise;
+};
+
+// fetchArtistByPortfolio
+exports.fetchArtistByPortfolio = (req, res) => {
+  const promise = new Promise((resolve, reject) => {
+    (async () => {
+      const role = await Role.findOne({
+        name: 'creator',
+      });
+
+      const portfolio = await Portfolio.findById(req.params.id);
+
+      if (!portfolio) {
+        return resolve({});
+      }
+
+      const artists = portfolio.authors;
+
+      const ids = artists.map((artist) => artist._id);
+
+      User.find({
+        _id: { $in: ids },
+        role: role._id,
+      })
+
+        .populate('role', '-__v')
+        .populate('like', 'username _id imageUrl')
+        .exec((err, user) => {
+          if (!user) {
+            return resolve({});
+          }
+
+          const userObj = [];
+
+          for (const usr of user) {
+            userObj.push({
+              id: usr._id,
+              username: usr.username,
+              slug: usr.slug,
+              // cardinalAddress: usr.cardinalAddress,
+              // ordinalAddress: usr.ordinalAddress,
+              // bannerUrl: usr.bannerUrl,
+              imageUrl: usr.imageUrl,
+              // role: usr.role,
+              website: usr.website,
+              headline: usr.headline,
+              bio: usr.bio,
+              like: usr.like,
+              // twitter: usr.twitter,
+
+            });
+          }
+
+          resolve(userObj);
+
+          if (err) reject(err);
+        });
+    })();
+  });
+
+  return promise;
+
 };
 
 // fetch featured artists
