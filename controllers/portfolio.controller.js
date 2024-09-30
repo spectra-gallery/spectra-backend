@@ -8,6 +8,7 @@ const Media = db.media;
 const User = db.user;
 const Comment = db.comment;
 const Scope = db.scope;
+const Role = db.role;
 
 const OWNER_EMAIL = process.env.OWNER_EMAIL;
 
@@ -1280,7 +1281,7 @@ exports.editScopeTitle = (req, res) => {
 };
 
 exports.editScopeContent = (req, res) => {
-  if (!req.body.description) {
+  if (!req.body.content) {
     return res.status(400).send({
       message: "Scope Fields cannot be empty",
     });
@@ -1289,7 +1290,7 @@ exports.editScopeContent = (req, res) => {
   Scope.findByIdAndUpdate(
     req.params.id,
     {
-      description: req.body.description,
+      content: req.body.content,
     },
     {
       new: true,
@@ -1303,7 +1304,7 @@ exports.editScopeContent = (req, res) => {
       }
       res.status(200).send({
         id: scope._id,
-        description: scope.description,
+        content: scope.content,
       });
     })
     .catch((err) => {
@@ -1357,6 +1358,126 @@ exports.editScopeImageUrl = (req, res) => {
     });
 };
 
+// fetch portfolios by artist id
+exports.fetchPortfolioByArtistId = (req, res) => {
+    const id = req.userId;
+
+    const promise = new Promise((resolve, reject) => {
+        Portfolio.find({
+            authors: id,    
+        })
+            .populate('authors', 'username _id imageUrl slug')
+            .populate('tag', '-__v')
+            .populate('like', 'username _id imageUrl slug')
+            .populate('medias', 'url width height ratio type')
+            .exec((err, portfolio) => {
+                if (!portfolio) {
+                    return resolve([]);
+                }
+                if (err) reject(err);
+                else {
+
+                    const portfolioObj = [];
+                    for (const coll of portfolio) {
+                        portfolioObj.push({
+                            id: coll._id,
+                            name: coll.name,
+                            slug: coll.slug,
+                            subtitle: coll.subtitle,
+                            description: coll.description,
+                            medias: coll.medias,
+                            authors: coll.authors,
+                            display: coll.display,
+                            scopes: coll.scopes,
+                            views: coll.views,
+                            like: coll.like,
+                            likes: coll.likes,
+                            comment: coll.comment,
+                            date: coll.date,
+                            lastModified: coll.lastModified,
+                            reviewed: coll.reviewed,
+                            published: coll.published,
+                            tag: coll.tag,
+                            links: coll.links,
+                            references: coll.references,
+                        });
+                    }
+                    resolve(portfolioObj);
+                }
+            });
+    });
+    return promise;
+};
+
+// fetch portfolio by id by artist id
+exports.fetchPortfolioByIdByArtistId = (req, res) => {
+    const id = req.params.id;
+    const userId = req.userId;
+
+    const promise = new Promise((resolve, reject) => {
+        Portfolio.findOne({
+            _id: id,
+            authors: userId,
+        })
+            .populate('authors', 'username _id imageUrl slug')
+            .populate('tag', '-__v')
+            .populate('like', 'username _id imageUrl slug')
+            .populate('medias', 'url width height ratio type')
+            .populate({
+                path: "scopes",
+                populate: {
+                    path: "medias",
+                    select: "_id url ratio type",
+                },
+                select: "_id title content medias",
+              })
+              .populate({
+                path: "comment",
+                populate: {
+                  path: "authors",
+                  select: "username _id imageUrl slug",
+                },
+                select: "_id content authors date",
+              })
+              .exec((err, portfolio) => {
+                if (!portfolio) {
+                  return resolve({});
+                }
+
+                console.log(portfolio);
+        
+                const data = {
+                  id: portfolio._doc._id,
+                  name: portfolio._doc.name,
+                  slug: portfolio._doc.slug,
+                  subtitle: portfolio._doc.subtitle,
+                  description: portfolio._doc.description,
+                  medias: portfolio._doc.medias,
+                  authors: portfolio._doc.authors,
+                  display: portfolio._doc.display,
+                  scopes: portfolio._doc.scopes,
+                  views: portfolio._doc.views,
+                  like: portfolio._doc.like,
+                  likes: portfolio._doc.likes,
+                  comment: portfolio._doc.comment,
+                  date: portfolio._doc.date,
+                  lastModified: portfolio._doc.lastModified,
+                  reviewed: portfolio._doc.reviewed,
+                  published: portfolio._doc.published,
+                  tag: portfolio._doc.tag,
+                  links: portfolio._doc.links,
+                  references: portfolio._doc.references,
+                };
+                if (err) reject(err);
+                else {
+                
+                  resolve(data);
+                }
+              });
+    });
+    return promise;
+};
+
 exports.fetchPortfolioByArtist = (req, res) => {
   const id = req.params.id;
   const number = req.query.number;
@@ -1376,7 +1497,33 @@ exports.fetchPortfolioByArtist = (req, res) => {
         }
         if (err) reject(err);
         else {
-          resolve(portfolio);
+
+            const portfolioObj = [];
+            for (const coll of portfolio) {
+                portfolioObj.push({
+                    id: coll._id,
+                    name: coll.name,
+                    slug: coll.slug,
+                    subtitle: coll.subtitle,
+                    description: coll.description,
+                    medias: coll.medias,
+                    authors: coll.authors,
+                    display: coll.display,
+                    scopes: coll.scopes,
+                    views: coll.views,
+                    like: coll.like,
+                    likes: coll.likes,
+                    comment: coll.comment,
+                    date: coll.date,
+                    lastModified: coll.lastModified,
+                    reviewed: coll.reviewed,
+                    published: coll.published,
+                    tag: coll.tag,
+                    links: coll.links,
+                    references: coll.references,
+                });
+            }
+          resolve(portfolioObj);
         }
       });
   });

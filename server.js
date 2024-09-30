@@ -40,6 +40,7 @@ require('./routes/gallery.routes')(app);
 require('./routes/exhibition.routes')(app);
 require('./routes/blog.routes')(app);
 require('./routes/portfolio.routes')(app);
+require('./routes/lab.routes')(app);
 require('./routes/print.routes')(app);
 
 // require('./routes/social.routes')(app);
