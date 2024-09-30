@@ -44,6 +44,9 @@ db.psbt = require('./psbt.model');
 db.bid = require('./bid.model');
 db.mint = require('./mint.model');
 db.buying = require('./buying.model');
+db.neuralmap = require('./neuralmap.model');
+db.nodemap = require('./nodemap.model');
+db.linkmap = require('./linkmap.model');
 
 db.ROLES = ['user', 'admin', 'creator', 'thinker', 'myself'];
 
