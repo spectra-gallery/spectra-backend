@@ -8,6 +8,7 @@ const uploadFileMiddleware = require('./upload');
 const storageUpload = require('./storageUpload');
 const generateImg = require('./generateImg');
 const generatePreview = require('./generatePreview');
+const parseHtml = require('./parseHtml');
 const mail = require('./mail');
 // const discord = require('./discord');
 
@@ -22,6 +23,7 @@ module.exports = {
   storageUpload,
   generateImg,
   generatePreview,
+  parseHtml,
   mail,
   // discord,
 };

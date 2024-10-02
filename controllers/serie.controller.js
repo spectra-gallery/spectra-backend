@@ -1,5 +1,6 @@
 const db = require('../models');
 const mail = require('../middlewares/mail');
+const parseHtml = require('../middlewares/parseHtml');
 const { use } = require('passport');
 // const discord = require('../middlewares/discord');
 require('dotenv').config();
@@ -256,6 +257,46 @@ exports.fetchGallerySeries = (req, res) => {
   return promise;
 };
 
+exports.getSerieETH = async (req, res) => {
+  const id = req.params.id;
+
+  const promise = new Promise((resolve, reject) => {
+    Serie.findById(id)
+      .populate('artists', '_id address slug username')
+      .populate('sketch', '_id html css javascript')
+      .populate('media', '_id url ratio type')
+      .populate('chain', '-__v')
+      .exec((err, serie) => {
+        if (!serie) {
+          return resolve({});
+        }
+
+        const data = {
+          id: serie._doc._id,
+          name: serie._doc.name,
+          slug: serie._doc.slug,
+          description: serie._doc.description,
+          media: serie._doc.media,
+          artists: serie._doc.artists,
+          sketch: serie._doc.sketch,
+          // onChain: serie._doc.onChain,
+          chain: serie._doc.chain,
+          // onSale: serie._doc.onSale,
+          totalSupply: serie._doc.totalSupply,
+          price: serie._doc.price,
+          // royalty: serie._doc.royalty,
+          // whitelist: serie._doc.whitelist,
+        };
+
+        if (err) reject(err);
+        else {
+          resolve(data);
+        }
+      });
+  });
+  return promise;
+};
+
 exports.fetchSerieById = (req, res) => {
   const id = req.params.id;
 
@@ -273,7 +314,7 @@ exports.fetchSerieById = (req, res) => {
         if (!serie) {
           return resolve({});
         }
-
+    
         const description = serie._doc.description;
         // .replace(/\\n/g, '\n');
 
@@ -463,6 +504,27 @@ exports.assignSketchUrl = async (req, res) => {
     id: sketch._id,
     url: sketch.url,
   });
+};
+
+exports.parseHtml = async (req, res) => {
+  const htmlContent = req.body.htmlContent;
+  const fileUrl = req.body.fileUrl;
+
+  const { html, css, js } = await parseHtml(htmlContent);
+
+  const sketch = new Sketch({
+    html: html,
+    css: css,
+    javascript: js,
+    url: fileUrl,
+  });
+ 
+  await sketch.save();
+
+  res.status(200).send({
+    id: sketch._id,
+  });
+
 };
 
 exports.createSerie = async (req, res) => {
