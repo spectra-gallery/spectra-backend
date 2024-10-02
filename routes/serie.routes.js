@@ -39,6 +39,9 @@ module.exports = function(app) {
   // createUserSerie
   app.post('/api/serie/user', [authJwt.verifyToken, authJwt.isAdmin], controller.createUserSerie);
 
+  // parseHtml
+  app.post('/api/serie/sketch/parsehtml', [authJwt.verifyToken], controller.parseHtml);
+
   // generateSketch
   app.post('/api/serie/sketch', [authJwt.verifyToken], controller.generateSketch);
 
@@ -86,6 +89,16 @@ module.exports = function(app) {
   // get serie by id
   app.get('/api/serieid/:id', [authJwt.verifySession, objectId.isValidObjectId], (req, res) => {
     const elements = controller.fetchSerieById(req, res);
+    elements.then((elements) => {
+      res.status(200).send({
+        ...elements,
+      });
+    });
+  });
+
+  // getSerieETH
+  app.get('/api/serie/eth/:id', [authJwt.verifySession, objectId.isValidObjectId], (req, res) => {
+    const elements = controller.getSerieETH(req, res);
     elements.then((elements) => {
       res.status(200).send({
         ...elements,
