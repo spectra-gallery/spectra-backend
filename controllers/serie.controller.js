@@ -1892,6 +1892,78 @@ exports.editUserSerie = async (req, res) => {
     });
 };
 
+// Edit Sketch
+
+exports.editSketch = async (req, res) => {
+  if (!req.body.sketch || !req.body.media) {
+    return res.status(400).send({
+      message: 'Fields cannot be empty',
+    });
+  }
+
+  const userId = req.userId;
+
+  const user = await User.findById(userId);
+
+  const serieId = req.params.id;
+
+  const sketchId = req.body.sketch.id;
+
+  const sketch = await Sketch.findById(sketchId);
+
+  if (!sketch) {
+    return res.status(404).send({
+      message: 'Sketch not found id ' + sketchId,
+    });
+  }
+
+  const media = await Media.findById(req.body.media.id);
+
+  if (!media) {
+    return res.status(404).send({
+      message: 'Media not found id ' + req.body.media.id,
+    });
+  }
+
+  const serie = await Serie.findById(serieId);
+
+  if (!serie) {
+    return res.status(404).send({
+      message: 'Serie not found id ' + serieId,
+    });
+  }
+
+  if (!serie.artists.includes(userId)) {
+    return res.status(401).send({
+      message: 'Unauthorized',
+    });
+  }
+
+  sketch.hash = req.body.sketch.hash;
+  sketch.save();
+
+  media.url = req.body.media.url;
+
+  media.save();
+
+  serie.sketch = sketchId;
+
+  serie.captureDelay = req.body.captureDelay;
+  serie.cssSelector = req.body.cssSelector;
+  serie.backgroundColor = req.body.backgroundColor;
+
+  serie.save()
+
+  res.status(200).send({
+    id: serie._id,
+    captureDelay: serie.captureDelay,
+    cssSelector: serie.cssSelector,
+    backgroundColor: serie.backgroundColor,
+    sketchUrl: sketch.url,
+    mediaUrl: media.url,
+  });
+};
+
 exports.fetchSerieByArtist = (req, res) => {
   const id = req.params.id;
   const number = req.query.number;

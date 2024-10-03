@@ -315,6 +315,9 @@ module.exports = function(app) {
   // editUserSerie
   app.post('/api/serie/user/edit/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId], controller.editUserSerie);
 
+  // editSketch
+  app.post('/api/serie/sketch/edit/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editSketch);
+
   // set serie on sale
   app.post('/api/serie/onsale/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.setSerieOnSale);
 
