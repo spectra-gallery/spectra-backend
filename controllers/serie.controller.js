@@ -350,6 +350,7 @@ exports.fetchSerieById = (req, res) => {
           modified: serie._doc.modified,
           reviewed: serie._doc.reviewed,
           published: serie._doc.published,
+          projectId: serie._doc.projectId,
           category: serie._doc.category,
           link: serie._doc.link,
           whitelist: serie._doc.whitelist,
@@ -1961,6 +1962,52 @@ exports.editSketch = async (req, res) => {
     backgroundColor: serie.backgroundColor,
     sketchUrl: sketch.url,
     mediaUrl: media.url,
+  });
+};
+
+exports.editSerieMedia = async (req, res) => {
+  if (!req.body.media) {
+    return res.status(400).send({
+      message: 'Fields cannot be empty',
+    });
+  }
+
+  const userId = req.userId;
+  const id = req.params.id;
+
+  const serie = await Serie.findById(id);
+
+  if (!serie) {
+    return res.status(404).send({
+      message: 'Serie not found id ' + id,
+    });
+  }
+
+  if (!serie.artists.includes(userId)) {
+    return res.status(401).send({
+      message: 'Unauthorized',
+    });
+  }
+
+  const media = await Media.findById(serie.media);
+
+  if (!media) {
+    return res.status(404).send({
+      message: 'Media not found id ' + serie.media,
+    });
+  }
+
+  media.url = req.body.media.url;
+  media.type = req.body.media.type;
+  media.width = req.body.media.width;
+  media.height = req.body.media.height;
+  media.ratio = req.body.media.ratio;
+
+  media.save();
+
+  res.status(200).send({
+    id: serie._id,
+    media: media,
   });
 };
 
