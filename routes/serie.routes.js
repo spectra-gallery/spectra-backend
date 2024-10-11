@@ -318,6 +318,10 @@ module.exports = function(app) {
   // editSketch
   app.post('/api/serie/sketch/edit/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editSketch);
 
+
+  // editSerieMedia
+  app.post('/api/serie/media/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editSerieMedia);
+
   // set serie on sale
   app.post('/api/serie/onsale/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.setSerieOnSale);
 

@@ -82,6 +82,26 @@ exports.uploadStorageImg = async (previewUrl,
   return imgUrl;
 };
 
+exports.uploadETHStorageImg = async (htmlContent,
+  captureDelay, cssSelector, hash, userId, slug) => {
+const token = await generateSessionToken(userId, slug);
+
+const response = await axios.post(
+    BASE_URL + 'storage/generative/generate',
+    {htmlContent, captureDelay, cssSelector, hash},
+    {
+      headers: {
+        'Content-Type': 'Application/json',
+        'session-token': token,
+      },
+    },
+);
+
+const imgUrl = response.data.imgUrl;
+
+return imgUrl;
+};
+
 exports.uploadCollectionHtml = async (content, userId, slug, filename) => {
   const token = await generateSessionToken(userId, slug);
 

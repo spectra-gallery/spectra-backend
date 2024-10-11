@@ -35,6 +35,13 @@ const Post = mongoose.model(
       date: {type: String, default: new Date().toISOString()},
       lastModified: {type: String},
       reviewed: {type: Boolean, default: false},
+      reviewDate: {type: String},
+      reviewedBy: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+      ],
       published: {type: Boolean, default: false},
       featured: {type: Boolean, default: false},
       category: [

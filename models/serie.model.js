@@ -58,6 +58,8 @@ const Serie = mongoose.model(
       modified: {type: String},
       reviewed: {type: Boolean, default: false},
       published: {type: Boolean, default: false},
+      publishHash: {type: String},
+      projectId: {type: String},
       category: [
         {
           type: mongoose.Schema.Types.ObjectId,

@@ -1,7 +1,7 @@
-const db = require('../models');
-const mail = require('../middlewares/mail');
+const db = require("../models");
+const mail = require("../middlewares/mail");
 // const discord = require('../middlewares/discord');
-require('dotenv').config();
+require("dotenv").config();
 const Post = db.post;
 const Trait = db.trait;
 const Category = db.category;
@@ -21,7 +21,7 @@ exports.slugToId = async (req, res) => {
 
   if (!post) {
     return res.status(404).send({
-      message: 'Post not found',
+      message: "Post not found",
     });
   }
 
@@ -33,31 +33,29 @@ exports.slugToId = async (req, res) => {
 // get all post name and id
 exports.fetchPostName = (req, res) => {
   const promise = new Promise((resolve, reject) => {
-    Post.find({}, 'name slug')
-      .exec((err, posts) => {
-        if (!posts) {
-          return resolve([]);
-        }
+    Post.find({}, "name slug").exec((err, posts) => {
+      if (!posts) {
+        return resolve([]);
+      }
 
-        const postsObj = [];
+      const postsObj = [];
 
-        for (const post of posts) {
-          postsObj.push({
-            id: post._id,
-            name: post.name,
-            slug: post.slug,
-          });
-        }
+      for (const post of posts) {
+        postsObj.push({
+          id: post._id,
+          name: post.name,
+          slug: post.slug,
+        });
+      }
 
-        if (err) reject(err);
-        else {
-          resolve(postsObj);
-        }
-      });
+      if (err) reject(err);
+      else {
+        resolve(postsObj);
+      }
+    });
   });
   return promise;
 };
-
 
 exports.fetchPosts = (req, res) => {
   // const page = req.params.page;
@@ -79,9 +77,9 @@ exports.fetchPosts = (req, res) => {
       .sort(sorting)
       // .skip((page - 1) * 10)
       // .limit(10)
-      .populate('author', 'username _id imageUrl slug')
-      .populate('media', '_id url ratio type')
-      .populate('category', '-__v')
+      .populate("author", "username _id imageUrl slug")
+      .populate("media", "_id url ratio type")
+      .populate("category", "-__v")
       // .populate('sketch', '_id hash url sizeBytes')
       .populate("like", "username _id imageUrl slug")
       .exec((err, posts) => {
@@ -113,7 +111,6 @@ exports.fetchPosts = (req, res) => {
         }
         if (err) reject(err);
         else {
-
           resolve(collectionObj);
         }
       });
@@ -124,7 +121,7 @@ exports.fetchPosts = (req, res) => {
 exports.getAllPosts = (req, res) => {
   const promise = new Promise((resolve, reject) => {
     Post.find({})
-      .populate('author', 'username _id imageUrl slug')
+      .populate("author", "username _id imageUrl slug")
       .exec((err, posts) => {
         if (!posts) {
           return resolve([]);
@@ -170,9 +167,9 @@ exports.fetchAllPostsByNumber = (req, res) => {
     Post.find({})
       .sort(sorting)
       .limit(number)
-      .populate('author', 'username _id imageUrl slug')
-      .populate('category', '-__v')
-      .populate('media', '_id url ratio type')
+      .populate("author", "username _id imageUrl slug")
+      .populate("category", "-__v")
+      .populate("media", "_id url ratio type")
       // .populate('sketch', '_id hash url sizeBytes')
       .populate("like", "username _id imageUrl slug")
       .exec((err, posts) => {
@@ -192,14 +189,14 @@ exports.fetchAllPostsByNumber = (req, res) => {
             author: coll.author,
             category: coll.category,
             // captureDelay: coll.captureDelay,
-        
+
             media: coll.media,
             likes: coll.likes,
             date: coll.date,
             reviewed: coll.reviewed,
             published: coll.published,
             // featured: coll.featured,
-            like: coll.like
+            like: coll.like,
           });
         }
 
@@ -226,8 +223,8 @@ exports.fetchAllMedias = async (req, res) => {
 exports.fetchGalleryPosts = (req, res) => {
   const promise = new Promise((resolve, reject) => {
     Post.find({})
-      .populate('author', 'username _id imageUrl slug')
-      .populate('category', '-__v')
+      .populate("author", "username _id imageUrl slug")
+      .populate("category", "-__v")
 
       .exec((err, posts) => {
         if (err) reject(err);
@@ -244,18 +241,18 @@ exports.fetchPostById = (req, res) => {
 
   const promise = new Promise((resolve, reject) => {
     Post.findById(id)
-      .populate('author', 'username _id imageUrl slug')
-      .populate('category', '-__v')
-      .populate('media', '_id url ratio type')
+      .populate("author", "username _id imageUrl slug")
+      .populate("category", "-__v")
+      .populate("media", "_id url ratio type")
       .populate("like", "username _id imageUrl slug")
-      .populate('section', '-__v')
+      .populate("section", "-__v")
       .populate({
-        path: 'comments',
+        path: "comments",
         populate: {
-          path: 'author',
-          select: 'username _id imageUrl slug',
+          path: "author",
+          select: "username _id imageUrl slug",
         },
-        select: '_id content author date',
+        select: "_id content author date",
       })
 
       .exec((err, post) => {
@@ -283,6 +280,8 @@ exports.fetchPostById = (req, res) => {
           date: post._doc.date,
           lastModified: post._doc.lastModified,
           reviewed: post._doc.reviewed,
+          reviewDate: post._doc.reviewDate,
+          reviewedBy: post._doc.reviewedBy,
           published: post._doc.published,
           category: post._doc.category,
           links: post._doc.link,
@@ -290,7 +289,6 @@ exports.fetchPostById = (req, res) => {
         };
         if (err) reject(err);
         else {
-
           resolve(data);
         }
       });
@@ -301,48 +299,47 @@ exports.fetchPostById = (req, res) => {
 // fetch random posts using aggregate
 exports.fetchRandomPost = (req, res) => {
   const promise = new Promise((resolve, reject) => {
-    Post.aggregate([{ $sample: { size: 1 } },
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'author',
-        foreignField: '_id',
-        as: 'author',
-        pipeline: [
-          {
-            $project: {
-              username: 1,
-              _id: 1,
-              imageUrl: 1,
-              slug: 1,
+    Post.aggregate([
+      { $sample: { size: 1 } },
+      {
+        $lookup: {
+          from: "users",
+          localField: "author",
+          foreignField: "_id",
+          as: "author",
+          pipeline: [
+            {
+              $project: {
+                username: 1,
+                _id: 1,
+                imageUrl: 1,
+                slug: 1,
+              },
             },
-          },
-        ],
+          ],
+        },
       },
-    },
+    ]).exec((err, posts) => {
+      if (!posts) {
+        return resolve({});
+      }
 
-    ])
-      .exec((err, posts) => {
-        if (!posts) {
-          return resolve({});
-        }
+      const data = {
+        id: posts[0]._id,
+        name: posts[0].name,
+        slug: posts[0].slug,
+        description: posts[0].description,
+        image: posts[0].image,
+        author: posts[0].author,
+        supply: posts[0].supply,
+        totalSupply: posts[0].totalSupply,
+      };
 
-        const data = {
-          id: posts[0]._id,
-          name: posts[0].name,
-          slug: posts[0].slug,
-          description: posts[0].description,
-          image: posts[0].image,
-          author: posts[0].author,
-          supply: posts[0].supply,
-          totalSupply: posts[0].totalSupply,
-        };
-
-        if (err) reject(err);
-        else {
-          resolve(data);
-        }
-      });
+      if (err) reject(err);
+      else {
+        resolve(data);
+      }
+    });
   });
 
   return promise;
@@ -398,11 +395,10 @@ exports.fetchRandomPost = (req, res) => {
 };
 */
 
-
 exports.createPost = async (req, res) => {
   if (!req.body.name || !req.body.description) {
     return res.status(400).send({
-      message: 'Fields cannot be empty',
+      message: "Fields cannot be empty",
     });
   }
 
@@ -420,9 +416,7 @@ exports.createPost = async (req, res) => {
 
   await media.save();
 
-
-  const slug = req.body.name.toLowerCase().replace(/ /g, '-');
-
+  const slug = req.body.name.toLowerCase().replace(/ /g, "-");
 
   const post = new Post({
     name: req.body.name,
@@ -437,7 +431,7 @@ exports.createPost = async (req, res) => {
     media: media._id,
   });
 
-  await post.save()
+  await post.save();
 
   const categoryArray = req.body.category;
 
@@ -451,18 +445,19 @@ exports.createPost = async (req, res) => {
         name: cat,
       });
 
-      await category.save()
+      await category
+        .save()
         .then((data) => {
           post.category.push(data._id);
-        }).catch((err) => {
+        })
+        .catch((err) => {
           console.log(err);
         });
     }
     if (element) {
       post.category.push(element._id);
     }
-  }
-  );
+  });
 
   await Promise.all(categoryPromises);
   await post.save();
@@ -472,9 +467,7 @@ exports.createPost = async (req, res) => {
     slug: post.slug,
   });
 
-  sendMail(OWNER_EMAIL, post, 'content');
-
-
+  sendMail(OWNER_EMAIL, post, "content");
 };
 
 /**
@@ -496,17 +489,14 @@ function sendMail(to, data, type) {
   });
 }
 
-
 exports.createUserPost = (req, res) => {
   if (!req.body.name || !req.body.description) {
     return res.status(400).send({
-      message: 'Fields cannot be empty',
+      message: "Fields cannot be empty",
     });
   }
 
-  const slug = req.body.name.toLowerCase().replace(/ /g, '-');
-
-
+  const slug = req.body.name.toLowerCase().replace(/ /g, "-");
 
   const post = new Post({
     name: req.body.name,
@@ -516,9 +506,10 @@ exports.createUserPost = (req, res) => {
     author: [req.body.collabs],
     display: req.body.display,
     links: req.body.links,
-    image: req.body.image
+    image: req.body.image,
   });
-  post.save()
+  post
+    .save()
     .then(async (post) => {
       const categoryArray = req.body.category;
 
@@ -532,10 +523,12 @@ exports.createUserPost = (req, res) => {
             name: cat,
           });
 
-          await category.save()
+          await category
+            .save()
             .then((data) => {
               post.category.push(data._id);
-            }).catch((err) => {
+            })
+            .catch((err) => {
               console.log(err);
             });
         }
@@ -547,13 +540,13 @@ exports.createUserPost = (req, res) => {
       await Promise.all(categoryPromises);
       await post.save();
 
-
       res.send({
         id: post._id,
       });
-    }).catch((err) => {
+    })
+    .catch((err) => {
       res.status(500).send({
-        message: err.message || 'Error Creating Post',
+        message: err.message || "Error Creating Post",
       });
     });
 
@@ -574,7 +567,7 @@ exports.createUserPost = (req, res) => {
 exports.createCategory = async (req, res) => {
   if (!req.body.name) {
     return res.status(400).send({
-      message: 'Fields cannot be empty',
+      message: "Fields cannot be empty",
     });
   }
 
@@ -608,22 +601,23 @@ exports.deleteCategory = (req, res) => {
     .then((category) => {
       if (!category) {
         return res.status(404).send({
-          message: 'Category not found id ' + id,
+          message: "Category not found id " + id,
         });
       } else {
         res.send({
           id: category._id,
-          message: 'Category deleted successfully!',
+          message: "Category deleted successfully!",
         });
       }
-    }).catch((err) => {
-      if (err.kind === 'ObjectId' || err.name === 'NotFound') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId" || err.name === "NotFound") {
         return res.status(404).send({
-          message: 'Category not found id ' + id,
+          message: "Category not found id " + id,
         });
       }
       return res.status(500).send({
-        message: 'Could not delete category id ' + id,
+        message: "Could not delete category id " + id,
       });
     });
 };
@@ -636,31 +630,34 @@ exports.setViews = (req, res) => {
     .then((post) => {
       if (!post) {
         return res.status(404).send({
-          message: 'Post not found id ' + id,
+          message: "Post not found id " + id,
         });
       }
 
       post.views = post.views + 1;
 
-      post.save()
+      post
+        .save()
         .then((data) => {
           res.send({
             id: data._id,
             views: data.views,
           });
-        }).catch((err) => {
+        })
+        .catch((err) => {
           res.status(500).send({
-            message: err.message || 'Error updating post',
+            message: err.message || "Error updating post",
           });
         });
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Post not found id ' + id,
+          message: "Post not found id " + id,
         });
       }
       return res.status(500).send({
-        message: 'Post not update id ' + id,
+        message: "Post not update id " + id,
       });
     });
 };
@@ -669,7 +666,7 @@ exports.setViews = (req, res) => {
 exports.fetchFeaturedPosts = (req, res) => {
   const promise = new Promise((resolve, reject) => {
     Post.find({ featured: true })
-      .populate('author', 'username _id imageUrl slug')
+      .populate("author", "username _id imageUrl slug")
       // .populate('category', '-__v')
       //  .populate('sketch', '_id hash url sizeBytes')
       // .populate("like", "username _id imageUrl slug")
@@ -688,7 +685,7 @@ exports.fetchFeaturedPosts = (req, res) => {
             slug: coll.slug,
             description: coll.description,
             // sketch: coll.sketch,
-            // 
+            //
             author: coll.author,
             // category: coll.category,
             // captureDelay: coll.captureDelay,
@@ -742,21 +739,19 @@ exports.setFeaturedPosts = async (req, res) => {
     }
   }
 
-  res.send({ message: 'Featured posts updated' });
+  res.send({ message: "Featured posts updated" });
 };
-
 
 // fetch latest posts
 exports.fetchLatestPosts = (req, res) => {
   const number = parseInt(req.params.number);
 
-
   const promise = new Promise((resolve, reject) => {
     Post.find({})
       .sort({ date: -1 })
       .limit(number)
-      .populate('author', 'username _id imageUrl slug')
-      .populate('media', 'url width height ratio type')
+      .populate("author", "username _id imageUrl slug")
+      .populate("media", "url width height ratio type")
       // .populate('whitelist', '-__v')
       // .populate('category', '-__v')
       // .populate('sketch', '_id hash url sizeBytes')
@@ -785,7 +780,6 @@ exports.fetchLatestPosts = (req, res) => {
             // date: coll.date,
             // featured: coll.featured,
             like: coll.like,
-
           });
         }
         if (err) reject(err);
@@ -798,7 +792,6 @@ exports.fetchLatestPosts = (req, res) => {
   return promise;
 };
 
-
 // fetch latest posts by author
 
 exports.fetchLatestPostByArtist = (req, res) => {
@@ -810,8 +803,8 @@ exports.fetchLatestPostByArtist = (req, res) => {
     })
       .sort({ date: -1 })
       .limit(4)
-      .populate('author', 'username _id imageUrl slug')
-      .populate('category', '-__v')
+      .populate("author", "username _id imageUrl slug")
+      .populate("category", "-__v")
       // .populate('whitelist', '-__v')
       // .populate("like", "username _id imageUrl slug")
       .exec((err, post) => {
@@ -837,41 +830,44 @@ exports.deletePost = (req, res) => {
     .then((post) => {
       if (!post) {
         return res.status(404).send({
-          message: 'Post not found id ' + id,
+          message: "Post not found id " + id,
         });
       }
 
       if (!post.author.includes(userId)) {
         return res.status(401).send({
-          message: 'Unauthorized',
+          message: "Unauthorized",
         });
       }
 
       if (post.supply > 0) {
         return res.status(404).send({
-          message: 'Post has supply id: ' + id,
+          message: "Post has supply id: " + id,
         });
       }
 
-      post.remove()
+      post
+        .remove()
         .then((data) => {
           res.send({
             id: id,
-            message: 'Post deleted successfully id: ' + id,
+            message: "Post deleted successfully id: " + id,
           });
-        }).catch((err) => {
+        })
+        .catch((err) => {
           res.status(500).send({
-            message: err.message || 'Error deleting post',
+            message: err.message || "Error deleting post",
           });
         });
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Post not found id ' + id,
+          message: "Post not found id " + id,
         });
       }
       return res.status(500).send({
-        message: 'Post not delete id ' + id,
+        message: "Post not delete id " + id,
       });
     });
 };
@@ -885,35 +881,35 @@ exports.adminDeletePost = async (req, res) => {
     .then((post) => {
       if (!post) {
         return res.status(404).send({
-          message: 'Post not found id ' + id,
+          message: "Post not found id " + id,
         });
       }
 
-      post.remove()
+      post
+        .remove()
         .then((data) => {
           res.send({
             id: id,
-            message: 'Post deleted successfully id: ' + id,
+            message: "Post deleted successfully id: " + id,
           });
-        }).catch((err) => {
+        })
+        .catch((err) => {
           res.status(500).send({
-            message: err.message || 'Error deleting post',
+            message: err.message || "Error deleting post",
           });
         });
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Post not found id ' + id,
+          message: "Post not found id " + id,
         });
       }
       return res.status(500).send({
-        message: 'Post not delete id ' + id,
+        message: "Post not delete id " + id,
       });
     });
-
-
 };
-
 
 // edit post
 exports.editPost = async (req, res) => {
@@ -932,19 +928,19 @@ exports.editPost = async (req, res) => {
 
   if (!post) {
     return res.status(404).send({
-      message: 'Post not found id ' + id,
+      message: "Post not found id " + id,
     });
   }
   // check if post.author array contains userId
   if (!post.author.includes(userId) && !isAdmin) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
 
   if (post.supply > 0) {
     return res.status(404).send({
-      message: 'Post has supply',
+      message: "Post has supply",
     });
   }
 
@@ -957,24 +953,25 @@ exports.editPost = async (req, res) => {
     .then((sketch) => {
       if (!sketch) {
         return res.status(404).send({
-          message: 'Sketch not found id ' + sketchId,
+          message: "Sketch not found id " + sketchId,
         });
       }
 
       sketch.hash = req.body.sketch.hash;
       sketch.save();
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Sketch not found id ' + sketchId,
+          message: "Sketch not found id " + sketchId,
         });
       }
       return res.status(500).send({
-        message: 'Sketch not update id ' + sketchId,
+        message: "Sketch not update id " + sketchId,
       });
     });
 
-  const slug = req.body.name.toLowerCase().replace(/ /g, '-');
+  const slug = req.body.name.toLowerCase().replace(/ /g, "-");
 
   const whitelisted = req.body.whitelisted;
   const whitelistIds = [];
@@ -988,27 +985,29 @@ exports.editPost = async (req, res) => {
     whitelistIds.push(whitelist._id);
   }
 
-  Post.findByIdAndUpdate(id, {
-
-    name: req.body.name,
-    slug: slug,
-    subtitle: req.body.subtitle,
-    description: req.body.description,
-    author: [userId, ...collabs],
-    captureDelay: req.body.captureDelay,
-    cssSelector: req.body.cssSelector,
-    onSale: req.body.onSale,
-    totalSupply: req.body.totalSupply,
-    price: req.body.price,
-    royalty: req.body.royalty,
-    link: req.body.link,
-    image: req.body.image,
-    category: [],
-    sketch: sketchId,
-    whitelist: whitelistIds,
-    modified: new Date().toISOString(),
-
-  }, { new: true })
+  Post.findByIdAndUpdate(
+    id,
+    {
+      name: req.body.name,
+      slug: slug,
+      subtitle: req.body.subtitle,
+      description: req.body.description,
+      author: [userId, ...collabs],
+      captureDelay: req.body.captureDelay,
+      cssSelector: req.body.cssSelector,
+      onSale: req.body.onSale,
+      totalSupply: req.body.totalSupply,
+      price: req.body.price,
+      royalty: req.body.royalty,
+      link: req.body.link,
+      image: req.body.image,
+      category: [],
+      sketch: sketchId,
+      whitelist: whitelistIds,
+      modified: new Date().toISOString(),
+    },
+    { new: true }
+  )
     .then(async (post) => {
       const categoryArray = req.body.category;
 
@@ -1030,10 +1029,12 @@ exports.editPost = async (req, res) => {
             name: cat,
           });
 
-          await category.save()
+          await category
+            .save()
             .then((data) => {
               post.category.push(data._id);
-            }).catch((err) => {
+            })
+            .catch((err) => {
               console.log(err);
             });
         }
@@ -1048,14 +1049,15 @@ exports.editPost = async (req, res) => {
       res.send({
         id: post._id,
       });
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Post not found id ' + req.params.id,
+          message: "Post not found id " + req.params.id,
         });
       }
       return res.status(500).send({
-        message: 'Post not update id ' + req.params.id,
+        message: "Post not update id " + req.params.id,
       });
     });
 };
@@ -1065,7 +1067,6 @@ exports.editUserPost = async (req, res) => {
 
   const sketchId = req.body.sketch.id;
 
-
   const collabs = [];
 
   // check if post.supply is greater than 0 return error
@@ -1074,10 +1075,9 @@ exports.editUserPost = async (req, res) => {
 
   if (!post) {
     return res.status(404).send({
-      message: 'Post not found id ' + id,
+      message: "Post not found id " + id,
     });
   }
-
 
   // get all collaborators
   for (const coll of req.body.collabs) {
@@ -1088,50 +1088,53 @@ exports.editUserPost = async (req, res) => {
     .then((sketch) => {
       if (!sketch) {
         return res.status(404).send({
-          message: 'Sketch not found id ' + sketchId,
+          message: "Sketch not found id " + sketchId,
         });
       }
 
       sketch.hash = req.body.sketch.hash;
       sketch.save();
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Sketch not found id ' + sketchId,
+          message: "Sketch not found id " + sketchId,
         });
       }
       return res.status(500).send({
-        message: 'Sketch not update id ' + sketchId,
+        message: "Sketch not update id " + sketchId,
       });
     });
 
-  const slug = req.body.name.toLowerCase().replace(/ /g, '-');
+  const slug = req.body.name.toLowerCase().replace(/ /g, "-");
 
-  Post.findByIdAndUpdate(id, {
-
-    name: req.body.name,
-    slug: slug,
-    subtitle: req.body.subtitle,
-    description: req.body.description,
-    author: [...collabs],
-    captureDelay: req.body.captureDelay,
-    cssSelector: req.body.cssSelector,
-    backgroundColor: req.body.backgroundColor,
-    onSale: req.body.onSale,
-    supply: req.body.supply,
-    inscribing: req.body.inscribing,
-    totalSupply: req.body.totalSupply,
-    date: req.body.date,
-    price: req.body.price,
-    royalty: req.body.royalty,
-    link: req.body.link,
-    image: req.body.image,
-    volume: req.body.volume,
-    category: [],
-    sketch: sketchId,
-    modified: new Date().toISOString(),
-
-  }, { new: true })
+  Post.findByIdAndUpdate(
+    id,
+    {
+      name: req.body.name,
+      slug: slug,
+      subtitle: req.body.subtitle,
+      description: req.body.description,
+      author: [...collabs],
+      captureDelay: req.body.captureDelay,
+      cssSelector: req.body.cssSelector,
+      backgroundColor: req.body.backgroundColor,
+      onSale: req.body.onSale,
+      supply: req.body.supply,
+      inscribing: req.body.inscribing,
+      totalSupply: req.body.totalSupply,
+      date: req.body.date,
+      price: req.body.price,
+      royalty: req.body.royalty,
+      link: req.body.link,
+      image: req.body.image,
+      volume: req.body.volume,
+      category: [],
+      sketch: sketchId,
+      modified: new Date().toISOString(),
+    },
+    { new: true }
+  )
     .then(async (post) => {
       const categoryArray = req.body.category;
 
@@ -1153,10 +1156,12 @@ exports.editUserPost = async (req, res) => {
             name: cat,
           });
 
-          await category.save()
+          await category
+            .save()
             .then((data) => {
               post.category.push(data._id);
-            }).catch((err) => {
+            })
+            .catch((err) => {
               console.log(err);
             });
         }
@@ -1171,213 +1176,232 @@ exports.editUserPost = async (req, res) => {
       res.send({
         id: post._id,
       });
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Post not found id ' + req.params.id,
+          message: "Post not found id " + req.params.id,
         });
       }
       return res.status(500).send({
-        message: 'Post not update id ' + req.params.id,
+        message: "Post not update id " + req.params.id,
       });
     });
 };
 
 exports.createSection = (req, res) => {
-    if (!req.body.title || !req.body.content) {
-      return res.status(400).send({
-        message: "Section Fields cannot be empty"
+  if (!req.body.title || !req.body.content) {
+    return res.status(400).send({
+      message: "Section Fields cannot be empty",
+    });
+  }
+  //const loggedInUser = loginController.getLoggedInUserObject(req, res);
+
+  const section = new Section({
+    title: req.body.title,
+    content: req.body.content,
+    imageUrl: req.body.imageUrl,
+  });
+  section
+    .save()
+    .then((data) => {
+      res.send({
+        id: data._id,
+      });
+    })
+    .catch((err) => {
+      res.status(500).send({
+        message: err.message || "Error Section",
+      });
+    });
+};
+// Retrieve and return section by id from the database.
+exports.fetchSection = (req, res) => {
+  Section.findById(req.params.id).exec((err, section) => {
+    const sectionObj = {
+      id: section._id,
+      title: section._doc.title,
+      content: section._doc.content,
+      imageUrl: section._doc.imageUrl,
+    };
+    res.send(sectionObj);
+    if (err) {
+      return res.status(500).send({
+        message: "Error retrieving section with id " + req.params.id,
       });
     }
-    //const loggedInUser = loginController.getLoggedInUserObject(req, res);
-  
-    const section = new Section({
-      title: req.body.title,
-      content: req.body.content,
-      imageUrl: req.body.imageUrl
-    });
-    section.save()
-    .then(data => {
-      res.send({
-        id: data._id
-      });
-    }).catch(err => {
-      res.status(500).send({
-        message: err.message || "Error Section"
-      });
-    });
-  
-  }
-  // Retrieve and return section by id from the database.
-  exports.fetchSection = (req, res) => {
-    Section.findById(req.params.id).exec((err, section) => {
-      const sectionObj = {
-        id: section._id,
-        title: section._doc.title,
-        content: section._doc.content,
-        imageUrl: section._doc.imageUrl
-      }
-      res.send(sectionObj);
-      if (err) {
-        return res.status(500).send({
-          message: "Error retrieving section with id " + req.params.id
-        });
-      }
-    });
-  };
-  
-  // Retrieve and return all sections from article by id from the database.
-  exports.fetchSections = (req, res) => {
-    Post.findById(req.params.id).populate("section", "-__v")
+  });
+};
+
+// Retrieve and return all sections from article by id from the database.
+exports.fetchSections = (req, res) => {
+  Post.findById(req.params.id)
+    .populate("section", "-__v")
     .exec((err, article) => {
       res.send(article.section);
       if (err) {
         return res.status(500).send({
-          message: "Error retrieving sections with id " + req.params.id
+          message: "Error retrieving sections with id " + req.params.id,
         });
       }
     });
-  };
-  
-  // edit section
-  exports.editSection = (req, res) => {
-    if (!req.body.title || !req.body.content) {
-      return res.status(400).send({
-        message: "Section Fields cannot be empty"
-      });
-    }
-  
-    Section.findByIdAndUpdate(req.params.id, {
-  
+};
+
+// edit section
+exports.editSection = (req, res) => {
+  if (!req.body.title || !req.body.content) {
+    return res.status(400).send({
+      message: "Section Fields cannot be empty",
+    });
+  }
+
+  Section.findByIdAndUpdate(
+    req.params.id,
+    {
       title: req.body.title,
       content: req.body.content,
-      imageUrl: req.body.imageUrl
-  
-    }, {
-      new: true
-    }).then(section => {
+      imageUrl: req.body.imageUrl,
+    },
+    {
+      new: true,
+    }
+  )
+    .then((section) => {
       if (!section) {
         return res.status(404).send({
-          message: "Section not found with id " + req.params.id
+          message: "Section not found with id " + req.params.id,
         });
       }
       res.send({
-        id: section._id
+        id: section._id,
       });
-  
-    }).catch(err => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: "Section not found with id " + req.params.id
+          message: "Section not found with id " + req.params.id,
         });
       }
       return res.status(500).send({
-        message: "Error updating section with id " + req.params.id
+        message: "Error updating section with id " + req.params.id,
       });
-    
     });
-  };
+};
 
 exports.editSectionTitle = (req, res) => {
-    if (!req.body.title) {
-        return res.status(400).send({
-            message: "Section Fields cannot be empty"
-        });
+  if (!req.body.title) {
+    return res.status(400).send({
+      message: "Section Fields cannot be empty",
+    });
+  }
 
+  Section.findByIdAndUpdate(
+    req.params.id,
+    {
+      title: req.body.title,
+    },
+    {
+      new: true,
     }
-
-    Section.findByIdAndUpdate(req.params.id, {
-        title: req.body.title,
-    }, {
-        new: true
-    }).then(section => {
-        if (!section) {
-            return res.status(404).send({
-                message: "Section not found with id " + req.params.id
-            });
-        }
-        res.status(200).send({
-            id: section._id,
-            title: section.title
+  )
+    .then((section) => {
+      if (!section) {
+        return res.status(404).send({
+          message: "Section not found with id " + req.params.id,
         });
-    }).catch(err => {
-        if (err.kind === 'ObjectId') {
-            return res.status(404).send({
-                message: "Section not found with id " + req.params.id
-            });
-        }
-        return res.status(500).send({
-            message: "Error updating section with id " + req.params.id
+      }
+      res.status(200).send({
+        id: section._id,
+        title: section.title,
+      });
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
+        return res.status(404).send({
+          message: "Section not found with id " + req.params.id,
         });
+      }
+      return res.status(500).send({
+        message: "Error updating section with id " + req.params.id,
+      });
     });
 };
 
 exports.editSectionContent = (req, res) => {
-    if (!req.body.content) {
-        return res.status(400).send({
-            message: "Section Fields cannot be empty"
-        });
+  if (!req.body.content) {
+    return res.status(400).send({
+      message: "Section Fields cannot be empty",
+    });
+  }
 
+  Section.findByIdAndUpdate(
+    req.params.id,
+    {
+      content: req.body.content,
+    },
+    {
+      new: true,
     }
-
-    Section.findByIdAndUpdate(req.params.id, {
-        content: req.body.content,
-    }, {
-        new: true
-    }).then(section => {
-        if (!section) {
-            return res.status(404).send({
-                message: "Section not found with id " + req.params.id
-            });
-        }
-        res.status(200).send({
-            id: section._id,
-            content: section.content
+  )
+    .then((section) => {
+      if (!section) {
+        return res.status(404).send({
+          message: "Section not found with id " + req.params.id,
         });
-    }).catch(err => {
-        if (err.kind === 'ObjectId') {
-            return res.status(404).send({
-                message: "Section not found with id " + req.params.id
-            });
-        }
-        return res.status(500).send({
-            message: "Error updating section with id " + req.params.id
+      }
+      res.status(200).send({
+        id: section._id,
+        content: section.content,
+      });
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
+        return res.status(404).send({
+          message: "Section not found with id " + req.params.id,
         });
+      }
+      return res.status(500).send({
+        message: "Error updating section with id " + req.params.id,
+      });
     });
 };
 
 exports.editSectionImageUrl = (req, res) => {
-    if (!req.body.imageUrl) {
-        return res.status(400).send({
-            message: "Section Fields cannot be empty"
-        });
+  if (!req.body.imageUrl) {
+    return res.status(400).send({
+      message: "Section Fields cannot be empty",
+    });
+  }
 
+  Section.findByIdAndUpdate(
+    req.params.id,
+    {
+      imageUrl: req.body.imageUrl,
+    },
+    {
+      new: true,
     }
-
-    Section.findByIdAndUpdate(req.params.id, {
-        imageUrl: req.body.imageUrl,
-    }, {
-        new: true
-    }).then(section => {
-        if (!section) {
-            return res.status(404).send({
-                message: "Section not found with id " + req.params.id
-            });
-        }
-        res.status(200).send({
-            id: section._id,
-            imageUrl: section.imageUrl
+  )
+    .then((section) => {
+      if (!section) {
+        return res.status(404).send({
+          message: "Section not found with id " + req.params.id,
         });
-    }).catch(err => {
-        if (err.kind === 'ObjectId') {
-            return res.status(404).send({
-                message: "Section not found with id " + req.params.id
-            });
-        }
-        return res.status(500).send({
-            message: "Error updating section with id " + req.params.id
+      }
+      res.status(200).send({
+        id: section._id,
+        imageUrl: section.imageUrl,
+      });
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
+        return res.status(404).send({
+          message: "Section not found with id " + req.params.id,
         });
-
+      }
+      return res.status(500).send({
+        message: "Error updating section with id " + req.params.id,
+      });
     });
 };
 
@@ -1390,17 +1414,16 @@ exports.fetchPostByArtist = (req, res) => {
       author: id,
     })
       .limit(parseInt(number))
-      .populate('author', 'username _id imageUrl slug')
-      .populate('category', '-__v')
+      .populate("author", "username _id imageUrl slug")
+      .populate("category", "-__v")
       .populate("like", "username _id imageUrl slug")
-      .populate('media', 'url width height ratio type')
+      .populate("media", "url width height ratio type")
       .exec((err, post) => {
         if (!post) {
           return resolve([]);
         }
         if (err) reject(err);
         else {
-
           resolve(post);
         }
       });
@@ -1418,38 +1441,41 @@ exports.setPostOnDisplay = async (req, res) => {
     .then((post) => {
       if (!post) {
         return res.status(404).send({
-          message: 'Post not found id ' + req.params.id,
+          message: "Post not found id " + req.params.id,
         });
       }
 
       // check if post.author array contains userId
       if (!post.author.includes(req.userId) && !isAdmin) {
         return res.status(401).send({
-          message: 'Unauthorized',
+          message: "Unauthorized",
         });
       }
 
       post.display = !post.display;
 
-      post.save()
+      post
+        .save()
         .then((post) => {
           res.send({
             id: post._id,
             display: post.display,
           });
-        }).catch((err) => {
+        })
+        .catch((err) => {
           res.status(500).send({
-            message: err.message || 'Error Editing Post',
+            message: err.message || "Error Editing Post",
           });
         });
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Post not found id ' + req.params.id,
+          message: "Post not found id " + req.params.id,
         });
       }
       return res.status(500).send({
-        message: 'Post not update id ' + req.params.id,
+        message: "Post not update id " + req.params.id,
       });
     });
 };
@@ -1459,12 +1485,12 @@ exports.commentPost = async (req, res) => {
   const userId = req.userId;
   const user = await User.findById(userId);
 
-
   const comment = new Comment({
     content: req.body.comment,
     author: userId,
   });
-  comment.save()
+  comment
+    .save()
     .then((data) => {
       addComment(data._id);
       res.send({
@@ -1476,9 +1502,10 @@ exports.commentPost = async (req, res) => {
         author: data.author,
         date: data.date,
       });
-    }).catch((err) => {
+    })
+    .catch((err) => {
       res.status(500).send({
-        message: err.message || 'Error creating comment',
+        message: err.message || "Error creating comment",
       });
     });
 
@@ -1487,30 +1514,30 @@ exports.commentPost = async (req, res) => {
       .then((_serie) => {
         if (!_serie) {
           return res.status(404).send({
-            message: 'Post not found',
+            message: "Post not found",
           });
         }
         _serie.comments.push(id);
         _serie.save();
 
         // res.send({});
-      }).catch((err) => {
+      })
+      .catch((err) => {
         return res.status(500).send({
-          message: 'Error saving comment',
+          message: "Error saving comment",
         });
       });
   };
 };
 
 exports.removeComment = async (req, res) => {
-
   const commentId = req.params.id;
 
   const comment = await Comment.findById(commentId);
 
   if (!comment) {
     return res.status(404).send({
-      message: 'Comment not found id ' + commentId,
+      message: "Comment not found id " + commentId,
     });
   }
 
@@ -1518,7 +1545,7 @@ exports.removeComment = async (req, res) => {
 
   if (!post) {
     return res.status(404).send({
-      message: 'No comment found in post',
+      message: "No comment found in post",
     });
   }
 
@@ -1537,10 +1564,7 @@ exports.removeComment = async (req, res) => {
     id: commentId,
     serieId: post._id,
   });
-
 };
-
-
 
 // edit post description
 exports.editPostDescription = async (req, res) => {
@@ -1554,39 +1578,42 @@ exports.editPostDescription = async (req, res) => {
     .then((post) => {
       if (!post) {
         return res.status(404).send({
-          message: 'Post not found id ' + req.params.id,
+          message: "Post not found id " + req.params.id,
         });
       }
 
       // check if post.author array contains userId
       if (!post.author.includes(userId) && !isAdmin) {
         return res.status(401).send({
-          message: 'Unauthorized',
+          message: "Unauthorized",
         });
       }
 
       post.description = req.body.description;
 
-      post.save()
+      post
+        .save()
 
         .then((post) => {
           res.send({
             id: post._id,
             description: post.description,
           });
-        }).catch((err) => {
+        })
+        .catch((err) => {
           res.status(500).send({
-            message: err.message || 'Error Editing Post',
+            message: err.message || "Error Editing Post",
           });
         });
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Post not found id ' + req.params.id,
+          message: "Post not found id " + req.params.id,
         });
       }
       return res.status(500).send({
-        message: 'Post not update id ' + req.params.id,
+        message: "Post not update id " + req.params.id,
       });
     });
 };
@@ -1598,13 +1625,13 @@ exports.editPostName = async (req, res) => {
   const userId = req.userId;
   const name = req.body.name;
 
-  const slug = name.toLowerCase().replace(/ /g, '-');
+  const slug = name.toLowerCase().replace(/ /g, "-");
 
   const post = await Post.findById(id);
 
   if (!post) {
     return res.status(404).send({
-      message: 'Post not found id ' + id,
+      message: "Post not found id " + id,
     });
   }
 
@@ -1613,14 +1640,14 @@ exports.editPostName = async (req, res) => {
   // check if post.author array contains userId
   if (!post.author.includes(userId) && !isAdmin) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
 
   // check that  the supply is 0
   if (post.supply > 0) {
     return res.status(404).send({
-      message: 'Post has supply',
+      message: "Post has supply",
     });
   }
 
@@ -1646,7 +1673,7 @@ exports.editPostSubtitle = async (req, res) => {
 
   if (!post) {
     return res.status(404).send({
-      message: 'Post not found id ' + id,
+      message: "Post not found id " + id,
     });
   }
 
@@ -1655,7 +1682,7 @@ exports.editPostSubtitle = async (req, res) => {
   // check if post.author array contains userId
   if (!post.author.includes(userId) && !isAdmin) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
 
@@ -1679,7 +1706,7 @@ exports.updatePostCategory = async (req, res) => {
 
   if (!post) {
     return res.status(404).send({
-      message: 'Post not found id ' + id,
+      message: "Post not found id " + id,
     });
   }
 
@@ -1688,7 +1715,7 @@ exports.updatePostCategory = async (req, res) => {
   // check if post.author array contains userId
   if (!post.author.includes(userId) && !isAdmin) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
   const categories = [];
@@ -1696,7 +1723,6 @@ exports.updatePostCategory = async (req, res) => {
   const newCategories = [];
 
   for (const cat of categoryArray) {
-
     const categoryExist = await Category.findOne({
       name: cat,
     });
@@ -1738,7 +1764,7 @@ exports.removePostCategory = async (req, res) => {
 
   if (!post) {
     return res.status(404).send({
-      message: 'Post not found id ' + id,
+      message: "Post not found id " + id,
     });
   }
 
@@ -1747,7 +1773,7 @@ exports.removePostCategory = async (req, res) => {
   // check if post.author array contains userId
   if (!post.author.includes(userId) && !isAdmin) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
 
@@ -1757,15 +1783,13 @@ exports.removePostCategory = async (req, res) => {
 
   if (categoryIndex === -1) {
     return res.status(404).send({
-      message: 'Category not found id ' + categoryId,
+      message: "Category not found id " + categoryId,
     });
   }
 
   post.category.splice(categoryIndex, 1);
 
   await post.save();
-
-
 
   res.status(200).send({
     id: post._id,
@@ -1776,22 +1800,27 @@ exports.removePostCategory = async (req, res) => {
 exports.toggleReviewPost = async (req, res) => {
   const id = req.params.id;
 
+  const userId = req.userId;
 
   const post = await Post.findById(id);
 
   if (!post) {
     return res.status(404).send({
-      message: 'Post not found id ' + id,
+      message: "Post not found id " + id,
     });
   }
 
   post.reviewed = !post.reviewed;
+  post.reviewedBy.push(userId);
+  post.reviewDate = new Date().toISOString();
 
   await post.save();
 
   res.status(200).send({
     id: post._id,
     reviewed: post.reviewed,
+    reviewedBy: post.reviewedBy,
+    reviewDate: post.reviewDate,
   });
 };
 
@@ -1805,7 +1834,7 @@ const userIsAdmin = async (userId) => {
   const roles = await Role.find({ _id: { $in: user.role } });
 
   for (const role of roles) {
-    if (role.name === 'admin') {
+    if (role.name === "admin") {
       return true;
     }
   }
@@ -1910,7 +1939,7 @@ exports.likePost = async (req, res) => {
 
   if (!post) {
     return res.status(404).send({
-      message: 'Post not found id ' + id,
+      message: "Post not found id " + id,
     });
   }
 
@@ -1934,8 +1963,7 @@ exports.likePost = async (req, res) => {
   post.rank += 5;
   await post.save();
 
-  post = await Post.findById(id)
-    .populate('like', 'username _id imageUrl slug');
+  post = await Post.findById(id).populate("like", "username _id imageUrl slug");
 
   res.status(200).send({
     id: post._id,
@@ -1971,9 +1999,9 @@ exports.fetchLikedPosts = (req, res) => {
       like: id,
     })
       .limit(parseInt(number))
-      .populate('author', 'username _id imageUrl slug')
-      .populate('category', '-__v')
-      .populate('media', 'url width height ratio type')
+      .populate("author", "username _id imageUrl slug")
+      .populate("category", "-__v")
+      .populate("media", "url width height ratio type")
       // .populate('whitelist', '-__v')
       // .populate("like", "username _id imageUrl slug")
       .exec((err, post) => {
@@ -1989,7 +2017,6 @@ exports.fetchLikedPosts = (req, res) => {
   return promise;
 };
 
-
 exports.numberOfPostsPerArstistId = async (req, res) => {
   const id = req.params.id;
 
@@ -2001,10 +2028,7 @@ exports.numberOfPostsPerArstistId = async (req, res) => {
 };
 
 // percentage of ownership per post id
-exports.percentageOfOwnership = async (req, res) => {
-
-
-};
+exports.percentageOfOwnership = async (req, res) => {};
 
 // get volume per post id
 exports.volumeOfPost = async (req, res) => {
