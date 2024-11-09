@@ -16,6 +16,9 @@ module.exports = function (app) {
     // getProjects
     app.get('/api/generative/projects/:number', [authJwt.verifySession], controller.getProjects);
 
+    // loadNft
+    app.get('/api/generative/nft/:number', [authJwt.verifySession], controller.loadNft);
+
     // createNft   
     app.post('/api/generative/nft/create/:id', [authJwt.verifySession, objectId.isValidObjectId], controller.createNft);
 
