@@ -3,6 +3,7 @@ const mail = require("../middlewares/mail");
 // const discord = require('../middlewares/discord');
 require("dotenv").config();
 const Post = db.post;
+const Podcast = db.podcast;
 const Trait = db.trait;
 const Category = db.category;
 const Media = db.media;
@@ -27,6 +28,23 @@ exports.slugToId = async (req, res) => {
 
   res.send({
     id: post._id,
+  });
+};
+
+// slug to post id
+exports.slugPodToId = async (req, res) => {
+  const slug = req.params.slug;
+
+  const podcast = await Podcast.findOne({ slug: slug });
+
+  if (!podcast) {
+    return res.status(404).send({
+      message: "Podcast not found",
+    });
+  }
+
+  res.send({
+    id: podcast._id,
   });
 };
 
@@ -296,6 +314,57 @@ exports.fetchPostById = (req, res) => {
   return promise;
 };
 
+exports.fetchPodcastById = (req, res) => {
+  const id = req.params.id;
+
+  const promise = new Promise((resolve, reject) => {
+    Podcast.findById(id)
+      .populate("author", "username _id imageUrl slug")
+      .populate("category", "-__v")
+      .populate("like", "username _id imageUrl slug")
+      .populate({
+        path: "comments",
+        populate: {
+          path: "author",
+          select: "username _id imageUrl slug",
+        },
+        select: "_id content author date",
+      })
+
+      .exec((err, podcast) => {
+        if (!podcast) {
+          return resolve({});
+        }
+
+        const description = podcast._doc.description;
+        // .replace(/\\n/g, '\n');
+
+        const data = {
+          id: podcast._doc._id,
+          name: podcast._doc.name,
+          slug: podcast._doc.slug,
+          subtitle: podcast._doc.subtitle,
+          description: description,
+          audioUrl: podcast._doc.audioUrl,
+          author: podcast._doc.author,
+          views: podcast._doc.views,
+          like: podcast._doc.like,
+          likes: podcast._doc.likes,
+          comments: podcast._doc.comments,
+          date: podcast._doc.date,
+          category: podcast._doc.category,
+          links: podcast._doc.link,
+          references: podcast._doc.references,
+        };
+        if (err) reject(err);
+        else {
+          resolve(data);
+        }
+      });
+  });
+  return promise;
+};
+
 // fetch random posts using aggregate
 exports.fetchRandomPost = (req, res) => {
   const promise = new Promise((resolve, reject) => {
@@ -468,6 +537,80 @@ exports.createPost = async (req, res) => {
   });
 
   sendMail(OWNER_EMAIL, post, "content");
+};
+
+exports.createPodcast = async (req, res) => {
+  if (!req.body.name || !req.body.description) {
+    return res.status(400).send({
+      message: "Fields cannot be empty",
+    });
+  }
+
+  const userId = req.userId;
+
+  const user = await User.findById(userId);
+
+  const media = new Media({
+    url: req.body.media.url,
+    width: req.body.media.width,
+    height: req.body.media.height,
+    ratio: req.body.media.ratio,
+    type: req.body.media.type,
+  });
+
+  await media.save();
+
+  const slug = req.body.name.toLowerCase().replace(/ /g, "-");
+
+  const podcast = new Podcast({
+    name: req.body.name,
+    slug: slug,
+    subtitle: req.body.subtitle,
+    description: req.body.description,
+    author: [userId, ...req.body.collabs],
+    links: req.body.links,
+    references: req.body.references,
+    media: media._id,
+    audioUrl: req.body.audioUrl
+  });
+
+  await podcast.save();
+
+  const categoryArray = req.body.category;
+
+  const categoryPromises = categoryArray.map(async (cat) => {
+    const element = await Category.findOne({
+      name: cat,
+    });
+
+    if (!element) {
+      const category = new Category({
+        name: cat,
+      });
+
+      await category
+        .save()
+        .then((data) => {
+          post.category.push(data._id);
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    }
+    if (element) {
+      podcast.category.push(element._id);
+    }
+  });
+
+  await Promise.all(categoryPromises);
+  await podcast.save();
+
+  res.send({
+    id: podcast._id,
+    slug: podcast.slug,
+  });
+
+  // sendMail(OWNER_EMAIL, post, "content");
 };
 
 /**
@@ -792,6 +935,57 @@ exports.fetchLatestPosts = (req, res) => {
   return promise;
 };
 
+// fetch latest podcasts
+exports.fetchLatestPodcasts = (req, res) => {
+  const number = parseInt(req.params.number);
+
+  const promise = new Promise((resolve, reject) => {
+    Podcast.find({})
+      .sort({ date: -1 })
+      .limit(number)
+      .populate("author", "username _id imageUrl slug")
+      .populate("media", "url width height ratio type")
+      // .populate('whitelist', '-__v')
+      // .populate('category', '-__v')
+      // .populate('sketch', '_id hash url sizeBytes')
+      .populate("like", "username _id imageUrl slug")
+
+      .exec((err, podcast) => {
+        if (!podcast) {
+          return resolve([]);
+        }
+
+        const podcastObj = [];
+        for (const pod of podcast) {
+          podcastObj.push({
+            id: pod._id,
+            name: pod.name,
+            slug: pod.slug,
+            subtitle: pod.subtitle,
+            description: pod.description,
+            // sketch: coll.sketch,
+            author: pod.author,
+            media: pod.media,
+            // category: coll.category,
+            // captureDelay: coll.captureDelay,
+            audioUrl: pod.audioUrl,
+            // views: coll.views,
+            likes: pod.likes,
+            // date: coll.date,
+            // featured: coll.featured,
+            like: pod.like,
+          });
+        }
+        if (err) reject(err);
+        else {
+          resolve(podcastObj);
+        }
+      });
+  });
+
+  return promise;
+};
+
 // fetch latest posts by author
 
 exports.fetchLatestPostByArtist = (req, res) => {
@@ -814,6 +1008,33 @@ exports.fetchLatestPostByArtist = (req, res) => {
         if (err) reject(err);
         else {
           resolve(post);
+        }
+      });
+  });
+  return promise;
+};
+
+exports.fetchLatestPodcastByArtist = (req, res) => {
+  const id = req.params.id;
+
+  const promise = new Promise((resolve, reject) => {
+    Podcast.find({
+      author: id,
+    })
+      .sort({ date: -1 })
+      .limit(4)
+      .populate("author", "username _id imageUrl slug")
+      .populate("category", "-__v")
+      .populate("media", "-__v")
+      // .populate('whitelist', '-__v')
+      .populate("like", "username _id imageUrl slug")
+      .exec((err, podcast) => {
+        if (!podcast) {
+          return resolve([]);
+        }
+        if (err) reject(err);
+        else {
+          resolve(podcast);
         }
       });
   });
@@ -1431,6 +1652,32 @@ exports.fetchPostByArtist = (req, res) => {
   return promise;
 };
 
+exports.fetchPodcastByArtist = (req, res) => {
+  const id = req.params.id;
+  const number = req.query.number;
+
+  const promise = new Promise((resolve, reject) => {
+    Podcast.find({
+      author: id,
+    })
+      .limit(parseInt(number))
+      .populate("author", "username _id imageUrl slug")
+      .populate("category", "-__v")
+      .populate("like", "username _id imageUrl slug")
+      .populate("media", "url width height ratio type")
+      .exec((err, podcast) => {
+        if (!podcast) {
+          return resolve([]);
+        }
+        if (err) reject(err);
+        else {
+          resolve(podcast);
+        }
+      });
+  });
+  return promise;
+};
+
 // set post on display
 exports.setPostOnDisplay = async (req, res) => {
   const id = req.params.id;
@@ -1566,7 +1813,84 @@ exports.removeComment = async (req, res) => {
   });
 };
 
-// edit post description
+// edit post name
+exports.editPodcastName = async (req, res) => {
+  const id = req.params.id;
+
+  const userId = req.userId;
+  const name = req.body.name;
+
+  const slug = name.toLowerCase().replace(/ /g, "-");
+
+  const post = await Podcast.findById(id);
+
+  if (!post) {
+    return res.status(404).send({
+      message: "Post not found id " + id,
+    });
+  }
+
+  const isAdmin = await userIsAdmin(userId);
+
+  // check if post.author array contains userId
+  if (!post.author.includes(userId) && !isAdmin) {
+    return res.status(401).send({
+      message: "Unauthorized",
+    });
+  }
+
+  // check that  the supply is 0
+  if (post.supply > 0) {
+    return res.status(404).send({
+      message: "Post has supply",
+    });
+  }
+
+  post.name = name;
+  post.slug = slug;
+
+  await post.save();
+
+  res.status(200).send({
+    id: post._id,
+    name: post.name,
+    slug: post.slug,
+  });
+};
+
+// edit post subtitle
+exports.editPodcastSubtitle = async (req, res) => {
+  const id = req.params.id;
+
+  const userId = req.userId;
+
+  const post = await Podcast.findById(id);
+
+  if (!post) {
+    return res.status(404).send({
+      message: "Post not found id " + id,
+    });
+  }
+
+  const isAdmin = await userIsAdmin(userId);
+
+  // check if post.author array contains userId
+  if (!post.author.includes(userId) && !isAdmin) {
+    return res.status(401).send({
+      message: "Unauthorized",
+    });
+  }
+
+  post.subtitle = req.body.subtitle;
+
+  await post.save();
+
+  res.status(200).send({
+    id: post._id,
+    subtitle: post.subtitle,
+  });
+};
+
 exports.editPostDescription = async (req, res) => {
   const id = req.params.id;
 
@@ -1618,6 +1942,129 @@ exports.editPostDescription = async (req, res) => {
     });
 };
 
+// edit post description
+exports.editPodcastDescription = async (req, res) => {
+  const id = req.params.id;
+
+  const userId = req.userId;
+
+  const isAdmin = await userIsAdmin(userId);
+
+  Podcast.findById(id)
+    .then((post) => {
+      if (!post) {
+        return res.status(404).send({
+          message: "Post not found id " + req.params.id,
+        });
+      }
+
+      // check if post.author array contains userId
+      if (!post.author.includes(userId) && !isAdmin) {
+        return res.status(401).send({
+          message: "Unauthorized",
+        });
+      }
+
+      post.description = req.body.description;
+
+      post
+        .save()
+
+        .then((post) => {
+          res.send({
+            id: post._id,
+            description: post.description,
+          });
+        })
+        .catch((err) => {
+          res.status(500).send({
+            message: err.message || "Error Editing Post",
+          });
+        });
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
+        return res.status(404).send({
+          message: "Post not found id " + req.params.id,
+        });
+      }
+      return res.status(500).send({
+        message: "Post not update id " + req.params.id,
+      });
+    });
+};
+
+exports.editPodcastAudio = async (req, res) => {
+  const id = req.params.id
+
+  const userId = req.userId;
+
+  const podcast = await Podcast.findById(id);
+
+  if (!podcast) {
+    return res.status(404).send({
+      message: "Podcast not found id " + id,
+    });
+  }
+
+  const isAdmin = await userIsAdmin(userId);
+
+  // check if post.author array contains userId
+  if (!podcast.author.includes(userId) && !isAdmin) {
+    return res.status(401).send({
+      message: "Unauthorized",
+    });
+  }
+
+  podcast.audioUrl = req.body.audioUrl;
+
+  await podcast.save();
+
+  res.status(200).send({
+    id: podcast._id,
+    audioUrl: podcast.audioUrl
+  })
+}
+
+exports.editPodcastMedia = async (req, res) => {
+  const id = req.params.id;
+
+  const userId = req.userId;
+
+  const podcast = await Podcast.findById(id);
+
+  if (!podcast) {
+    return res.status(404).send({
+      message: "Podcast not found id " + id,
+    });
+  }
+
+  const isAdmin = await userIsAdmin(userId);
+
+  // check if post.author array contains userId
+  if (!podcast.author.includes(userId) && !isAdmin) {
+    return res.status(401).send({
+      message: "Unauthorized",
+    });
+  }
+
+  const media = await Media.findById(podcast.media);
+
+  media.url = req.body.media.url,
+  media.width = req.body.media.width,
+  media.height = req.body.media.height,
+  media.ratio = req.body.media.ratio,
+  media.type = req.body.media.type,
+
+  media.save();
+
+  res.status(200).send({
+    id: id,
+    media: media
+  })
+  
+}
+
 // edit post name
 exports.editPostName = async (req, res) => {
   const id = req.params.id;
@@ -1644,12 +2091,6 @@ exports.editPostName = async (req, res) => {
     });
   }
 
-  // check that  the supply is 0
-  if (post.supply > 0) {
-    return res.status(404).send({
-      message: "Post has supply",
-    });
-  }
 
   post.name = name;
   post.slug = slug;

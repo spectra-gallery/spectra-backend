@@ -10,7 +10,6 @@ const { ethers } = require("ethers");
 const puppeteer = require('puppeteer');
 
 const contract = require("../artifacts/contracts/Spectra.sol/Spectra.json");
-const { parse } = require("path");
 
 const storageUpload = require("../middlewares/storageUpload");
 

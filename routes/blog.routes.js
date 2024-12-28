@@ -21,6 +21,9 @@ module.exports = function(app) {
   // slugToId
   app.get('/api/blog/slug/:slug', controller.slugToId);
 
+  // slugPodToId
+  app.get('/api/blog/pod/slug/:slug', controller.slugPodToId);
+
   // fetchPostName
   app.get('/api/blog/name', [authJwt.verifyToken], (req, res) => {
     const elements = controller.fetchPostName(req, res);
@@ -35,6 +38,8 @@ module.exports = function(app) {
   // app.post('/api/blog', [authJwt.verifyToken, authJwt.isCreator, verifyPost.checkDuplicateName], controller.createPost);
 
   app.post('/api/blog', [authJwt.verifyToken, verifyPost.checkDuplicateName], controller.createPost);
+
+  app.post('/api/blog/podcast', [authJwt.verifyToken, verifyPost.checkDuplicateName], controller.createPodcast);
 
   // createUserPost
   app.post('/api/blog/user', [authJwt.verifyToken, authJwt.isAdmin], controller.createUserPost);
@@ -73,8 +78,18 @@ module.exports = function(app) {
   });
 
   // get blog by id
-  app.get('/api/blogid/:id', [authJwt.verifySession, objectId.isValidObjectId], (req, res) => {
+  app.get('/api/blog/blogid/:id', [authJwt.verifySession, objectId.isValidObjectId], (req, res) => {
     const elements = controller.fetchPostById(req, res);
+    elements.then((elements) => {
+      res.status(200).send({
+        ...elements,
+      });
+    });
+  });
+
+  // fetchPodcastById
+  app.get('/api/blog/podcastid/:id', [authJwt.verifySession, objectId.isValidObjectId], (req, res) => {
+    const elements = controller.fetchPodcastById(req, res);
     elements.then((elements) => {
       res.status(200).send({
         ...elements,
@@ -85,6 +100,15 @@ module.exports = function(app) {
   // get blog by artist
   app.get('/api/blog/artist/:id', [authJwt.verifySession, objectId.isValidObjectId], (req, res) => {
     const elements = controller.fetchPostByArtist(req, res);
+    elements.then((elements) => {
+      res.status(200).send({
+        ...elements,
+      });
+    });
+  });
+
+  app.get('/api/blog/podcast/artist/:id', [authJwt.verifySession, objectId.isValidObjectId], (req, res) => {
+    const elements = controller.fetchPodcastByArtist(req, res);
     elements.then((elements) => {
       res.status(200).send({
         ...elements,
@@ -154,6 +178,15 @@ module.exports = function(app) {
     });
   });
 
+  app.get('/api/blog/podcast/latest/:id', [authJwt.verifySession, objectId.isValidObjectId], (req, res) => {
+    const elements = controller.fetchLatestPodcastByArtist(req, res);
+    elements.then((elements) => {
+      res.status(200).send({
+        ...elements,
+      });
+    });
+  });
+
   // fetchGalleryPosts
   app.get('/api/blog/gallery', [authJwt.verifySession], (req, res) => {
     const elements = controller.fetchGalleryPosts(req, res);
@@ -167,6 +200,16 @@ module.exports = function(app) {
   // fetchLatestPosts
   app.get('/api/blog/post/:number', [authJwt.verifySession], (req, res) => {
     const elements = controller.fetchLatestPosts(req, res);
+    elements.then((elements) => {
+      res.status(200).send({
+        ...elements,
+      });
+    });
+  });
+
+  // fetchLatestPodcats
+  app.get('/api/blog/podcast/:number', [authJwt.verifySession], (req, res) => {
+    const elements = controller.fetchLatestPodcasts(req, res);
     elements.then((elements) => {
       res.status(200).send({
         ...elements,
@@ -249,6 +292,20 @@ module.exports = function(app) {
   // editPostDescription
   app.post('/api/blog/description/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editPostDescription);
 
+  // editPostName
+  app.post('/api/blog/podcast/name/:id', [authJwt.verifyToken, objectId.isValidObjectId, verifyPost.checkDuplicateNameEdit], controller.editPodcastName);
+
+  // editPostSubtitle
+  app.post('/api/blog/podcast/subtitle/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editPodcastSubtitle);
+
+  // editPostDescription
+  app.post('/api/blog/podcast/description/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editPodcastDescription);
+
+  // editPodcastAudio
+  app.post('/api/blog/podcast/audio/edit/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editPodcastAudio);
+
+  // editPodcastMedia
+  app.post('/api/blog/podcast/media/edit/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editPodcastMedia);
 
   app.post('/api/blog/like/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.likePost);
 

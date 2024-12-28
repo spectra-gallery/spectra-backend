@@ -20,7 +20,9 @@ const ecc = require('tiny-secp256k1');
 const Web3 = require('web3');
 const web3 = new Web3();
 
-const stripe = require("stripe")('sk_test_51INl1iHxwzCEp0yUOSY7MHhyKuXu0IHD8Q4IIkLmDJBbV1FUa6B3JORUxpEiLvvCOtNFgx3VPqudTlcxKZ23Tsdq00ul7qZ5PA');
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+
+const stripe = require("stripe")(STRIPE_SECRET_KEY);
 
 // eslint-disable-next-line new-cap
 const ECPair = ECPairFactory.ECPairFactory(ecc);

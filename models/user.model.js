@@ -1,7 +1,4 @@
-const { address } = require('bitcoinjs-lib');
-const { application } = require('express');
 const mongoose = require('mongoose');
-const { bitcoin, customer } = require('.');
 
 const User = mongoose.model(
     'User',
