@@ -15,6 +15,7 @@ db.serie = require('./serie.model');
 db.media = require('./media.model');
 db.element = require('./element.model');
 db.post = require('./post.model');
+db.podcast = require('./podcast.model');
 db.portfolio = require('./portfolio.model');
 db.scope = require('./scope.model');
 db.ordinal = require('./ordinal.model');

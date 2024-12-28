@@ -10,13 +10,14 @@ const { ethers } = require("ethers");
 const puppeteer = require('puppeteer');
 
 const contract = require("../artifacts/contracts/Spectra.sol/Spectra.json");
-const { parse } = require("path");
 
 const storageUpload = require("../middlewares/storageUpload");
 
 const ETH_API_URL = process.env.ETH_API_URL;
 const ETH_PRIVATE_KEY = process.env.ETH_PRIVATE_KEY;
 const SPECTRA_CONTRACT_ADDRESS = process.env.SPECTRA_CONTRACT_ADDRESS;
+
+const GEN_OFFSET = process.env.GEN_OFFSET;
 
 const alchemyProvider = new ethers.providers.JsonRpcProvider(ETH_API_URL);
 
@@ -40,7 +41,9 @@ exports.getProjects = async (req, res) => {
     // convert base64 to json
     let projectJson = atob(project.split(",")[1]);
 
+    /** ----------------------------------- TEMPORARY FIX ----------------------------------- */
     projectJson = projectJson.slice(0, -3) + projectJson.slice(-2);
+
     // check for invalid control characters
     projectJson = projectJson.replace(/[\u0000-\u001F]+/g, "");
     const projectDecoded = JSON.parse(projectJson);
@@ -60,6 +63,58 @@ exports.getProjects = async (req, res) => {
 
   res.status(200).send({
     projects,
+  });
+};
+
+exports.loadNft = async (req, res) => {
+
+  const number = parseInt(req.params.number);
+
+
+  const totalNft = 1; // await spectraContract.totalSupply();
+
+  let nfts = [];
+
+  for (let i = 0; i < Math.min(totalNft, number); i++) {
+
+    const index = i * GEN_OFFSET;
+    
+    const nft = await spectraContract.tokenURI(index);
+
+    const value = await spectraContract.getNftValue(index);
+
+    const royalty = await spectraContract.royaltyInfo(index, 32000000);
+
+    const owner = await spectraContract.ownerOf(index);
+
+    // convert base64 to json
+    let nftJson = atob(nft.split(",")[1]);
+
+    // check for invalid control characters
+    nftJson = nftJson.replace(/[\u0000-\u001F]+/g, "");
+
+    console.log(nftJson);
+    // convert string to json
+    nftJson = JSON.parse(nftJson);
+
+    const animation = atob(nftJson.animation_url.split(",")[1]);
+    
+
+    nfts.push({
+      id: i,
+      name: nftJson.name,
+      description: nftJson.description,
+      owner: owner,
+      image: nftJson.image,
+      animation_url: animation,
+      price: value,
+      royalty: royalty
+    });
+
+  }
+
+  res.status(200).send({
+    nfts,
   });
 };
 
