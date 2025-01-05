@@ -1,9 +1,9 @@
-const db = require('../models');
-const mail = require('../middlewares/mail');
-const parseHtml = require('../middlewares/parseHtml');
-const { use } = require('passport');
+const db = require("../models");
+const mail = require("../middlewares/mail");
+const parseHtml = require("../middlewares/parseHtml");
+const { use } = require("passport");
 // const discord = require('../middlewares/discord');
-require('dotenv').config();
+require("dotenv").config();
 const Serie = db.serie;
 const Whitelist = db.whitelist;
 const Trait = db.trait;
@@ -22,7 +22,7 @@ exports.slugToId = async (req, res) => {
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found',
+      message: "Serie not found",
     });
   }
 
@@ -34,31 +34,29 @@ exports.slugToId = async (req, res) => {
 // get all serie name and id
 exports.fetchSerieName = (req, res) => {
   const promise = new Promise((resolve, reject) => {
-    Serie.find({}, 'name slug')
-      .exec((err, series) => {
-        if (!series) {
-          return resolve([]);
-        }
+    Serie.find({}, "name slug").exec((err, series) => {
+      if (!series) {
+        return resolve([]);
+      }
 
-        const seriesObj = [];
+      const seriesObj = [];
 
-        for (const serie of series) {
-          seriesObj.push({
-            id: serie._id,
-            name: serie.name,
-            slug: serie.slug,
-          });
-        }
+      for (const serie of series) {
+        seriesObj.push({
+          id: serie._id,
+          name: serie.name,
+          slug: serie.slug,
+        });
+      }
 
-        if (err) reject(err);
-        else {
-          resolve(seriesObj);
-        }
-      });
+      if (err) reject(err);
+      else {
+        resolve(seriesObj);
+      }
+    });
   });
   return promise;
 };
-
 
 exports.fetchSeries = (req, res) => {
   // const page = req.params.page;
@@ -80,11 +78,11 @@ exports.fetchSeries = (req, res) => {
       .sort(sorting)
       // .skip((page - 1) * 10)
       // .limit(10)
-      .populate('artists', 'username _id imageUrl slug')
-      .populate('media', '_id url ratio type')
-      .populate('category', '-__v')
-      .populate('chain', '-__v')
-      .populate('category', '-__v')
+      .populate("artists", "username _id imageUrl slug")
+      .populate("media", "_id url ratio type")
+      .populate("category", "-__v")
+      .populate("chain", "-__v")
+      .populate("category", "-__v")
       // .populate('sketch', '_id hash url sizeBytes')
       .populate("like", "username _id imageUrl slug")
       .exec((err, collections) => {
@@ -131,7 +129,6 @@ exports.fetchSeries = (req, res) => {
         }
         if (err) reject(err);
         else {
-
           resolve(collectionObj);
         }
       });
@@ -142,7 +139,7 @@ exports.fetchSeries = (req, res) => {
 exports.getAllSeries = (req, res) => {
   const promise = new Promise((resolve, reject) => {
     Serie.find({})
-      .populate('artists', 'username _id imageUrl slug')
+      .populate("artists", "username _id imageUrl slug")
       .exec((err, collections) => {
         if (!collections) {
           return resolve([]);
@@ -188,10 +185,10 @@ exports.fetchAllSeriesByNumber = (req, res) => {
     Serie.find({})
       .sort(sorting)
       .limit(number)
-      .populate('artists', 'username _id imageUrl slug')
-      .populate('category', '-__v')
-      .populate('media', '_id url ratio type')
-      .populate('whitelist', '-__v')
+      .populate("artists", "username _id imageUrl slug")
+      .populate("category", "-__v")
+      .populate("media", "_id url ratio type")
+      .populate("whitelist", "-__v")
       // .populate('sketch', '_id hash url sizeBytes')
       .populate("like", "username _id imageUrl slug")
       .exec((err, collections) => {
@@ -226,7 +223,7 @@ exports.fetchAllSeriesByNumber = (req, res) => {
             published: coll.published,
             // featured: coll.featured,
             like: coll.like,
-            whitelist: coll.whitelist
+            whitelist: coll.whitelist,
           });
         }
 
@@ -243,9 +240,9 @@ exports.fetchAllSeriesByNumber = (req, res) => {
 exports.fetchGallerySeries = (req, res) => {
   const promise = new Promise((resolve, reject) => {
     Serie.find({})
-      .populate('artists', 'username _id imageUrl slug')
-      .populate('category', '-__v')
-      .populate('sketch', '_id hash url sizeBytes')
+      .populate("artists", "username _id imageUrl slug")
+      .populate("category", "-__v")
+      .populate("sketch", "_id hash url sizeBytes")
 
       .exec((err, collections) => {
         if (err) reject(err);
@@ -262,10 +259,10 @@ exports.getSerieETH = async (req, res) => {
 
   const promise = new Promise((resolve, reject) => {
     Serie.findById(id)
-      .populate('artists', '_id address slug username')
-      .populate('sketch', '_id html css javascript')
-      .populate('media', '_id url ratio type')
-      .populate('chain', '-__v')
+      .populate("artists", "_id address slug username")
+      .populate("sketch", "_id html css javascript")
+      .populate("media", "_id url ratio type")
+      .populate("chain", "-__v")
       .exec((err, serie) => {
         if (!serie) {
           return resolve({});
@@ -302,19 +299,19 @@ exports.fetchSerieById = (req, res) => {
 
   const promise = new Promise((resolve, reject) => {
     Serie.findById(id)
-      .populate('artists', 'username _id imageUrl slug')
-      .populate('category', '-__v')
-      .populate('sketch', '_id html css javascript hash url sizeBytes')
-      .populate('media', '_id url ratio type')
-      .populate('trait', '_id trait_type value')
-      .populate('whitelist', '-__v')
+      .populate("artists", "username _id imageUrl slug")
+      .populate("category", "-__v")
+      .populate("sketch", "_id html css javascript hash url sizeBytes")
+      .populate("media", "_id url ratio type")
+      .populate("trait", "_id trait_type value")
+      .populate("whitelist", "-__v")
       .populate("like", "username _id imageUrl slug")
-      .populate('chain', '-__v')
+      .populate("chain", "-__v")
       .exec((err, serie) => {
         if (!serie) {
           return resolve({});
         }
-    
+
         const description = serie._doc.description;
         // .replace(/\\n/g, '\n');
 
@@ -357,7 +354,6 @@ exports.fetchSerieById = (req, res) => {
         };
         if (err) reject(err);
         else {
-  
           resolve(data);
         }
       });
@@ -368,48 +364,47 @@ exports.fetchSerieById = (req, res) => {
 // fetch random collections using aggregate
 exports.fetchRandomSerie = (req, res) => {
   const promise = new Promise((resolve, reject) => {
-    Serie.aggregate([{ $sample: { size: 1 } },
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'artists',
-        foreignField: '_id',
-        as: 'artists',
-        pipeline: [
-          {
-            $project: {
-              username: 1,
-              _id: 1,
-              imageUrl: 1,
-              slug: 1,
+    Serie.aggregate([
+      { $sample: { size: 1 } },
+      {
+        $lookup: {
+          from: "users",
+          localField: "artists",
+          foreignField: "_id",
+          as: "artists",
+          pipeline: [
+            {
+              $project: {
+                username: 1,
+                _id: 1,
+                imageUrl: 1,
+                slug: 1,
+              },
             },
-          },
-        ],
+          ],
+        },
       },
-    },
+    ]).exec((err, collections) => {
+      if (!collections) {
+        return resolve({});
+      }
 
-    ])
-      .exec((err, collections) => {
-        if (!collections) {
-          return resolve({});
-        }
+      const data = {
+        id: collections[0]._id,
+        name: collections[0].name,
+        slug: collections[0].slug,
+        description: collections[0].description,
+        image: collections[0].image,
+        artists: collections[0].artists,
+        supply: collections[0].supply,
+        totalSupply: collections[0].totalSupply,
+      };
 
-        const data = {
-          id: collections[0]._id,
-          name: collections[0].name,
-          slug: collections[0].slug,
-          description: collections[0].description,
-          image: collections[0].image,
-          artists: collections[0].artists,
-          supply: collections[0].supply,
-          totalSupply: collections[0].totalSupply,
-        };
-
-        if (err) reject(err);
-        else {
-          resolve(data);
-        }
-      });
+      if (err) reject(err);
+      else {
+        resolve(data);
+      }
+    });
   });
 
   return promise;
@@ -473,7 +468,7 @@ exports.generateSketch = async (req, res) => {
   const sketch = new Sketch({
     html: htmlContent,
     url: fileUrl,
-    hash: '',
+    hash: "",
     sizeBytes: sizeBytes,
   });
 
@@ -493,7 +488,7 @@ exports.assignSketchUrl = async (req, res) => {
 
   if (!sketch) {
     return res.status(404).send({
-      message: 'Sketch not found id ' + id,
+      message: "Sketch not found id " + id,
     });
   }
 
@@ -519,19 +514,18 @@ exports.parseHtml = async (req, res) => {
     javascript: js,
     url: fileUrl,
   });
- 
+
   await sketch.save();
 
   res.status(200).send({
     id: sketch._id,
   });
-
 };
 
 exports.createSerie = async (req, res) => {
   if (!req.body.name || !req.body.description) {
     return res.status(400).send({
-      message: 'Fields cannot be empty',
+      message: "Fields cannot be empty",
     });
   }
 
@@ -547,7 +541,7 @@ exports.createSerie = async (req, res) => {
   if (!chain) {
     chain = new Chain({
       name: chainType,
-      address: user.address
+      address: user.address,
     });
     await chain.save();
   }
@@ -578,8 +572,7 @@ exports.createSerie = async (req, res) => {
     traits.push(newTrait._id);
   }
 
-  if (serieType === 'generative') {
-
+  if (serieType === "generative") {
     const sketchId = req.body.sketch.id;
 
     // get sketch by id
@@ -587,7 +580,7 @@ exports.createSerie = async (req, res) => {
       .then((sketch) => {
         if (!sketch) {
           return res.status(404).send({
-            message: 'Sketch not found id ' + sketchId,
+            message: "Sketch not found id " + sketchId,
           });
         } else {
           sketch.hash = req.body.sketch.hash;
@@ -595,7 +588,7 @@ exports.createSerie = async (req, res) => {
         }
       })
       .then(async (sketch) => {
-        const slug = req.body.name.toLowerCase().replace(/ /g, '-');
+        const slug = req.body.name.toLowerCase().replace(/ /g, "-");
 
         const whitelistIds = await Promise.all(
           req.body.whitelisted.map(async (wh) => {
@@ -610,7 +603,6 @@ exports.createSerie = async (req, res) => {
           })
         );
 
-
         new Serie({
           name: req.body.name,
           slug: slug,
@@ -620,8 +612,8 @@ exports.createSerie = async (req, res) => {
           sketch: sketch._id,
           artists: [userId, ...req.body.collabs],
           captureDelay: req.body.captureDelay,
-          cssSelector: req.body.cssSelector || 'body',
-          backgroundColor: req.body.backgroundColor || '#F2F0EC',
+          cssSelector: req.body.cssSelector || "body",
+          backgroundColor: req.body.backgroundColor || "#F2F0EC",
           onChain: req.body.onChain,
           chain: chainId,
           onSale: req.body.onSale,
@@ -635,7 +627,8 @@ exports.createSerie = async (req, res) => {
           media: media._id,
           whitelist: whitelistIds,
           trait: traits,
-        }).save()
+        })
+          .save()
           .then(async (serie) => {
             const categoryArray = req.body.category;
 
@@ -649,10 +642,12 @@ exports.createSerie = async (req, res) => {
                   name: cat,
                 });
 
-                await category.save()
+                await category
+                  .save()
                   .then((data) => {
                     serie.category.push(data._id);
-                  }).catch((err) => {
+                  })
+                  .catch((err) => {
                     console.log(err);
                   });
               }
@@ -664,10 +659,11 @@ exports.createSerie = async (req, res) => {
             await Promise.all(categoryPromises);
             await serie.save();
 
-
             res.send({
               id: serie._id,
               slug: serie.slug,
+              chain: chain,
+              type: serie.type
             });
             /*
             const emailTo = user.email || 'pmosi76@gmail.com';
@@ -679,25 +675,25 @@ exports.createSerie = async (req, res) => {
 
             discord.sendNotification(title, content, serie.image);
             */
-          }).catch((err) => {
+          })
+          .catch((err) => {
             res.status(500).send({
-              message: err.message || 'Error Creating Serie',
+              message: err.message || "Error Creating Serie",
             });
           });
       })
       .catch((err) => {
-        if (err.kind === 'ObjectId') {
+        if (err.kind === "ObjectId") {
           return res.status(404).send({
-            message: 'Sketch not found id ' + sketchId,
+            message: "Sketch not found id " + sketchId,
           });
         }
         return res.status(500).send({
-          message: 'Sketch not update id ' + sketchId,
+          message: "Sketch not update id " + sketchId,
         });
       });
-
-  } else if (serieType === 'mixmedia') {
-    const slug = req.body.name.toLowerCase().replace(/ /g, '-');
+  } else if (serieType === "mixmedia") {
+    const slug = req.body.name.toLowerCase().replace(/ /g, "-");
 
     const whitelistIds = await Promise.all(
       req.body.whitelisted.map(async (wh) => {
@@ -711,7 +707,6 @@ exports.createSerie = async (req, res) => {
         return savedWhitelist._id;
       })
     );
-
 
     const serie = new Serie({
       name: req.body.name,
@@ -735,7 +730,7 @@ exports.createSerie = async (req, res) => {
       trait: traits,
     });
 
-    await serie.save()
+    await serie.save();
 
     const categoryArray = req.body.category;
 
@@ -749,18 +744,19 @@ exports.createSerie = async (req, res) => {
           name: cat,
         });
 
-        await category.save()
+        await category
+          .save()
           .then((data) => {
             serie.category.push(data._id);
-          }).catch((err) => {
+          })
+          .catch((err) => {
             console.log(err);
           });
       }
       if (element) {
         serie.category.push(element._id);
       }
-    }
-    );
+    });
 
     await Promise.all(categoryPromises);
     await serie.save();
@@ -768,10 +764,9 @@ exports.createSerie = async (req, res) => {
     res.send({
       id: serie._id,
       slug: serie.slug,
+      chain: chain,
+      type: serie.type,
     });
-
-
-
   }
 };
 
@@ -796,7 +791,6 @@ function sendMail(to, data, type) {
 
 // parse sketch
 exports.parseSketch = async (req, res) => {
-
   const htmlContent = req.body.htmlContent;
   const hash = req.body.hash;
 
@@ -808,119 +802,120 @@ exports.parseSketch = async (req, res) => {
 };
 
 const generateIframe = (htmlContent, hash) => {
+  const hashFunction = `let injectSeed = "${hash}";`;
 
-  const hashFunction = `let injectSeed = "${hash}";`
+  htmlContent = htmlContent.replace("___FIDDLER__HASH___", hashFunction);
 
-  htmlContent = htmlContent.replace('___FIDDLER__HASH___', hashFunction)
-
-  return htmlContent
+  return htmlContent;
 };
 
 // exports generateIframe with params
 exports.generateIframe = generateIframe;
 
+exports.createUserSerie = (req, res) => {
+  if (!req.body.name || !req.body.description) {
+    return res.status(400).send({
+      message: "Fields cannot be empty",
+    });
+  }
+  // const loggedInUser = loginController.getLoggedInUserObject(req, res);
+  const sketchId = req.body.sketch.id;
 
-  exports.createUserSerie = (req, res) => {
-    if (!req.body.name || !req.body.description) {
-      return res.status(400).send({
-        message: 'Fields cannot be empty',
-      });
-    }
-    // const loggedInUser = loginController.getLoggedInUserObject(req, res);
-    const sketchId = req.body.sketch.id;
-
-
-    // get sketch by id
-    Sketch.findById(sketchId)
-      .then((sketch) => {
-        if (!sketch) {
-          return res.status(404).send({
-            message: 'Sketch not found id ' + sketchId,
-          });
-        }
-
-        sketch.hash = req.body.sketch.hash;
-        sketch.save();
-      }).catch((err) => {
-        if (err.kind === 'ObjectId') {
-          return res.status(404).send({
-            message: 'Sketch not found id ' + sketchId,
-          });
-        }
-        return res.status(500).send({
-          message: 'Sketch not update id ' + sketchId,
+  // get sketch by id
+  Sketch.findById(sketchId)
+    .then((sketch) => {
+      if (!sketch) {
+        return res.status(404).send({
+          message: "Sketch not found id " + sketchId,
         });
+      }
+
+      sketch.hash = req.body.sketch.hash;
+      sketch.save();
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
+        return res.status(404).send({
+          message: "Sketch not found id " + sketchId,
+        });
+      }
+      return res.status(500).send({
+        message: "Sketch not update id " + sketchId,
       });
-
-    const slug = req.body.name.toLowerCase().replace(/ /g, '-');
-
-    const whitelistIds = req.body.whitelisted.map((wh) => {
-      return new Whitelist({
-        address: wh.address,
-        value: Math.floor(wh.value * Math.pow(10, 8)),
-      }).save()._id;
     });
 
-    const serie = new Serie({
-      name: req.body.name,
-      slug: slug,
-      subtitle: req.body.subtitle,
-      description: req.body.description,
-      type: req.body.type,
-      sketch: sketchId,
-      artists: [req.body.collabs],
-      captureDelay: req.body.captureDelay,
-      cssSelector: req.body.cssSelector || 'body',
-      backgroundColor: req.body.backgroundColor,
-      display: req.body.display,
-      onSale: req.body.onSale,
-      totalSupply: req.body.totalSupply,
-      price: req.body.price,
-      royalty: req.body.royalty,
-      link: req.body.link,
-      image: req.body.image,
-      whitelist: whitelistIds,
-    });
-    serie.save()
-      .then(async (serie) => {
-        const categoryArray = req.body.category;
+  const slug = req.body.name.toLowerCase().replace(/ /g, "-");
 
-        const categoryPromises = categoryArray.map(async (cat) => {
-          const element = await Category.findOne({
+  const whitelistIds = req.body.whitelisted.map((wh) => {
+    return new Whitelist({
+      address: wh.address,
+      value: Math.floor(wh.value * Math.pow(10, 8)),
+    }).save()._id;
+  });
+
+  const serie = new Serie({
+    name: req.body.name,
+    slug: slug,
+    subtitle: req.body.subtitle,
+    description: req.body.description,
+    type: req.body.type,
+    sketch: sketchId,
+    artists: [req.body.collabs],
+    captureDelay: req.body.captureDelay,
+    cssSelector: req.body.cssSelector || "body",
+    backgroundColor: req.body.backgroundColor,
+    display: req.body.display,
+    onSale: req.body.onSale,
+    totalSupply: req.body.totalSupply,
+    price: req.body.price,
+    royalty: req.body.royalty,
+    link: req.body.link,
+    image: req.body.image,
+    whitelist: whitelistIds,
+  });
+  serie
+    .save()
+    .then(async (serie) => {
+      const categoryArray = req.body.category;
+
+      const categoryPromises = categoryArray.map(async (cat) => {
+        const element = await Category.findOne({
+          name: cat,
+        });
+
+        if (!element) {
+          const category = new Category({
             name: cat,
           });
 
-          if (!element) {
-            const category = new Category({
-              name: cat,
+          await category
+            .save()
+            .then((data) => {
+              serie.category.push(data._id);
+            })
+            .catch((err) => {
+              console.log(err);
             });
-
-            await category.save()
-              .then((data) => {
-                serie.category.push(data._id);
-              }).catch((err) => {
-                console.log(err);
-              });
-          }
-          if (element) {
-            serie.category.push(element._id);
-          }
-        });
-
-        await Promise.all(categoryPromises);
-        await serie.save();
-
-
-        res.send({
-          id: serie._id,
-        });
-      }).catch((err) => {
-        res.status(500).send({
-          message: err.message || 'Error Creating Serie',
-        });
+        }
+        if (element) {
+          serie.category.push(element._id);
+        }
       });
 
-    /*
+      await Promise.all(categoryPromises);
+      await serie.save();
+
+      res.send({
+        id: serie._id,
+      });
+    })
+    .catch((err) => {
+      res.status(500).send({
+        message: err.message || "Error Creating Serie",
+      });
+    });
+
+  /*
     const options = mail.getMailOptions('pmosi76@gmail.com', req, 'content');
   
   
@@ -932,12 +927,12 @@ exports.generateIframe = generateIframe;
       }
     });
     */
-  };
+};
 
 exports.createCategory = async (req, res) => {
   if (!req.body.name) {
     return res.status(400).send({
-      message: 'Fields cannot be empty',
+      message: "Fields cannot be empty",
     });
   }
 
@@ -971,22 +966,23 @@ exports.deleteCategory = (req, res) => {
     .then((category) => {
       if (!category) {
         return res.status(404).send({
-          message: 'Category not found id ' + id,
+          message: "Category not found id " + id,
         });
       } else {
         res.send({
           id: category._id,
-          message: 'Category deleted successfully!',
+          message: "Category deleted successfully!",
         });
       }
-    }).catch((err) => {
-      if (err.kind === 'ObjectId' || err.name === 'NotFound') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId" || err.name === "NotFound") {
         return res.status(404).send({
-          message: 'Category not found id ' + id,
+          message: "Category not found id " + id,
         });
       }
       return res.status(500).send({
-        message: 'Could not delete category id ' + id,
+        message: "Could not delete category id " + id,
       });
     });
 };
@@ -999,32 +995,35 @@ exports.setViews = (req, res) => {
     .then((serie) => {
       if (!serie) {
         return res.status(404).send({
-          message: 'Serie not found id ' + id,
+          message: "Serie not found id " + id,
         });
       }
 
       serie.views = serie.views + 1;
       serie.rank += 1;
 
-      serie.save()
+      serie
+        .save()
         .then((data) => {
           res.send({
             id: data._id,
             views: data.views,
           });
-        }).catch((err) => {
+        })
+        .catch((err) => {
           res.status(500).send({
-            message: err.message || 'Error updating serie',
+            message: err.message || "Error updating serie",
           });
         });
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Serie not found id ' + id,
+          message: "Serie not found id " + id,
         });
       }
       return res.status(500).send({
-        message: 'Serie not update id ' + id,
+        message: "Serie not update id " + id,
       });
     });
 };
@@ -1033,8 +1032,8 @@ exports.setViews = (req, res) => {
 exports.fetchFeaturedSeries = (req, res) => {
   const promise = new Promise((resolve, reject) => {
     Serie.find({ featured: true })
-      .populate('artists', 'username _id imageUrl slug')
-      .populate('whitelist', '-__v')
+      .populate("artists", "username _id imageUrl slug")
+      .populate("whitelist", "-__v")
       // .populate('category', '-__v')
       //  .populate('sketch', '_id hash url sizeBytes')
       // .populate("like", "username _id imageUrl slug")
@@ -1053,7 +1052,7 @@ exports.fetchFeaturedSeries = (req, res) => {
             slug: coll.slug,
             description: coll.description,
             // sketch: coll.sketch,
-            // 
+            //
             artists: coll.artists,
             // category: coll.category,
             // captureDelay: coll.captureDelay,
@@ -1070,7 +1069,7 @@ exports.fetchFeaturedSeries = (req, res) => {
             // date: coll.date,
             // featured: coll.featured,
             like: coll.like,
-            whitelist: coll.whitelist
+            whitelist: coll.whitelist,
           });
         }
 
@@ -1115,7 +1114,7 @@ exports.setFeaturedSeries = async (req, res) => {
     }
   }
 
-  res.send({ message: 'Featured collections updated' });
+  res.send({ message: "Featured collections updated" });
 };
 
 exports.fetchOnSaleSeries = (req, res) => {
@@ -1138,9 +1137,9 @@ exports.fetchOnSaleSeries = (req, res) => {
       .sort(sorting)
       // .skip((page - 1) * 10)
       // .limit(10)
-      .populate('artists', 'username _id imageUrl slug')
-      .populate('category', '-__v')
-      .populate('whitelist', '-__v')
+      .populate("artists", "username _id imageUrl slug")
+      .populate("category", "-__v")
+      .populate("whitelist", "-__v")
       // .populate('sketch', '_id hash url sizeBytes')
       // .populate("like", "username _id imageUrl slug")
       .exec((err, collections) => {
@@ -1190,7 +1189,7 @@ exports.fetchTrendingSeries = (req, res) => {
     Serie.find({})
       .sort({ likes: -1, views: -1, supply: -1 })
       .limit(4)
-      .populate('artists', 'username _id imageUrl slug')
+      .populate("artists", "username _id imageUrl slug")
       // .populate('whitelist', '-__v')
       // .populate('category', '-__v')
       // .populate('sketch', '_id hash url sizeBytes')
@@ -1226,7 +1225,7 @@ exports.fetchTrendingSeries = (req, res) => {
             // date: coll.date,
             // featured: coll.featured,
             like: coll.like,
-            whitelist: coll.whitelist
+            whitelist: coll.whitelist,
           });
         }
         if (err) reject(err);
@@ -1243,8 +1242,8 @@ exports.fetchRecommendedSeries = (req, res) => {
     Serie.find({})
       .sort({ rank: -1 })
       .limit(6)
-      .populate('artists', 'username _id imageUrl slug')
-      .populate('whitelist', '-__v')
+      .populate("artists", "username _id imageUrl slug")
+      .populate("whitelist", "-__v")
       // .populate('category', '-__v')
       //  .populate('sketch', '_id hash url sizeBytes')
       // .populate("like", "username _id imageUrl slug")
@@ -1279,7 +1278,7 @@ exports.fetchRecommendedSeries = (req, res) => {
             // date: coll.date,
             // featured: coll.featured,
             like: coll.like,
-            whitelist: coll.whitelist
+            whitelist: coll.whitelist,
           });
         }
 
@@ -1298,7 +1297,7 @@ exports.fetchRecommendedSeriesOnSale = (req, res) => {
     Serie.find({ onSale: true })
       .sort({ rank: -1 })
       .limit(6)
-      .populate('artists', 'username _id imageUrl slug')
+      .populate("artists", "username _id imageUrl slug")
       // .populate('category', '-__v')
       // .populate('sketch', '_id hash url sizeBytes')
       // .populate("like", "username _id imageUrl slug")
@@ -1355,7 +1354,7 @@ exports.fetchRecommendedSeriesByArtist = (req, res) => {
     })
       .sort({ rank: -1 })
       .limit(4)
-      .populate('artists', 'username _id imageUrl slug')
+      .populate("artists", "username _id imageUrl slug")
       // .populate('category', '-__v')
       // .populate('sketch', '_id hash url sizeBytes')
       // .populate("like", "username _id imageUrl slug")
@@ -1410,8 +1409,8 @@ exports.fetchRecommendedSeriesOmitArtist = (req, res) => {
     })
       .sort({ rank: -1 })
       .limit(4)
-      .populate('artists', 'username _id imageUrl slug')
-      .populate('whitelist', '-__v')
+      .populate("artists", "username _id imageUrl slug")
+      .populate("whitelist", "-__v")
       .exec((err, serie) => {
         if (!serie) {
           return resolve([]);
@@ -1434,7 +1433,6 @@ exports.fetchRecommendedSeriesOmitArtist = (req, res) => {
             likes: coll.likes,
             like: coll.like,
             whitelist: coll.whitelist,
-
           });
         }
         if (err) reject(err);
@@ -1450,13 +1448,12 @@ exports.fetchRecommendedSeriesOmitArtist = (req, res) => {
 exports.fetchLatestSeries = (req, res) => {
   const number = parseInt(req.params.number);
 
-
   const promise = new Promise((resolve, reject) => {
     Serie.find({})
       .sort({ onSale: -1, date: -1 })
       .limit(number)
-      .populate('artists', 'username _id imageUrl slug')
-      .populate('media', 'url width height ratio type')
+      .populate("artists", "username _id imageUrl slug")
+      .populate("media", "url width height ratio type")
       // .populate('whitelist', '-__v')
       // .populate('category', '-__v')
       // .populate('sketch', '_id hash url sizeBytes')
@@ -1495,7 +1492,6 @@ exports.fetchLatestSeries = (req, res) => {
             // featured: coll.featured,
             like: coll.like,
             whitelist: coll.whitelist,
-
           });
         }
         if (err) reject(err);
@@ -1508,7 +1504,6 @@ exports.fetchLatestSeries = (req, res) => {
   return promise;
 };
 
-
 // fetch latest collections by artists
 
 exports.fetchLatestSerieByArtist = (req, res) => {
@@ -1520,8 +1515,8 @@ exports.fetchLatestSerieByArtist = (req, res) => {
     })
       .sort({ date: -1 })
       .limit(4)
-      .populate('artists', 'username _id imageUrl slug')
-      .populate('category', '-__v')
+      .populate("artists", "username _id imageUrl slug")
+      .populate("category", "-__v")
       // .populate('whitelist', '-__v')
       // .populate("like", "username _id imageUrl slug")
       .exec((err, serie) => {
@@ -1547,41 +1542,44 @@ exports.deleteSerie = (req, res) => {
     .then((serie) => {
       if (!serie) {
         return res.status(404).send({
-          message: 'Serie not found id ' + id,
+          message: "Serie not found id " + id,
         });
       }
 
       if (!serie.artists.includes(userId)) {
         return res.status(401).send({
-          message: 'Unauthorized',
+          message: "Unauthorized",
         });
       }
 
       if (serie.supply > 0) {
         return res.status(404).send({
-          message: 'Serie has supply id: ' + id,
+          message: "Serie has supply id: " + id,
         });
       }
 
-      serie.remove()
+      serie
+        .remove()
         .then((data) => {
           res.send({
             id: id,
-            message: 'Serie deleted successfully id: ' + id,
+            message: "Serie deleted successfully id: " + id,
           });
-        }).catch((err) => {
+        })
+        .catch((err) => {
           res.status(500).send({
-            message: err.message || 'Error deleting serie',
+            message: err.message || "Error deleting serie",
           });
         });
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Serie not found id ' + id,
+          message: "Serie not found id " + id,
         });
       }
       return res.status(500).send({
-        message: 'Serie not delete id ' + id,
+        message: "Serie not delete id " + id,
       });
     });
 };
@@ -1595,35 +1593,35 @@ exports.adminDeleteSerie = async (req, res) => {
     .then((serie) => {
       if (!serie) {
         return res.status(404).send({
-          message: 'Serie not found id ' + id,
+          message: "Serie not found id " + id,
         });
       }
 
-      serie.remove()
+      serie
+        .remove()
         .then((data) => {
           res.send({
             id: id,
-            message: 'Serie deleted successfully id: ' + id,
+            message: "Serie deleted successfully id: " + id,
           });
-        }).catch((err) => {
+        })
+        .catch((err) => {
           res.status(500).send({
-            message: err.message || 'Error deleting serie',
+            message: err.message || "Error deleting serie",
           });
         });
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Serie not found id ' + id,
+          message: "Serie not found id " + id,
         });
       }
       return res.status(500).send({
-        message: 'Serie not delete id ' + id,
+        message: "Serie not delete id " + id,
       });
     });
-
-
 };
-
 
 // edit serie
 exports.editSerie = async (req, res) => {
@@ -1642,19 +1640,19 @@ exports.editSerie = async (req, res) => {
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + id,
+      message: "Serie not found id " + id,
     });
   }
   // check if serie.artists array contains userId
   if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
 
   if (serie.supply > 0) {
     return res.status(404).send({
-      message: 'Serie has supply',
+      message: "Serie has supply",
     });
   }
 
@@ -1667,24 +1665,25 @@ exports.editSerie = async (req, res) => {
     .then((sketch) => {
       if (!sketch) {
         return res.status(404).send({
-          message: 'Sketch not found id ' + sketchId,
+          message: "Sketch not found id " + sketchId,
         });
       }
 
       sketch.hash = req.body.sketch.hash;
       sketch.save();
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Sketch not found id ' + sketchId,
+          message: "Sketch not found id " + sketchId,
         });
       }
       return res.status(500).send({
-        message: 'Sketch not update id ' + sketchId,
+        message: "Sketch not update id " + sketchId,
       });
     });
 
-  const slug = req.body.name.toLowerCase().replace(/ /g, '-');
+  const slug = req.body.name.toLowerCase().replace(/ /g, "-");
 
   const whitelisted = req.body.whitelisted;
   const whitelistIds = [];
@@ -1698,27 +1697,29 @@ exports.editSerie = async (req, res) => {
     whitelistIds.push(whitelist._id);
   }
 
-  Serie.findByIdAndUpdate(id, {
-
-    name: req.body.name,
-    slug: slug,
-    subtitle: req.body.subtitle,
-    description: req.body.description,
-    artists: [userId, ...collabs],
-    captureDelay: req.body.captureDelay,
-    cssSelector: req.body.cssSelector,
-    onSale: req.body.onSale,
-    totalSupply: req.body.totalSupply,
-    price: req.body.price,
-    royalty: req.body.royalty,
-    link: req.body.link,
-    image: req.body.image,
-    category: [],
-    sketch: sketchId,
-    whitelist: whitelistIds,
-    modified: new Date().toISOString(),
-
-  }, { new: true })
+  Serie.findByIdAndUpdate(
+    id,
+    {
+      name: req.body.name,
+      slug: slug,
+      subtitle: req.body.subtitle,
+      description: req.body.description,
+      artists: [userId, ...collabs],
+      captureDelay: req.body.captureDelay,
+      cssSelector: req.body.cssSelector,
+      onSale: req.body.onSale,
+      totalSupply: req.body.totalSupply,
+      price: req.body.price,
+      royalty: req.body.royalty,
+      link: req.body.link,
+      image: req.body.image,
+      category: [],
+      sketch: sketchId,
+      whitelist: whitelistIds,
+      modified: new Date().toISOString(),
+    },
+    { new: true }
+  )
     .then(async (serie) => {
       const categoryArray = req.body.category;
 
@@ -1740,10 +1741,12 @@ exports.editSerie = async (req, res) => {
             name: cat,
           });
 
-          await category.save()
+          await category
+            .save()
             .then((data) => {
               serie.category.push(data._id);
-            }).catch((err) => {
+            })
+            .catch((err) => {
               console.log(err);
             });
         }
@@ -1758,14 +1761,15 @@ exports.editSerie = async (req, res) => {
       res.send({
         id: serie._id,
       });
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Serie not found id ' + req.params.id,
+          message: "Serie not found id " + req.params.id,
         });
       }
       return res.status(500).send({
-        message: 'Serie not update id ' + req.params.id,
+        message: "Serie not update id " + req.params.id,
       });
     });
 };
@@ -1775,7 +1779,6 @@ exports.editUserSerie = async (req, res) => {
 
   const sketchId = req.body.sketch.id;
 
-
   const collabs = [];
 
   // check if serie.supply is greater than 0 return error
@@ -1784,10 +1787,9 @@ exports.editUserSerie = async (req, res) => {
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + id,
+      message: "Serie not found id " + id,
     });
   }
-
 
   // get all collaborators
   for (const coll of req.body.collabs) {
@@ -1798,50 +1800,53 @@ exports.editUserSerie = async (req, res) => {
     .then((sketch) => {
       if (!sketch) {
         return res.status(404).send({
-          message: 'Sketch not found id ' + sketchId,
+          message: "Sketch not found id " + sketchId,
         });
       }
 
       sketch.hash = req.body.sketch.hash;
       sketch.save();
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Sketch not found id ' + sketchId,
+          message: "Sketch not found id " + sketchId,
         });
       }
       return res.status(500).send({
-        message: 'Sketch not update id ' + sketchId,
+        message: "Sketch not update id " + sketchId,
       });
     });
 
-  const slug = req.body.name.toLowerCase().replace(/ /g, '-');
+  const slug = req.body.name.toLowerCase().replace(/ /g, "-");
 
-  Serie.findByIdAndUpdate(id, {
-
-    name: req.body.name,
-    slug: slug,
-    subtitle: req.body.subtitle,
-    description: req.body.description,
-    artists: [...collabs],
-    captureDelay: req.body.captureDelay,
-    cssSelector: req.body.cssSelector,
-    backgroundColor: req.body.backgroundColor,
-    onSale: req.body.onSale,
-    supply: req.body.supply,
-    inscribing: req.body.inscribing,
-    totalSupply: req.body.totalSupply,
-    date: req.body.date,
-    price: req.body.price,
-    royalty: req.body.royalty,
-    link: req.body.link,
-    image: req.body.image,
-    volume: req.body.volume,
-    category: [],
-    sketch: sketchId,
-    modified: new Date().toISOString(),
-
-  }, { new: true })
+  Serie.findByIdAndUpdate(
+    id,
+    {
+      name: req.body.name,
+      slug: slug,
+      subtitle: req.body.subtitle,
+      description: req.body.description,
+      artists: [...collabs],
+      captureDelay: req.body.captureDelay,
+      cssSelector: req.body.cssSelector,
+      backgroundColor: req.body.backgroundColor,
+      onSale: req.body.onSale,
+      supply: req.body.supply,
+      inscribing: req.body.inscribing,
+      totalSupply: req.body.totalSupply,
+      date: req.body.date,
+      price: req.body.price,
+      royalty: req.body.royalty,
+      link: req.body.link,
+      image: req.body.image,
+      volume: req.body.volume,
+      category: [],
+      sketch: sketchId,
+      modified: new Date().toISOString(),
+    },
+    { new: true }
+  )
     .then(async (serie) => {
       const categoryArray = req.body.category;
 
@@ -1863,10 +1868,12 @@ exports.editUserSerie = async (req, res) => {
             name: cat,
           });
 
-          await category.save()
+          await category
+            .save()
             .then((data) => {
               serie.category.push(data._id);
-            }).catch((err) => {
+            })
+            .catch((err) => {
               console.log(err);
             });
         }
@@ -1881,14 +1888,15 @@ exports.editUserSerie = async (req, res) => {
       res.send({
         id: serie._id,
       });
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Serie not found id ' + req.params.id,
+          message: "Serie not found id " + req.params.id,
         });
       }
       return res.status(500).send({
-        message: 'Serie not update id ' + req.params.id,
+        message: "Serie not update id " + req.params.id,
       });
     });
 };
@@ -1898,7 +1906,7 @@ exports.editUserSerie = async (req, res) => {
 exports.editSketch = async (req, res) => {
   if (!req.body.sketch || !req.body.media) {
     return res.status(400).send({
-      message: 'Fields cannot be empty',
+      message: "Fields cannot be empty",
     });
   }
 
@@ -1914,7 +1922,7 @@ exports.editSketch = async (req, res) => {
 
   if (!sketch) {
     return res.status(404).send({
-      message: 'Sketch not found id ' + sketchId,
+      message: "Sketch not found id " + sketchId,
     });
   }
 
@@ -1922,7 +1930,7 @@ exports.editSketch = async (req, res) => {
 
   if (!media) {
     return res.status(404).send({
-      message: 'Media not found id ' + req.body.media.id,
+      message: "Media not found id " + req.body.media.id,
     });
   }
 
@@ -1930,13 +1938,13 @@ exports.editSketch = async (req, res) => {
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + serieId,
+      message: "Serie not found id " + serieId,
     });
   }
 
   if (!serie.artists.includes(userId)) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
 
@@ -1953,7 +1961,7 @@ exports.editSketch = async (req, res) => {
   serie.cssSelector = req.body.cssSelector;
   serie.backgroundColor = req.body.backgroundColor;
 
-  serie.save()
+  serie.save();
 
   res.status(200).send({
     id: serie._id,
@@ -1968,7 +1976,7 @@ exports.editSketch = async (req, res) => {
 exports.editSerieMedia = async (req, res) => {
   if (!req.body.media) {
     return res.status(400).send({
-      message: 'Fields cannot be empty',
+      message: "Fields cannot be empty",
     });
   }
 
@@ -1979,13 +1987,13 @@ exports.editSerieMedia = async (req, res) => {
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + id,
+      message: "Serie not found id " + id,
     });
   }
 
   if (!serie.artists.includes(userId)) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
 
@@ -1993,7 +2001,7 @@ exports.editSerieMedia = async (req, res) => {
 
   if (!media) {
     return res.status(404).send({
-      message: 'Media not found id ' + serie.media,
+      message: "Media not found id " + serie.media,
     });
   }
 
@@ -2020,20 +2028,19 @@ exports.fetchSerieByArtist = (req, res) => {
       artists: id,
     })
       .limit(parseInt(number))
-      .populate('artists', 'username _id imageUrl slug')
-      .populate('category', '-__v')
-      .populate('trait', '-__v')
-      .populate('whitelist', '-__v')
+      .populate("artists", "username _id imageUrl slug")
+      .populate("category", "-__v")
+      .populate("trait", "-__v")
+      .populate("whitelist", "-__v")
       .populate("like", "username _id imageUrl slug")
-      .populate('media', 'url width height ratio type')
-      .populate('chain', '-__v')
+      .populate("media", "url width height ratio type")
+      .populate("chain", "-__v")
       .exec((err, serie) => {
         if (!serie) {
           return resolve([]);
         }
         if (err) reject(err);
         else {
-
           resolve(serie);
         }
       });
@@ -2052,38 +2059,41 @@ exports.setSerieOnSale = async (req, res) => {
     .then((serie) => {
       if (!serie) {
         return res.status(404).send({
-          message: 'Serie not found id ' + req.params.id,
+          message: "Serie not found id " + req.params.id,
         });
       }
 
       // check if serie.artists array contains userId
       if (!serie.artists.includes(req.userId) && !isAdmin) {
         return res.status(401).send({
-          message: 'Unauthorized',
+          message: "Unauthorized",
         });
       }
 
       serie.onSale = !onSale;
 
-      serie.save()
+      serie
+        .save()
         .then((serie) => {
           res.send({
             id: serie._id,
             onSale: serie.onSale,
           });
-        }).catch((err) => {
+        })
+        .catch((err) => {
           res.status(500).send({
-            message: err.message || 'Error Editing Serie',
+            message: err.message || "Error Editing Serie",
           });
         });
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Serie not found id ' + req.params.id,
+          message: "Serie not found id " + req.params.id,
         });
       }
       return res.status(500).send({
-        message: 'Serie not update id ' + req.params.id,
+        message: "Serie not update id " + req.params.id,
       });
     });
 };
@@ -2098,38 +2108,41 @@ exports.setSerieOnDisplay = async (req, res) => {
     .then((serie) => {
       if (!serie) {
         return res.status(404).send({
-          message: 'Serie not found id ' + req.params.id,
+          message: "Serie not found id " + req.params.id,
         });
       }
 
       // check if serie.artists array contains userId
       if (!serie.artists.includes(req.userId) && !isAdmin) {
         return res.status(401).send({
-          message: 'Unauthorized',
+          message: "Unauthorized",
         });
       }
 
       serie.display = !serie.display;
 
-      serie.save()
+      serie
+        .save()
         .then((serie) => {
           res.send({
             id: serie._id,
             display: serie.display,
           });
-        }).catch((err) => {
+        })
+        .catch((err) => {
           res.status(500).send({
-            message: err.message || 'Error Editing Serie',
+            message: err.message || "Error Editing Serie",
           });
         });
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Serie not found id ' + req.params.id,
+          message: "Serie not found id " + req.params.id,
         });
       }
       return res.status(500).send({
-        message: 'Serie not update id ' + req.params.id,
+        message: "Serie not update id " + req.params.id,
       });
     });
 };
@@ -2146,39 +2159,42 @@ exports.editSerieDescription = async (req, res) => {
     .then((serie) => {
       if (!serie) {
         return res.status(404).send({
-          message: 'Serie not found id ' + req.params.id,
+          message: "Serie not found id " + req.params.id,
         });
       }
 
       // check if serie.artists array contains userId
       if (!serie.artists.includes(userId) && !isAdmin) {
         return res.status(401).send({
-          message: 'Unauthorized',
+          message: "Unauthorized",
         });
       }
 
       serie.description = req.body.description;
 
-      serie.save()
+      serie
+        .save()
 
         .then((serie) => {
           res.send({
             id: serie._id,
             description: serie.description,
           });
-        }).catch((err) => {
+        })
+        .catch((err) => {
           res.status(500).send({
-            message: err.message || 'Error Editing Serie',
+            message: err.message || "Error Editing Serie",
           });
         });
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Serie not found id ' + req.params.id,
+          message: "Serie not found id " + req.params.id,
         });
       }
       return res.status(500).send({
-        message: 'Serie not update id ' + req.params.id,
+        message: "Serie not update id " + req.params.id,
       });
     });
 };
@@ -2190,13 +2206,13 @@ exports.editSerieName = async (req, res) => {
   const userId = req.userId;
   const name = req.body.name;
 
-  const slug = name.toLowerCase().replace(/ /g, '-');
+  const slug = name.toLowerCase().replace(/ /g, "-");
 
   const serie = await Serie.findById(id);
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + id,
+      message: "Serie not found id " + id,
     });
   }
 
@@ -2205,14 +2221,14 @@ exports.editSerieName = async (req, res) => {
   // check if serie.artists array contains userId
   if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
 
   // check that  the supply is 0
   if (serie.supply > 0) {
     return res.status(404).send({
-      message: 'Serie has supply',
+      message: "Serie has supply",
     });
   }
 
@@ -2238,7 +2254,7 @@ exports.editSerieSubtitle = async (req, res) => {
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + id,
+      message: "Serie not found id " + id,
     });
   }
 
@@ -2247,7 +2263,7 @@ exports.editSerieSubtitle = async (req, res) => {
   // check if serie.artists array contains userId
   if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
 
@@ -2272,23 +2288,23 @@ exports.updateSerie = async (req, res) => {
     .then((serie) => {
       if (!serie) {
         return res.status(404).send({
-          message: 'Serie not found id ' + req.params.id,
+          message: "Serie not found id " + req.params.id,
         });
       }
 
       // check if serie.artists array contains userId
       if (!serie.artists.includes(userId) && !isAdmin) {
         return res.status(401).send({
-          message: 'Unauthorized',
+          message: "Unauthorized",
         });
       }
 
-      if ((serie.supply > 0 &&
-        req.body.totalSupply > serie.totalSupply) ||
-        req.body.totalSupply < serie.supply) {
+      if (
+        (serie.supply > 0 && req.body.totalSupply > serie.totalSupply) ||
+        req.body.totalSupply < serie.supply
+      ) {
         return res.status(404).send({
-          message: 'Total supply cannot be greater than ' +
-            serie.totalSupply,
+          message: "Total supply cannot be greater than " + serie.totalSupply,
         });
       }
 
@@ -2297,24 +2313,27 @@ exports.updateSerie = async (req, res) => {
       serie.totalSupply = req.body.totalSupply;
       serie.royalty = req.body.royalty;
 
-      serie.save()
+      serie
+        .save()
         .then((serie) => {
           res.send({
             id: serie._id,
           });
-        }).catch((err) => {
+        })
+        .catch((err) => {
           res.status(500).send({
-            message: err.message || 'Error Editing Serie',
+            message: err.message || "Error Editing Serie",
           });
         });
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Serie not found id ' + req.params.id,
+          message: "Serie not found id " + req.params.id,
         });
       }
       return res.status(500).send({
-        message: 'Serie not update id ' + req.params.id,
+        message: "Serie not update id " + req.params.id,
       });
     });
 };
@@ -2329,7 +2348,7 @@ exports.updateSerieTrait = async (req, res) => {
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + id,
+      message: "Serie not found id " + id,
     });
   }
 
@@ -2338,9 +2357,8 @@ exports.updateSerieTrait = async (req, res) => {
   // check if serie.artists array contains userId
   if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
-
   }
 
   // check if each traits exists with same trait_type and value
@@ -2395,7 +2413,7 @@ exports.removeSerieTrait = async (req, res) => {
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + id,
+      message: "Serie not found id " + id,
     });
   }
 
@@ -2404,7 +2422,7 @@ exports.removeSerieTrait = async (req, res) => {
   // check if serie.artists array contains userId
   if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
 
@@ -2414,7 +2432,7 @@ exports.removeSerieTrait = async (req, res) => {
 
   if (traitIndex === -1) {
     return res.status(404).send({
-      message: 'Trait not found id ' + traitId,
+      message: "Trait not found id " + traitId,
     });
   }
 
@@ -2438,7 +2456,7 @@ exports.updateSerieCategory = async (req, res) => {
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + id,
+      message: "Serie not found id " + id,
     });
   }
 
@@ -2447,7 +2465,7 @@ exports.updateSerieCategory = async (req, res) => {
   // check if serie.artists array contains userId
   if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
   const categories = [];
@@ -2455,7 +2473,6 @@ exports.updateSerieCategory = async (req, res) => {
   const newCategories = [];
 
   for (const cat of categoryArray) {
-
     const categoryExist = await Category.findOne({
       name: cat,
     });
@@ -2497,7 +2514,7 @@ exports.removeSerieCategory = async (req, res) => {
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + id,
+      message: "Serie not found id " + id,
     });
   }
 
@@ -2506,7 +2523,7 @@ exports.removeSerieCategory = async (req, res) => {
   // check if serie.artists array contains userId
   if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
 
@@ -2516,7 +2533,7 @@ exports.removeSerieCategory = async (req, res) => {
 
   if (categoryIndex === -1) {
     return res.status(404).send({
-      message: 'Category not found id ' + categoryId,
+      message: "Category not found id " + categoryId,
     });
   }
 
@@ -2524,14 +2541,11 @@ exports.removeSerieCategory = async (req, res) => {
 
   await serie.save();
 
-
-
   res.status(200).send({
     id: serie._id,
     categoryId: categoryId,
   });
 };
-
 
 // update serie price
 exports.updateSeriePrice = async (req, res) => {
@@ -2543,7 +2557,7 @@ exports.updateSeriePrice = async (req, res) => {
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + id,
+      message: "Serie not found id " + id,
     });
   }
 
@@ -2552,7 +2566,7 @@ exports.updateSeriePrice = async (req, res) => {
   // check if serie.artists array contains userId
   if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
 
@@ -2576,7 +2590,7 @@ exports.updateSeriePriceUSD = async (req, res) => {
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + id,
+      message: "Serie not found id " + id,
     });
   }
 
@@ -2585,7 +2599,7 @@ exports.updateSeriePriceUSD = async (req, res) => {
   // check if serie.artists array contains userId
   if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
 
@@ -2609,7 +2623,7 @@ exports.updateSerieRoyalty = async (req, res) => {
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + id,
+      message: "Serie not found id " + id,
     });
   }
 
@@ -2618,7 +2632,7 @@ exports.updateSerieRoyalty = async (req, res) => {
   // check if serie.artists array contains userId
   if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
 
@@ -2636,17 +2650,13 @@ exports.updateSerieRoyalty = async (req, res) => {
 exports.updateSerieVolume = async (req, res) => {
   const id = req.params.id;
 
-
-
   const serie = await Serie.findById(id);
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + id,
+      message: "Serie not found id " + id,
     });
   }
-
-
 
   serie.volume = req.body.volume;
 
@@ -2666,14 +2676,13 @@ exports.updateSerieSupply = async (req, res) => {
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + id,
+      message: "Serie not found id " + id,
     });
   }
 
   if (serie.supply > 0 && req.body.supply > serie.totalSupply) {
     return res.status(404).send({
-      message: 'Supply cannot be greater than ' +
-        serie.totalSupply,
+      message: "Supply cannot be greater than " + serie.totalSupply,
     });
   }
 
@@ -2687,7 +2696,7 @@ exports.updateSerieSupply = async (req, res) => {
   });
 };
 
-// update serie total supply  
+// update serie total supply
 exports.updateSerieTotalSupply = async (req, res) => {
   const id = req.params.id;
 
@@ -2697,7 +2706,7 @@ exports.updateSerieTotalSupply = async (req, res) => {
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + id,
+      message: "Serie not found id " + id,
     });
   }
 
@@ -2706,14 +2715,13 @@ exports.updateSerieTotalSupply = async (req, res) => {
   // check if serie.artists array contains userId
   if (!serie.artists.includes(userId) && !isAdmin) {
     return res.status(401).send({
-      message: 'Unauthorized',
+      message: "Unauthorized",
     });
   }
 
   if (serie.supply > 0 && req.body.totalSupply > serie.totalSupply) {
     return res.status(404).send({
-      message: 'Total supply cannot be greater than ' +
-        serie.totalSupply,
+      message: "Total supply cannot be greater than " + serie.totalSupply,
     });
   }
 
@@ -2737,7 +2745,6 @@ exports.updateSerieWhitelist = async (req, res) => {
   const whitelistIds = [];
 
   for (const wh of whitelisted) {
-  
     const value = Math.floor(wh.value * Math.pow(10, 8));
 
     const whitelist = new Whitelist({
@@ -2753,39 +2760,41 @@ exports.updateSerieWhitelist = async (req, res) => {
     .then((serie) => {
       if (!serie) {
         return res.status(404).send({
-          message: 'Serie not found id ' + id,
+          message: "Serie not found id " + id,
         });
       }
-
 
       // check if serie.artists array contains userId
       if (!serie.artists.includes(userId) && !isAdmin) {
         return res.status(401).send({
-          message: 'Unauthorized',
+          message: "Unauthorized",
         });
       }
 
       serie.whitelist = whitelistIds;
 
-      serie.save()
+      serie
+        .save()
         .then((serie) => {
           res.send({
             id: serie._id,
-            whitelist: whitelisted
+            whitelist: whitelisted,
           });
-        }).catch((err) => {
+        })
+        .catch((err) => {
           res.status(500).send({
-            message: err.message || 'Error Editing Whitelist',
+            message: err.message || "Error Editing Whitelist",
           });
         });
-    }).catch((err) => {
-      if (err.kind === 'ObjectId') {
+    })
+    .catch((err) => {
+      if (err.kind === "ObjectId") {
         return res.status(404).send({
-          message: 'Serie not found id ' + id,
+          message: "Serie not found id " + id,
         });
       }
       return res.status(500).send({
-        message: 'Serie not update id ' + id,
+        message: "Serie not update id " + id,
       });
     });
 };
@@ -2793,12 +2802,11 @@ exports.updateSerieWhitelist = async (req, res) => {
 exports.toggleReviewSerie = async (req, res) => {
   const id = req.params.id;
 
-
   const serie = await Serie.findById(id);
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + id,
+      message: "Serie not found id " + id,
     });
   }
 
@@ -2822,7 +2830,7 @@ const userIsAdmin = async (userId) => {
   const roles = await Role.find({ _id: { $in: user.role } });
 
   for (const role of roles) {
-    if (role.name === 'admin') {
+    if (role.name === "admin") {
       return true;
     }
   }
@@ -2927,7 +2935,7 @@ exports.likeSerie = async (req, res) => {
 
   if (!serie) {
     return res.status(404).send({
-      message: 'Serie not found id ' + id,
+      message: "Serie not found id " + id,
     });
   }
 
@@ -2951,8 +2959,10 @@ exports.likeSerie = async (req, res) => {
   serie.rank += 5;
   await serie.save();
 
-  serie = await Serie.findById(id)
-    .populate('like', 'username _id imageUrl slug');
+  serie = await Serie.findById(id).populate(
+    "like",
+    "username _id imageUrl slug"
+  );
 
   res.status(200).send({
     id: serie._id,
@@ -2988,8 +2998,8 @@ exports.fetchLikedSeries = (req, res) => {
       like: id,
     })
       .limit(parseInt(number))
-      .populate('artists', 'username _id imageUrl slug')
-      .populate('category', '-__v')
+      .populate("artists", "username _id imageUrl slug")
+      .populate("category", "-__v")
       // .populate('whitelist', '-__v')
       // .populate("like", "username _id imageUrl slug")
       .exec((err, serie) => {
@@ -3011,7 +3021,7 @@ exports.fetchHighestVolumeSeries = (req, res) => {
     Serie.find({})
       .sort({ supply: -1, price: -1 })
       .limit(6)
-      .populate('artists', 'username _id imageUrl slug')
+      .populate("artists", "username _id imageUrl slug")
       // .populate('category', '-__v')
       .exec((err, serie) => {
         if (!serie) {
@@ -3051,8 +3061,7 @@ exports.fetchHighestVolumeSeries = (req, res) => {
 };
 
 exports.getWhitelisSpots = async (req, res) => {
-  const collections = await Serie.find({})
-    .populate('whitelist', '-__v');
+  const collections = await Serie.find({}).populate("whitelist", "-__v");
 
   const whitelistSpots = [];
 
@@ -3080,7 +3089,7 @@ exports.setWhitelistSpotUsed = async (req, res) => {
 
   if (!whitelist) {
     return res.status(404).send({
-      message: 'Whitelist not found id ' + id,
+      message: "Whitelist not found id " + id,
     });
   }
 
@@ -3090,7 +3099,7 @@ exports.setWhitelistSpotUsed = async (req, res) => {
 
   res.status(200).send({
     id: id,
-    message: 'Whitelist spot used',
+    message: "Whitelist spot used",
   });
 };
 
@@ -3100,7 +3109,7 @@ exports.setWhitelistSpotPaid = async (req, res) => {
 
   if (!whitelist) {
     return res.status(404).send({
-      message: 'Whitelist not found id ' + id,
+      message: "Whitelist not found id " + id,
     });
   }
 
@@ -3110,7 +3119,7 @@ exports.setWhitelistSpotPaid = async (req, res) => {
 
   res.status(200).send({
     id: id,
-    message: 'Whitelist spot paid',
+    message: "Whitelist spot paid",
   });
 };
 
@@ -3125,10 +3134,7 @@ exports.numberOfSeriesPerArstistId = async (req, res) => {
 };
 
 // percentage of ownership per serie id
-exports.percentageOfOwnership = async (req, res) => {
-
-
-};
+exports.percentageOfOwnership = async (req, res) => {};
 
 // get volume per serie id
 exports.volumeOfSerie = async (req, res) => {
@@ -3222,14 +3228,13 @@ exports.updateSerieSketchUrl = async (req, res) => {
     if (!sketch) {
       continue;
     }
-    const url =
-      sketch.url.replace('storage/serie/', '/storage/serie/');
+    const url = sketch.url.replace("storage/serie/", "/storage/serie/");
 
     sketch.url = url;
     await sketch.save();
   }
 
   res.status(200).send({
-    message: 'Serie sketch updated',
+    message: "Serie sketch updated",
   });
 };

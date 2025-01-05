@@ -1777,6 +1777,57 @@ exports.commentPost = async (req, res) => {
   };
 };
 
+exports.commentPodcast = async (req, res) => {
+  const _id = req.params.id;
+  const userId = req.userId;
+  const user = await User.findById(userId);
+
+  const comment = new Comment({
+    content: req.body.comment,
+    author: userId,
+  });
+
+  comment
+    .save()
+    .then((data) => {
+      addComment(data._id);
+      res.send({
+        id: data._id,
+        serieId: _id,
+        username: user.username,
+        imageUrl: user.imageUrl,
+        content: data.content,
+        author: data.author,
+        date: data.date,
+      });
+    })
+    .catch((err) => {
+      res.status(500).send({
+        message: err.message || "Error creating comment",
+      });
+    });
+
+  const addComment = (id) => {
+    Podcast.findById(_id)
+      .then((_serie) => {
+        if (!_serie) {
+          return res.status(404).send({
+            message: "Podcast not found",
+          });
+        }
+        _serie.comments.push(id);
+        _serie.save();
+
+        // res.send({});
+      })
+      .catch((err) => {
+        return res.status(500).send({
+          message: "Error saving comment",
+        });
+      });
+  };
+};
+
 exports.removeComment = async (req, res) => {
   const commentId = req.params.id;
 
@@ -2410,6 +2461,47 @@ exports.likePost = async (req, res) => {
     id: post._id,
     like: post.like,
     likes: post.likes,
+  });
+};
+
+exports.likePodcast = async (req, res) => {
+  const id = req.params.id;
+  let podcast;
+
+  podcast = await Podcast.findById(id);
+
+  if (!podcast) {
+    return res.status(404).send({
+      message: "Podcast not found id " + id,
+    });
+  }
+
+  const like = podcast.like;
+  let likes = podcast.likes;
+  const userId = req.userId;
+
+  if (like.includes(userId)) {
+    const index = like.findIndex((user) => user == userId);
+    if (index > -1) {
+      like.splice(index, 1);
+      if (likes > 0) likes -= 1;
+    }
+  } else {
+    like.push(userId);
+    likes += 1;
+  }
+
+  podcast.like = like;
+  podcast.likes = likes;
+  podcast.rank += 5;
+  await podcast.save();
+
+  podcast = await Podcast.findById(id).populate("like", "username _id imageUrl slug");
+
+  res.status(200).send({
+    id: podcast._id,
+    like: podcast.like,
+    likes: podcast.likes,
   });
 };
 
