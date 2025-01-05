@@ -48,6 +48,8 @@ module.exports = function(app) {
   // commentPost
   app.post('/api/blog/comment/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.commentPost);
 
+  app.post('/api/blog/podcast/comment/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.commentPodcast);
+
   // get all series by page
   app.get('/api/blog/all/:page', [authJwt.verifySession], (req, res) => {
     const elements = controller.fetchPosts(req, res);
@@ -308,6 +310,9 @@ module.exports = function(app) {
   app.post('/api/blog/podcast/media/edit/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editPodcastMedia);
 
   app.post('/api/blog/like/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.likePost);
+
+  // likePodcast
+  app.post('/api/blog/podcast/like/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.likePodcast);
 
   // createCategory
   app.post('/api/blog/category', [authJwt.verifyToken, authJwt.isAdmin], controller.createCategory);
