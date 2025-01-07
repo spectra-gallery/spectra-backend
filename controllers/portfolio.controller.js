@@ -421,6 +421,7 @@ exports.createPortfolio = async (req, res) => {
       height: media.height,
       ratio: media.ratio,
       type: media.type,
+      origin: 'portfolio'
     });
 
     await _medias.save();
@@ -1144,6 +1145,7 @@ exports.createScope = async (req, res) => {
       height: media.height,
       ratio: media.ratio,
       type: media.type,
+      origin: 'scope'
     });
 
     await _medias.save();

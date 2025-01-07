@@ -481,6 +481,7 @@ exports.createPost = async (req, res) => {
     height: req.body.media.height,
     ratio: req.body.media.ratio,
     type: req.body.media.type,
+    origin: 'post'
   });
 
   await media.save();
@@ -556,6 +557,7 @@ exports.createPodcast = async (req, res) => {
     height: req.body.media.height,
     ratio: req.body.media.ratio,
     type: req.body.media.type,
+    origin: 'podcast'
   });
 
   await media.save();
@@ -2101,11 +2103,11 @@ exports.editPodcastMedia = async (req, res) => {
 
   const media = await Media.findById(podcast.media);
 
-  media.url = req.body.media.url,
-  media.width = req.body.media.width,
-  media.height = req.body.media.height,
-  media.ratio = req.body.media.ratio,
-  media.type = req.body.media.type,
+  media.url = req.body.media.url;
+  media.width = req.body.media.width;
+  media.height = req.body.media.height;
+  media.ratio = req.body.media.ratio;
+  media.type = req.body.media.type;
 
   media.save();
 

@@ -8,6 +8,7 @@ const Media = mongoose.model(
         height: Number,
         ratio: String,
         type: String,
+        origin: String
     }),
 );
 
