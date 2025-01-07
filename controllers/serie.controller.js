@@ -554,6 +554,7 @@ exports.createSerie = async (req, res) => {
     height: req.body.media.height,
     ratio: req.body.media.ratio,
     type: req.body.media.type,
+    origin: 'serie'
   });
 
   await media.save();

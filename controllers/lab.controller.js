@@ -144,6 +144,57 @@ exports.createLink = async (req, res) => {
   });
 };
 
+// deleteNode
+exports.deleteNode = async (req, res) => {
+  const mapId = req.params.id;
+
+
+
+  const map = await Neuralmap.findById(mapId)
+
+  if (!map) {
+    return res.status(404).send({
+      message: "Map not found",
+    });
+  }
+
+  const nodeName = req.body.name;
+  
+
+  // remove node from map
+  const node = await Nodemap.findOne({ name: nodeName });
+
+  if (!node) {
+    return res.status(404).send({
+      message: "Node not found",
+    });
+  }
+
+  const index = map.nodes.indexOf(node._id);
+  map.nodes.splice(index, 1);
+
+  // remove links associated with node from map
+  map.links = map.links.filter(link => link.source !== nodeName && link.target !== nodeName);
+
+  await map.save();
+
+
+  // remove node from links either as source or target
+  const links = await Linkmap.find();
+
+  for (const link of links) {
+    if (link.source === nodeName || link.target === nodeName) {
+      await Linkmap.findByIdAndRemove(link._id);
+    }
+  }
+
+
+  res.status(200).send({
+    mapId: map._id,
+    name: node.name
+  });
+};
+
 exports.createNodes = async (req, res) => {
   // Validate request
   if (!req.body.names) {
@@ -298,6 +349,7 @@ exports.updateLink = async (req, res) => {
   });
 };
 
+/*
 exports.deleteNode = async (req, res) => {
   const id = req.params.id;
 
@@ -313,6 +365,7 @@ exports.deleteNode = async (req, res) => {
     message: "Node deleted successfully!",
   });
 };
+*/
 
 exports.deleteLink = async (req, res) => {
   const id = req.params.id;
@@ -386,10 +439,8 @@ exports.getNeuralMap = async (req, res) => {
         };
     });
 
-
-
   res.status(200).send({
-    id: map._id,
+    id: map.id,
     name: map.name,
     slug: map.slug,
     authors: map.authors,

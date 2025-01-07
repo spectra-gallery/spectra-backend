@@ -370,6 +370,7 @@ exports.generatePrint = async (req, res) => {
                 height: height,
                 ratio: ratio,
                 type: 'image',
+                origin: 'print'
             });
 
             await media.save();

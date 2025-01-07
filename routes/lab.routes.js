@@ -22,6 +22,9 @@ module.exports = function (app) {
     // createLink
     app.post('/api/lab/link/create/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.createLink);
 
+    // deleteNode
+    app.delete('/api/lab/node/delete/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.deleteNode);
+
     // createNodes
     app.post('/api/lab/nodes/create/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.createNodes);
 
