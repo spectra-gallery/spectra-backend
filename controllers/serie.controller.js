@@ -2,6 +2,7 @@ const db = require("../models");
 const mail = require("../middlewares/mail");
 const parseHtml = require("../middlewares/parseHtml");
 const { use } = require("passport");
+const { pipeline } = require("form-data");
 // const discord = require('../middlewares/discord');
 require("dotenv").config();
 const Serie = db.serie;
@@ -169,6 +170,13 @@ exports.fetchAllSeriesByNumber = (req, res) => {
   const number = parseInt(req.params.number);
 
   const sort = parseInt(req.query.sort);
+  let chain = req.query.chain;
+  let type = req.query.type;
+  const category = req.query.category;
+
+  let cat_exp = {};
+  let chain_exp = {};
+  let type_exp = {};
 
   let sorting = { date: -1 };
   if (sort === 0) {
@@ -181,6 +189,183 @@ exports.fetchAllSeriesByNumber = (req, res) => {
     sorting = { price: -1 };
   }
 
+
+  if (category !== 'all') {
+    // check if array of object serie.categories contains category.name === req.body.category
+    cat_exp = { 'category.name': category };
+  }
+  if (chain !== 'all') {
+    chain = chain.toLowerCase();
+    chain_exp = { 'chain.name': chain };
+  }
+  if (type !== 'all') {
+    type = type.toLowerCase();
+    type_exp = { type: type };
+  }
+
+  // use aggregators to fetch collection with category matching req.body.category
+  const promise = new Promise((resolve, reject) => {
+    Serie.aggregate([
+      {
+        $lookup: {
+          from: 'categories',
+          localField: 'category',
+          foreignField: '_id',
+          as: 'category',
+        },
+      },
+      {
+        $unwind: '$category',
+
+      },
+  
+      {
+        $lookup: {
+          from: 'chains',
+          localField: 'chain',
+          foreignField: '_id',
+          as: 'chain',
+        },
+      },
+      
+      
+      {
+        $unwind: '$chain',
+      },
+      
+     
+      {
+        $match: {
+          ...cat_exp,
+          ...chain_exp,
+          ...type_exp,
+        }
+      },
+      // prevent duplicates
+      {
+        $group: {
+          _id: '$_id',
+          name: { $first: '$name' },
+          slug: { $first: '$slug' },
+          description: { $first: '$description' },
+          artists: { $first: '$artists' },
+          category: { $first: '$category' },
+          onSale: { $first: '$onSale' },
+          supply: { $first: '$supply' },
+          totalSupply: { $first: '$totalSupply' },
+          price: { $first: '$price' },
+          image: { $first: '$image' },
+          media: { $first: '$media' },
+          likes: { $first: '$likes' },
+          views: { $first: '$views' },
+          date: { $first: '$date' },
+          reviewed: { $first: '$reviewed' },
+          published: { $first: '$published' },
+          like: { $first: '$like' },
+          whitelist: { $first: '$whitelist' }
+        },
+      },
+   
+      {$sort: sorting},
+      {$limit: number},
+      
+      {
+        $lookup: {
+          from: 'media',
+          localField: 'media',
+          foreignField: '_id',
+          as: 'media',
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                url: 1,
+                ratio: 1,
+                type: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'artists',
+          foreignField: '_id',
+          as: 'artists',
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                username: 1,
+                imageUrl: 1,
+                slug: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: 'whitelist',
+          localField: 'whitelist',
+          foreignField: '_id',
+          as: 'whitelist',
+        },
+      },
+      {
+        $lookup: {
+          from: 'like',
+          localField: 'like',
+          foreignField: '_id',
+          as: 'like',
+        },
+      }, 
+    ]).exec((err, filteredSeries) => {
+      if (err) {
+        reject(err);
+      } else {
+
+        const serieArray = [];
+
+ 
+
+        for (const serie of filteredSeries) {
+          serieArray.push({
+            id: serie._id,
+            name: serie.name,
+            slug: serie.slug,
+            description: serie.description,
+            // sketch: serie.sketch,
+            artists: serie.artists,
+            category: serie.category,
+            // captureDelay: serie.captureDelay,
+            onSale: serie.onSale,
+            supply: serie.supply,
+            totalSupply: serie.totalSupply,
+            price: serie.price,
+            // royalty: serie.royalty,
+            // volume: serie.volume,
+            // link: serie.link,
+            image: serie.image,
+            media: serie.media,
+            likes: serie.likes,
+            views: serie.views,
+            date: serie.date,
+            reviewed: serie.reviewed,
+            published: serie.published,
+            // featured: serie.featured,
+            like: serie.like,
+            whitelist: serie.whitelist,
+          });
+        }
+
+        resolve(serieArray);
+      }
+    });
+  });
+  
+  /*
   const promise = new Promise((resolve, reject) => {
     Serie.find({})
       .sort(sorting)
@@ -233,6 +418,7 @@ exports.fetchAllSeriesByNumber = (req, res) => {
         }
       });
   });
+  */
 
   return promise;
 };
@@ -351,6 +537,9 @@ exports.fetchSerieById = (req, res) => {
           category: serie._doc.category,
           link: serie._doc.link,
           whitelist: serie._doc.whitelist,
+          generative: serie._doc.generative,
+          interactive: serie._doc.interactive,
+          audioBased: serie._doc.audioBased
         };
         if (err) reject(err);
         else {
@@ -628,6 +817,9 @@ exports.createSerie = async (req, res) => {
           media: media._id,
           whitelist: whitelistIds,
           trait: traits,
+          generative: req.body.generative,
+          interactive: req.body.interactive,
+          audioBased: req.body.audioBased,
         })
           .save()
           .then(async (serie) => {

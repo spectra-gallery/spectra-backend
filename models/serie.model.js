@@ -54,6 +54,7 @@ const Serie = mongoose.model(
         },
       ],
       likes: {type: Number, default: 0},
+      views: {type: Number, default: 0},
       date: {type: String, default: new Date().toISOString()},
       modified: {type: String},
       reviewed: {type: Boolean, default: false},
@@ -72,6 +73,9 @@ const Serie = mongoose.model(
           ref: 'Trait',
         },
       ],
+      generative: {type: Boolean, default: false},
+      interactive: {type: Boolean, default: false},
+      audioBased: {type: Boolean, default: false},
       link: {type: String},
       whitelist: [
         {

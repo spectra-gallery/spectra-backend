@@ -679,6 +679,55 @@ exports.setFeaturedPortfolios = async (req, res) => {
   res.send({ message: "Featured portfolios updated" });
 };
 
+// fetch medias of last Portfolio and medias form portfolio.scopes
+exports.fetchLastPortfolioMedia = (req, res) => {
+  const promise = new Promise((resolve, reject) => {
+    Portfolio.find({})
+      .sort({ date: -1 })
+      .limit(1)
+      .populate("medias", "_id url ratio type")
+      // populate medias from scopes
+      .populate({
+        "path": "scopes",
+        "populate": {
+          "path": "medias",
+          "select": "_id url ratio type"
+        }
+      })
+      .exec((err, portfolio) => {
+        if (!portfolio) {
+          return resolve([]);
+        }
+
+        const mediaScopes = [];
+        for (const scope of portfolio[0].scopes) {
+          for (const media of scope.medias) {
+            mediaScopes.push(media);
+          }
+        }
+
+        const _portfolio = {
+          id: portfolio[0]._id,
+          name: portfolio[0].name,
+          slug: portfolio[0].slug,
+          subtitle: portfolio[0].subtitle,
+          description: portfolio[0].description,
+          authors: portfolio[0].authors,
+          tag: portfolio[0].tag,
+          medias: [...portfolio[0].medias, ...mediaScopes],
+          
+        }
+
+        if (err) reject(err);
+        else {
+          resolve(_portfolio);
+        }
+      });
+  });
+  return promise;
+};
+
+
 // fetch latest portfolios
 exports.fetchLatestPortfolios = (req, res) => {
   const number = parseInt(req.params.number);
