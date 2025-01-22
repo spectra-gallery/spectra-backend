@@ -125,6 +125,16 @@ module.exports = function (app) {
     }
   );
 
+  // fetchLastPortfolioMedia
+  app.get("/api/portfolio/media", (req, res) => {
+    const elements = controller.fetchLastPortfolioMedia(req, res);
+    elements.then((elements) => {
+      res.status(200).send({
+        ...elements,
+      });
+    });
+  });
+
   // fetchPortfolioByArtistId
   app.get("/api/portfolio/artistid", [authJwt.verifyToken], (req, res) => {
     const elements = controller.fetchPortfolioByArtistId(req, res);

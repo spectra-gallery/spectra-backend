@@ -71,11 +71,12 @@ exports.loadNft = async (req, res) => {
   const number = parseInt(req.params.number);
 
 
-  const totalNft = 1; // await spectraContract.totalSupply();
+  const totalSupply = await spectraContract.getProjectsLength();
+  console.log(totalSupply);
 
   let nfts = [];
 
-  for (let i = 0; i < Math.min(totalNft, number); i++) {
+  for (let i = 0; i < Math.min(totalSupply, number); i++) {
 
     const index = i * GEN_OFFSET;
     
