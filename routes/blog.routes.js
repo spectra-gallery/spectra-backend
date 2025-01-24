@@ -341,6 +341,9 @@ module.exports = function(app) {
     // editSectionImageUrl
     app.post('/api/blog/section/image/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editSectionImageUrl);
 
+    // updateSectionList
+    app.post('/api/blog/section/update/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.updateSectionList);
+
   // remeoveWhitelistAddress
   // app.post('/api/blog/whitelist/remove/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.removeWhitelistAddress);
 

@@ -1,69 +1,112 @@
-const jwt = require('jsonwebtoken');
-const config = require('../config/auth.config.js');
-const sessionConfig = require('../config/session.config');
-const db = require('../models');
+const jwt = require("jsonwebtoken");
+const config = require("../config/auth.config.js");
+const sessionConfig = require("../config/session.config");
+const db = require("../models");
 const User = db.user;
 const Role = db.role;
 
-const bcrypt = require('bcryptjs');
+const bcrypt = require("bcryptjs");
 
-const {TokenExpiredError} = jwt;
+const { TokenExpiredError } = jwt;
 
 catchError = (err, res) => {
   if (err instanceof TokenExpiredError) {
-    return res.status(401).send(
-        {message: 'Unauthorized! Access Token was expired!'});
+    return res
+      .status(401)
+      .send({ message: "Unauthorized! Access Token was expired!" });
   }
 
-  return res.sendStatus(401).send({message: 'Unauthorized!'});
+  return res.sendStatus(401).send({ message: "Unauthorized!" });
 };
 
 verifyToken = (req, res, next) => {
-  const token = req.headers['x-access-token'];
+  const token = req.headers["x-access-token"];
 
   if (!token) {
-    return res.status(403).send({message: 'No access token provided!'});
+    return res.status(403).send({ message: "No access token provided!" });
   }
 
   jwt.verify(token, config.secret, (err, decoded) => {
     if (err) {
-      return res.status(401).send({message: 'Unauthorized access token!'});
+      return res.status(401).send({ message: "Unauthorized access token!" });
     }
     req.userId = decoded.id;
     next();
   });
 };
 
-verifySession = process.env.NODE_ENV == 'development' ?
-(req, res, next) => {
-  next();
-} :
-(req, res, next) => {
-  const token = req.headers['session-token'];
+verifySession =
+  process.env.NODE_ENV == "development"
+    ? (req, res, next) => {
+        next();
+      }
+    : (req, res, next) => {
+        const token = req.headers["session-token"];
 
-  if (!token) {
-    return res.status(403).send({message: 'No session token provided!'});
-  }
+        if (!token) {
+          return res
+            .status(403)
+            .send({ message: "No session token provided!" });
+        }
 
-  jwt.verify(token, sessionConfig.secret, (err, decoded) => {
-    if (err) {
-      return res.status(401).send({message: 'unauthorized session token!'});
-    }
-    req.sessionId = decoded.id;
+        jwt.verify(token, sessionConfig.secret, (err, decoded) => {
+          if (err) {
+            return res
+              .status(401)
+              .send({ message: "unauthorized session token!" });
+          }
+          req.sessionId = decoded.id;
 
-    next();
-  });
-};
+          next();
+        });
+      };
 
 getUsername = (req, res, next) => {
-  User.findOne({_id: req.userId}).exec((err, user) => {
+  User.findOne({ _id: req.userId }).exec((err, user) => {
     if (err) {
-      return res.status(401).send({message: err});
+      return res.status(401).send({ message: err });
     }
     req.username = user.username;
     next();
   });
 };
+
+const isAdmin = (req, res, next) => {
+  admin(req.userId)
+    .then((isAdmin) => {
+      if (!isAdmin) {
+        res.status(403).send({ message: "Require Admin Role!" });
+        return;
+      }
+      next();
+    })
+    .catch((err) => catchError(err, res)); // handle errors with catchError
+};
+
+const admin = (userId) => {
+  return new Promise((resolve, reject) => {
+    User.findById(userId).exec((err, user) => {
+      if (err) {
+        return reject(err); // reject on any error with user retrieval
+      }
+
+      Role.find({ _id: { $in: user.role } }, (err, roles) => {
+        if (err) {
+          return reject(err); // reject if role lookup fails
+        }
+
+        const isAdmin = roles.some((role) => role.name === "admin");
+        if (isAdmin) {
+          resolve(true); // resolve with true if the user is an admin
+        } else {
+          resolve(false); // resolve with false otherwise
+        }
+      });
+    });
+  });
+};
+
+/*
 
 isAdmin = (req, res, next) => {
   User.findById(req.userId).exec((err, user) => {
@@ -96,33 +139,85 @@ isAdmin = (req, res, next) => {
   });
 };
 
+*/
+/*
+isAdmin = (req, res, next) => {
+  const admin = admin(req.userId);
+
+  // if returns false then send 403
+  if (!admin) {
+    res.status(403).send({ message: "Require Admin Role!" });
+    return;
+  }
+
+  // if returns true then call next()
+  if (admin) {
+    next();
+    return;
+  }
+
+  res.status(500).send({ message: "Error checking admin role!" });
+};
+
+admin = (userId) => {
+  const promise = new Promise((resolve, reject) => {
+    User.findById(userId).exec((err, user) => {
+      if (err) {
+        reject(err);
+      }
+
+      Role.find(
+        {
+          _id: { $in: user.role },
+        },
+        (err, roles) => {
+          if (err) {
+            reject(false);
+            // return false;
+          }
+          
+          const isAdmin = roles.some((role) => role.name === "admin");
+          resolve(isAdmin); // resolves to true or false
+
+          // return false;
+          reject(false);
+        }
+      );
+    });
+  });
+
+  return promise;
+};
+
+*/
+
 isCreator = (req, res, next) => {
   User.findById(req.userId).exec((err, user) => {
     if (err) {
-      res.status(500).send({message: err});
+      res.status(500).send({ message: err });
       return;
     }
 
     Role.find(
-        {
-          _id: {$in: user.role},
-        },
-        (err, role) => {
-          if (err) {
-            res.status(500).send({message: err});
+      {
+        _id: { $in: user.role },
+      },
+      (err, role) => {
+        if (err) {
+          res.status(500).send({ message: err });
+          return;
+        }
+
+        for (let i = 0; i < role.length; i++) {
+          if (role[i].name === "creator") {
+            next();
             return;
           }
+        }
 
-          for (let i = 0; i < role.length; i++) {
-            if (role[i].name === 'creator') {
-              next();
-              return;
-            }
-          }
-
-          res.status(403).send({message: 'Require Creator Role!'});
-          return;
-        },
+        res.status(403).send({ message: "Require Creator Role!" });
+        return;
+      }
     );
   });
 };
@@ -134,5 +229,6 @@ const authJwt = {
   getUsername,
   isAdmin,
   isCreator,
+  admin,
 };
 module.exports = authJwt;
