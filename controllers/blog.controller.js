@@ -12,6 +12,8 @@ const Role = db.role;
 const Comment = db.comment;
 const Section = db.section;
 
+const authJwt = require("../middlewares/authJwt");
+
 const OWNER_EMAIL = process.env.OWNER_EMAIL;
 
 // slug to post id
@@ -481,7 +483,7 @@ exports.createPost = async (req, res) => {
     height: req.body.media.height,
     ratio: req.body.media.ratio,
     type: req.body.media.type,
-    origin: 'post'
+    origin: "post",
   });
 
   await media.save();
@@ -557,7 +559,7 @@ exports.createPodcast = async (req, res) => {
     height: req.body.media.height,
     ratio: req.body.media.ratio,
     type: req.body.media.type,
-    origin: 'podcast'
+    origin: "podcast",
   });
 
   await media.save();
@@ -573,7 +575,7 @@ exports.createPodcast = async (req, res) => {
     links: req.body.links,
     references: req.body.references,
     media: media._id,
-    audioUrl: req.body.audioUrl
+    audioUrl: req.body.audioUrl,
   });
 
   await podcast.save();
@@ -1424,6 +1426,9 @@ exports.createSection = (req, res) => {
     title: req.body.title,
     content: req.body.content,
     imageUrl: req.body.imageUrl,
+    auto: req.body.auto,
+    columns: req.body.columns,
+    columnData: req.body.columnData,
   });
   section
     .save()
@@ -1626,6 +1631,49 @@ exports.editSectionImageUrl = (req, res) => {
         message: "Error updating section with id " + req.params.id,
       });
     });
+};
+
+// updateSectionList
+exports.updateSectionList = async (req, res) => {
+  const id = req.params.id;
+
+  const userId = req.userId;
+
+  const post = await Post.findById(id);
+
+  if (!post) {
+    return res.status(404).send({
+      message: "Post not found id " + id,
+    });
+  }
+
+  const isAdmin = await userIsAdmin(userId);
+
+  // check if post.author array contains userId
+  if (!post.author.includes(userId) && !isAdmin) {
+    return res.status(401).send({
+      message: "Unauthorized",
+    });
+  }
+
+  const sections = post.section;
+  const sectionId = req.body.sectionId;
+
+  // combine arrays and remove duplicates
+  const newSections = [...new Set([...sections, ...sectionId])];
+
+  post.section = newSections;
+
+  await post.save();
+
+  const sectionsArray = await Section.find({
+    _id: { $in: newSections },
+  });
+
+  res.status(200).send({
+    id: post._id,
+    sections: sectionsArray,
+  });
 };
 
 exports.fetchPostByArtist = (req, res) => {
@@ -2048,7 +2096,7 @@ exports.editPodcastDescription = async (req, res) => {
 };
 
 exports.editPodcastAudio = async (req, res) => {
-  const id = req.params.id
+  const id = req.params.id;
 
   const userId = req.userId;
 
@@ -2075,9 +2123,9 @@ exports.editPodcastAudio = async (req, res) => {
 
   res.status(200).send({
     id: podcast._id,
-    audioUrl: podcast.audioUrl
-  })
-}
+    audioUrl: podcast.audioUrl,
+  });
+};
 
 exports.editPodcastMedia = async (req, res) => {
   const id = req.params.id;
@@ -2113,10 +2161,9 @@ exports.editPodcastMedia = async (req, res) => {
 
   res.status(200).send({
     id: id,
-    media: media
-  })
-  
-}
+    media: media,
+  });
+};
 
 // edit post name
 exports.editPostName = async (req, res) => {
@@ -2143,7 +2190,6 @@ exports.editPostName = async (req, res) => {
       message: "Unauthorized",
     });
   }
-
 
   post.name = name;
   post.slug = slug;
@@ -2317,7 +2363,7 @@ exports.toggleReviewPost = async (req, res) => {
     reviewDate: post.reviewDate,
   });
 };
-
+/*
 const userIsAdmin = async (userId) => {
   const user = await User.findById(userId);
 
@@ -2333,6 +2379,17 @@ const userIsAdmin = async (userId) => {
     }
   }
   return false;
+};
+*/
+
+const userIsAdmin = async (userId) => {
+  try {
+    const isAdmin = await authJwt.admin(userId); // directly await the result
+    return isAdmin;
+  } catch (err) {
+    // throw err;
+    return false;
+  }
 };
 
 // delete post whitelist by address
@@ -2498,7 +2555,10 @@ exports.likePodcast = async (req, res) => {
   podcast.rank += 5;
   await podcast.save();
 
-  podcast = await Podcast.findById(id).populate("like", "username _id imageUrl slug");
+  podcast = await Podcast.findById(id).populate(
+    "like",
+    "username _id imageUrl slug"
+  );
 
   res.status(200).send({
     id: podcast._id,
