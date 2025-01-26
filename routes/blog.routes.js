@@ -79,6 +79,16 @@ module.exports = function(app) {
     });
   });
 
+  // fetchAllPostsByCategory
+  app.get('/api/blog/sort/:number', [authJwt.verifySession], (req, res) => {
+    const elements = controller.fetchAllPostsByCategory(req, res);
+    elements.then((elements) => {
+      res.status(200).send({
+        ...elements,
+      });
+    });
+  });
+
   // get blog by id
   app.get('/api/blog/blogid/:id', [authJwt.verifySession, objectId.isValidObjectId], (req, res) => {
     const elements = controller.fetchPostById(req, res);
@@ -281,6 +291,8 @@ module.exports = function(app) {
   // set blog on display
   app.post('/api/blog/display/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.setPostOnDisplay);
 
+  // editPostMedia
+  app.post('/api/blog/media/edit/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editPostMedia);
 
   // update blog category
   app.post('/api/blog/category/update/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.updatePostCategory);
@@ -343,6 +355,9 @@ module.exports = function(app) {
 
     // updateSectionList
     app.post('/api/blog/section/update/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.updateSectionList);
+
+    // deleteSection
+    app.delete('/api/blog/section/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.deleteSection);
 
   // remeoveWhitelistAddress
   // app.post('/api/blog/whitelist/remove/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.removeWhitelistAddress);

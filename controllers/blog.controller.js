@@ -367,6 +367,226 @@ exports.fetchPodcastById = (req, res) => {
   return promise;
 };
 
+
+exports.fetchAllPostsByCategory = (req, res) => {
+  const number = parseInt(req.params.number);
+
+  const sort = parseInt(req.query.sort);
+
+  const category = req.query.category;
+
+  let cat_exp = {};
+ 
+
+  let sorting = { date: -1 };
+  if (sort === 0) {
+    sorting = { date: -1 };
+  } else if (sort === 1) {
+    sorting = { views: -1 };
+  } else if (sort === 2) {
+    sorting = { like: -1 };
+  } else if (sort === 3) {
+    sorting = { comments: -1 }; 
+  }
+
+
+  if (category !== 'all') {
+    // check if array of object serie.categories contains category.name === req.body.category
+    cat_exp = { 'category.name': category };
+  }
+  
+
+  // use aggregators to fetch collection with category matching req.body.category
+  const promise = new Promise((resolve, reject) => {
+    Post.aggregate([
+      {
+        $lookup: {
+          from: 'categories',
+          localField: 'category',
+          foreignField: '_id',
+          as: 'category',
+        },
+      },
+      {
+        $unwind: '$category',
+
+      },
+  
+     
+      
+     
+      {
+        $match: {
+          ...cat_exp
+        }
+      },
+      // prevent duplicates
+      {
+        $group: {
+          _id: '$_id',
+          name: { $first: '$name' },
+          slug: { $first: '$slug' },
+          description: { $first: '$description' },
+          author: { $first: '$author' },
+          category: { $first: '$category' },
+          display: { $first: '$display' },
+          media: { $first: '$media' },
+          likes: { $first: '$likes' },
+          views: { $first: '$views' },
+          date: { $first: '$date' },
+          reviewed: { $first: '$reviewed' },
+          published: { $first: '$published' },
+          like: { $first: '$like' }
+        },
+      },
+   
+      {$sort: sorting},
+      {$limit: number},
+      
+      {
+        $lookup: {
+          from: 'media',
+          localField: 'medias',
+          foreignField: '_id',
+          as: 'medias',
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                url: 1,
+                ratio: 1,
+                type: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'authors',
+          foreignField: '_id',
+          as: 'authors',
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                username: 1,
+                imageUrl: 1,
+                slug: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: 'section',
+          localField: 'sections',
+          foreignField: '_id',
+          as: 'sections',
+        },
+      },
+      {
+        $lookup: {
+          from: 'like',
+          localField: 'like',
+          foreignField: '_id',
+          as: 'like',
+        },
+      }, 
+    ]).exec((err, filteredPosts) => {
+      if (err) {
+        reject(err);
+      } else {
+
+        const postArray = [];
+
+ 
+
+        for (const post of filteredPosts) {
+          postArray.push({
+            id: post._id,
+            name: post.name,
+            slug: post.slug,
+            description: post.description,
+            author: post.author,
+            category: post.category,
+            display: post.display,
+            media: post.media,
+            likes: post.likes,
+            views: post.views,
+            date: post.date,
+            reviewed: post.reviewed,
+            published: post.published,
+            like: post.like
+
+          });
+        }
+
+        resolve(postArray);
+      }
+    });
+  });
+  
+  /*
+  const promise = new Promise((resolve, reject) => {
+    Serie.find({})
+      .sort(sorting)
+      .limit(number)
+      .populate("artists", "username _id imageUrl slug")
+      .populate("category", "-__v")
+      .populate("media", "_id url ratio type")
+      .populate("whitelist", "-__v")
+      // .populate('sketch', '_id hash url sizeBytes')
+      .populate("like", "username _id imageUrl slug")
+      .exec((err, collections) => {
+        if (!collections) {
+          return resolve([]);
+        }
+
+        const collectionObj = [];
+
+        for (const coll of collections) {
+          collectionObj.push({
+            id: coll._id,
+            name: coll.name,
+            slug: coll.slug,
+            description: coll.description,
+            // sketch: coll.sketch,
+            artists: coll.artists,
+            category: coll.category,
+            // captureDelay: coll.captureDelay,
+            onSale: coll.onSale,
+            supply: coll.supply,
+            totalSupply: coll.totalSupply,
+            price: coll.price,
+            // royalty: coll.royalty,
+            // volume: coll.volume,
+            // link: coll.link,
+            image: coll.image,
+            media: coll.media,
+            likes: coll.likes,
+            date: coll.date,
+            reviewed: coll.reviewed,
+            published: coll.published,
+            // featured: coll.featured,
+            like: coll.like,
+            whitelist: coll.whitelist,
+          });
+        }
+
+        if (err) reject(err);
+        else {
+          resolve(collectionObj);
+        }
+      });
+  });
+  */
+
+  return promise;
+};
+
 // fetch random posts using aggregate
 exports.fetchRandomPost = (req, res) => {
   const promise = new Promise((resolve, reject) => {
@@ -1443,6 +1663,53 @@ exports.createSection = (req, res) => {
       });
     });
 };
+
+// remove section by id
+exports.deleteSection = async (req, res) => {
+  const id = req.params.id;
+  const sectionId = req.body.sectionId;
+
+  const userId = req.userId;
+
+  const isAdmin = await userIsAdmin(userId);
+
+  const section = await Section.findById(sectionId);
+
+  if (!section) {
+    return res.status(404).send({
+      message: "Section not found post id " + id,
+    });
+  }
+
+  const post = await Post.findById(id);
+
+  if (!post) {
+    return res.status(404).send({
+      message: "Post not found id " + id,
+    });
+  }
+
+  if (!post.author.includes(userId) && !isAdmin) {
+    return res.status(401).send({
+      message: "Unauthorized",
+    });
+  }
+
+  post.section.pull(sectionId);
+  await post.save();
+
+  section.remove();
+
+  res.status(200).send({
+    id: id,
+    sectionId: sectionId,
+  });
+
+  // sendMail(OWNER_EMAIL, post, "content");
+};
+
+
+
 // Retrieve and return section by id from the database.
 exports.fetchSection = (req, res) => {
   Section.findById(req.params.id).exec((err, section) => {
@@ -2127,6 +2394,44 @@ exports.editPodcastAudio = async (req, res) => {
   });
 };
 
+exports.editPostMedia = async (req, res) => {
+  const id = req.params.id;
+
+  const userId = req.userId;
+
+  const post = await Post.findById(id);
+
+  if (!post) {
+    return res.status(404).send({
+      message: "Post not found id " + id,
+    });
+  }
+
+  const isAdmin = await userIsAdmin(userId);
+
+  // check if post.author array contains userId
+  if (!post.author.includes(userId) && !isAdmin) {
+    return res.status(401).send({
+      message: "Unauthorized",
+    });
+  }
+
+  const media = await Media.findById(post.media);
+
+  media.url = req.body.media.url;
+  media.width = req.body.media.width;
+  media.height = req.body.media.height;
+  media.ratio = req.body.media.ratio;
+  media.type = req.body.media.type;
+
+  media.save();
+
+  res.status(200).send({
+    id: id,
+    media: media,
+  });
+};
+
 exports.editPodcastMedia = async (req, res) => {
   const id = req.params.id;
 
@@ -2164,6 +2469,8 @@ exports.editPodcastMedia = async (req, res) => {
     media: media,
   });
 };
+
+
 
 // edit post name
 exports.editPostName = async (req, res) => {
