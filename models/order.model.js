@@ -14,15 +14,18 @@ const Order = mongoose.model(
       deliveryDate: String,
       format: String,
       weight: Number,
-      paid: {type: Boolean, default: false},
-      generated: {type: Boolean, default: false},
-      delivered: {type: Boolean, default: false},
+      status: {type: String, default: 'pending', enum: ['pending', 'paid', 'generated', 'delivered']},
       date: {type: String, default: new Date().toISOString()},
+      modified: {type: String},
       customer: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Customer',
+        select: false
       },
-    }),
+    }).pre('save', function (next) {
+      this.modified = new Date().toISOString();
+        next();
+      })
 );
 
 module.exports = Order;

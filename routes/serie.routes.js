@@ -10,11 +10,18 @@ module.exports = function(app) {
     res.header(
         'Access-Control-Allow-Headers',
         'x-access-token, Origin, Content-Type, Accept',
+        'x-refresh-token, Origin, Content-Type, Accept',
         'session-token, Origin, Content-Type, Accept',
+        'session-refresh, Origin, Content-Type, Accept'
     );
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
     // x-frame-options sameorigin
     res.header('X-Frame-Options', 'SAMEORIGIN');
+    next();
+  });
+
+  app.use('/api/serie', (req, res, next) => {
+    req.target = 'serie';
     next();
   });
 

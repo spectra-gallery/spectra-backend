@@ -4,7 +4,10 @@ const Wallet = mongoose.model(
     'Wallet',
     new mongoose.Schema({
       address: String,
-      privateKey: String,
+      privateKey: {
+        type: String,
+        select: false,
+      },
       publicKey: String,
       password: String,
       date: {type: String, default: new Date().toISOString()},

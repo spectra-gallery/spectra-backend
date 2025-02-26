@@ -1,0 +1,3 @@
+module.exports = {
+    SESSION_SECRET: '5P3C7R4-6987423681-GA773RY',
+};

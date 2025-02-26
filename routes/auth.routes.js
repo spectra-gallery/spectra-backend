@@ -4,14 +4,22 @@ const {authJwt} = require('../middlewares');
 const {objectId} = require('../middlewares');
 const controller = require('../controllers/auth.controller');
 const uploadController = require('../controllers/fileUpload.controller');
+const { auth } = require('../models');
 
 module.exports = function(app) {
   app.use(function(req, res, next) {
     res.header(
         'Access-Control-Allow-Headers',
         'x-access-token, Origin, Content-Type, Accept',
+        'x-refresh-token, Origin, Content-Type, Accept',
         'session-token, Origin, Content-Type, Accept',
+        'session-refresh, Origin, Content-Type, Accept'
     );
+    next();
+  });
+
+  app.use('/api/auth', (req, res, next) => {
+    req.target = 'auth';
     next();
   });
 
@@ -19,18 +27,21 @@ module.exports = function(app) {
   app.get('/api/auth/generatesession', controller.generateSessionToken);
 
   // generateStorageToken
-  app.post('/api/auth/generatestoragetoken', [authJwt.verifyToken], controller.generateStorageToken);
+  app.post('/api/auth/storage/generatestoragetoken', [authJwt.verifyToken], controller.generateStorageToken);
 
   app.post(
     "/api/auth/signup",
-    [
+    [ authJwt.verifySession,
       verifySignUp.checkDuplicateUsername, verifySignUp.checkDuplicateEmail],
     controller.signup
   );
 
-  app.post("/api/auth/signin", controller.signin);
+  app.post("/api/auth/signin", [authJwt.verifySession], controller.signin);
 
-  app.post('/api/auth/refreshtoken', controller.refreshToken);
+  app.post('/api/auth/refreshtoken', [authJwt.verifySession], controller.refreshToken);
+
+  // refreshSession
+  app.post('/api/auth/refreshsession', controller.refreshSessionToken);
 
   app.post('/api/auth/editprofile', [authJwt.verifyToken, verifySignUp.checkDuplicateUsername, verifySignUp.checkDuplicateEmail], controller.editProfile);
 
@@ -51,6 +62,9 @@ module.exports = function(app) {
 
   // changeMedium
   app.post('/api/auth/changemedium', [authJwt.verifyToken], controller.changeMedium);
+
+  // deleteusermedium
+  app.delete('/api/auth/deletemedium/:name', [authJwt.verifyToken], controller.deleteUserMedium);
 
   // editProfileImage
   app.post('/api/auth/editprofileimage', [authJwt.verifyToken], controller.editProfileImage);
@@ -163,6 +177,7 @@ module.exports = function(app) {
 
   // helpVisible
   app.post('/api/auth/helpvisible', [authJwt.verifySession], controller.helpVisible);
+
 
   // getSession
   app.get('/api/auth/session', [authJwt.verifySession], controller.getSession);

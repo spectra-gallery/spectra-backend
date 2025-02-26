@@ -1868,39 +1868,39 @@ exports.updatePortfolioTag = async (req, res) => {
       message: "Unauthorized",
     });
   }
-  const categories = [];
-  const categoryArray = req.body.tag;
-  const newCategories = [];
+  const tags = [];
+  const tagArray = req.body.tag;
+  const newTags = [];
 
-  for (const cat of categoryArray) {
-    const categoryExist = await Tag.findOne({
-      name: cat,
+  for (const tag of tagArray) {
+    const tagExist = await Tag.findOne({
+      name: tag,
     });
 
-    if (!categoryExist) {
+    if (!tagExist) {
       const tag = new Tag({
-        name: cat,
+        name: tag,
       });
 
       await tag.save();
-      categories.push(tag._id);
+      tags.push(tag._id);
     } else {
-      categories.push(categoryExist._id);
+      tags.push(tagExist._id);
     }
   }
 
-  portfolio.tag.push(...categories);
+  portfolio.tag.push(...tags);
 
   await portfolio.save();
 
-  for (const cat of categories) {
-    const fetchTag = await Tag.findById(cat);
-    newCategories.push(fetchTag);
+  for (const tag of tags) {
+    const fetchTag = await Tag.findById(tag);
+    newTags.push(fetchTag);
   }
 
   res.status(200).send({
     id: portfolio._id,
-    categories: newCategories,
+    tags: newTags,
   });
 };
 

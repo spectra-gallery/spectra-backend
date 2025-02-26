@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { critique } = require(".");
 
 const Portfolio = mongoose.model(
   "Portfolio",
@@ -46,7 +47,40 @@ const Portfolio = mongoose.model(
     ],
     links: [String],
     references: [String],
+    nuance: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Nuance",
+    },
+    published: { type: Boolean, default: false },
+    featured: { type: Boolean, default: false }
+  }).pre('save', function (next) {
+    if (!this.slug && this.name) {
+      this.slug = this.name.toLowerCase().replace(/ /g, "-");
+  
+      this.lastModified = new Date().toISOString();
+  
+      // cannot be featured if not publishded and displayed
+      if ((!this.published || !this.display) && this.featured) {
+        next(new Error("Cannot feature an unpublished or undisplayed portfolio"));
+      }
+
+      // if published, must be reviewed
+      if (this.published && !this.reviewed) {
+        next(new Error("Portfolio must be reviewed before publishing"));
+      }
+  
+      // the name cannot be too long
+    if (this.name && this.name.length > 20) {
+      next(new Error("Name too long"));
+    }
+    if (this.subtitle && this.subtitle.length > 60) {
+      next(new Error("Headline too long"));
+    }
+    }
+    next();
   })
 );
+
+
 
 module.exports = Portfolio;

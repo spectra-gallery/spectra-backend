@@ -40,8 +40,15 @@ const Podcast = mongoose.model(
           type: mongoose.Schema.Types.ObjectId,
           ref: 'Comment',
         },
-      ],
-    }),
+      ]
+    }).pre('save', function (next) {
+      if (!this.slug && this.name) {
+        this.slug = this.name.toLowerCase().replace(/ /g, "-");
+      }
+      next();
+    })
 );
+
+
 
 module.exports = Podcast;

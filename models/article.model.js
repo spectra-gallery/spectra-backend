@@ -3,29 +3,51 @@ const mongoose = require("mongoose");
 const Article = mongoose.model(
   "Article",
   new mongoose.Schema({
-    title: {type: String, default:'', trim: true, required: true},
+    name: { type: String, required: true },
+    slug: { type: String },
+    subtitle: { type: String },
+    description: { type: String, required: true },
+    author: 
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    
+    media: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Media",
+    },
+    display: { type: Boolean, default: true },
+    like: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     section: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Section"
-      }
+        ref: "Section",
+      },
     ],
-    author: {type: String, required: true},
-    imageUrl: {type: String, required: true},
+    likes: { type: Number, default: 0 },
+    views: { type: Number, default: 0 },
+    date: { type: String, default: new Date().toISOString() },
+    lastModified: { type: String },
     category: [
       {
-        type: [String], // mongoose.Schema.Types.ObjectId
-        ref: "Category"
-      }
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Category",
+      },
     ],
-    date: {type: Date, default: Date.now},
-    like: {type: [String], defautl: ''},
-    likes: {type: Number, default: 0},
-    comment: [
+    public: { type: Boolean, default: false },
+    links: [String],
+    references: [String],
+    comments: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Comment"
-      }
+        ref: "Comment",
+      },
     ]
   })
 );

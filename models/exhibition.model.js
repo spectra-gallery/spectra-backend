@@ -50,7 +50,29 @@ const Exhibition = mongoose.model(
       date: {type: String, default: new Date().toISOString()},
       modified: {type: String, default: new Date().toISOString()},
       volume: {type: Number, default: 0},
-    }),
+    }).pre('save', function (next) {
+      if (!this.slug && this.name) {
+        this.slug = this.name.toLowerCase().replace(/ /g, "-");
+      }
+
+      this.modified = new Date().toISOString();
+
+      // opening date must be before closing date
+      if (this.opening && this.closing) {
+        if (new Date(this.opening) >= new Date(this.closing)) {
+          next(new Error('Opening date must be before closing date'));
+        }
+      }
+
+      // reviewed set date
+      if (this.reviewed) {
+        this.reviewedDate = new Date().toISOString();
+      }
+    
+      next();
+    })
 );
+
+
 
 module.exports = Exhibition;

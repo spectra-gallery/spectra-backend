@@ -11,6 +11,8 @@ const User = db.user;
 const Role = db.role;
 const Comment = db.comment;
 const Section = db.section;
+const Review = db.review;
+const Spectrum = db.spectrum;
 
 const authJwt = require("../middlewares/authJwt");
 
@@ -100,6 +102,7 @@ exports.fetchPosts = (req, res) => {
       .populate("author", "username _id imageUrl slug")
       .populate("media", "_id url ratio type")
       .populate("category", "-__v")
+      .populate("reviews", "-__v")
       // .populate('sketch', '_id hash url sizeBytes')
       .populate("like", "username _id imageUrl slug")
       .exec((err, posts) => {
@@ -110,6 +113,7 @@ exports.fetchPosts = (req, res) => {
         const collectionObj = [];
 
         for (const coll of posts) {
+          
           collectionObj.push({
             id: coll._id,
             name: coll.name,
@@ -125,8 +129,11 @@ exports.fetchPosts = (req, res) => {
             date: coll.date,
             lastModified: coll.lastModified,
             reviewed: coll.reviewed,
+            reviewCount: coll.reviewCount,
+            reviews: coll.reviews,
             published: coll.published,
             like: coll.like,
+            views: coll.views
           });
         }
         if (err) reject(err);
@@ -266,6 +273,7 @@ exports.fetchPostById = (req, res) => {
       .populate("media", "_id url ratio type")
       .populate("like", "username _id imageUrl slug")
       .populate("section", "-__v")
+      .populate("reviews", "-__v")
       .populate({
         path: "comments",
         populate: {
@@ -300,8 +308,8 @@ exports.fetchPostById = (req, res) => {
           date: post._doc.date,
           lastModified: post._doc.lastModified,
           reviewed: post._doc.reviewed,
-          reviewDate: post._doc.reviewDate,
-          reviewedBy: post._doc.reviewedBy,
+          reviewCount: post._doc.reviewCount,
+          reviews: post._doc.reviews,
           published: post._doc.published,
           category: post._doc.category,
           links: post._doc.link,
@@ -364,6 +372,314 @@ exports.fetchPodcastById = (req, res) => {
         }
       });
   });
+  return promise;
+};
+
+exports.fetchAllPostsByCategory = (req, res) => {
+  const number = parseInt(req.params.number);
+
+  const sort = parseInt(req.query.sort);
+
+  const category = req.query.category;
+
+  let cat_exp = {};
+
+  let sorting = { date: -1 };
+  if (sort === 0) {
+    sorting = { date: -1 };
+  } else if (sort === 1) {
+    sorting = { views: -1 };
+  } else if (sort === 2) {
+    sorting = { like: -1 };
+  } else if (sort === 3) {
+    sorting = { comments: -1 };
+  }
+
+  if (category !== "all") {
+    // check if array of object serie.categories contains category.name === req.body.category
+    cat_exp = { "category.name": category };
+  }
+
+  // use aggregators to fetch collection with category matching req.body.category
+  const promise = new Promise((resolve, reject) => {
+    Post.aggregate([
+      {
+        $lookup: {
+          from: "categories",
+          localField: "category",
+          foreignField: "_id",
+          as: "category",
+        },
+      },
+      {
+        $unwind: "$category",
+      },
+
+      {
+        $match: {
+          ...cat_exp,
+        },
+      },
+      // prevent duplicates
+      {
+        $group: {
+          _id: "$_id",
+          name: { $first: "$name" },
+          slug: { $first: "$slug" },
+          description: { $first: "$description" },
+          author: { $first: "$author" },
+          category: { $first: "$category" },
+          display: { $first: "$display" },
+          media: { $first: "$media" },
+          likes: { $first: "$likes" },
+          views: { $first: "$views" },
+          date: { $first: "$date" },
+          reviewed: { $first: "$reviewed" },
+          published: { $first: "$published" },
+          like: { $first: "$like" },
+        },
+      },
+
+      { $sort: sorting },
+      { $limit: number },
+
+      {
+        $lookup: {
+          from: "media",
+          localField: "medias",
+          foreignField: "_id",
+          as: "medias",
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                url: 1,
+                ratio: 1,
+                type: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "authors",
+          foreignField: "_id",
+          as: "authors",
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                username: 1,
+                imageUrl: 1,
+                slug: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: "section",
+          localField: "sections",
+          foreignField: "_id",
+          as: "sections",
+        },
+      },
+      {
+        $lookup: {
+          from: "like",
+          localField: "like",
+          foreignField: "_id",
+          as: "like",
+        },
+      },
+    ]).exec((err, filteredPosts) => {
+      if (err) {
+        reject(err);
+      } else {
+        const postArray = [];
+
+        for (const post of filteredPosts) {
+          postArray.push({
+            id: post._id,
+            name: post.name,
+            slug: post.slug,
+            description: post.description,
+            author: post.author,
+            category: post.category,
+            display: post.display,
+            media: post.media,
+            likes: post.likes,
+            views: post.views,
+            date: post.date,
+            reviewed: post.reviewed,
+            published: post.published,
+            like: post.like,
+          });
+        }
+        
+        resolve(postArray);
+      }
+    });
+  });
+
+  return promise;
+};
+
+exports.fetchAllPostsByCategories = (req, res) => {
+  const number = parseInt(req.params.number);
+
+  const sort = req.query.sort;
+
+  let sorting = { date: -1 };
+  if (sort === 0) {
+    sorting = { date: -1 };
+  } else if (sort === 1) {
+    sorting = { views: -1 };
+  } else if (sort === 2) {
+    sorting = { like: -1 };
+  } else if (sort === 3) {
+    sorting = { comments: -1 };
+  }
+
+  const categoryObj = req.query.categories;
+
+  
+  const parsedCategories = categoryObj.map((element) => JSON.parse(element));
+
+  // get category ids in an array from the array of objects
+  const catIds = parsedCategories.map((cat) => cat._id);
+
+  // use aggregators to fetch collection with category matching req.body.category
+  const promise = new Promise((resolve, reject) => {
+    Post.aggregate([
+      {
+        $lookup: {
+          from: "categories",
+          localField: "category",
+          foreignField: "_id",
+          as: "category",
+        },
+      },
+      
+      {
+        $unwind: '$category',
+
+      },
+    
+
+      {
+        $match: {
+          "category._id": { $in: catIds }
+        }
+      },
+      // prevent duplicates
+      {
+        $group: {
+          _id: "$_id",
+          name: { $first: "$name" },
+          slug: { $first: "$slug" },
+          description: { $first: "$description" },
+          author: { $first: "$author" },
+          category: { $first: "$category" },
+          display: { $first: "$display" },
+          media: { $first: "$media" },
+          likes: { $first: "$likes" },
+          views: { $first: "$views" },
+          date: { $first: "$date" },
+          reviewed: { $first: "$reviewed" },
+          published: { $first: "$published" },
+          like: { $first: "$like" },
+        },
+      },
+
+      { $sort: sorting },
+      { $limit: number },
+
+      {
+        $lookup: {
+          from: "media",
+          localField: "medias",
+          foreignField: "_id",
+          as: "medias",
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                url: 1,
+                ratio: 1,
+                type: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "authors",
+          foreignField: "_id",
+          as: "authors",
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                username: 1,
+                imageUrl: 1,
+                slug: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: "section",
+          localField: "sections",
+          foreignField: "_id",
+          as: "sections",
+        },
+      },
+      {
+        $lookup: {
+          from: "like",
+          localField: "like",
+          foreignField: "_id",
+          as: "like",
+        },
+      }
+    ]).exec((err, filteredPosts) => {
+      if (err) {
+        reject(err);
+      } else {
+        const postArray = [];
+
+        for (const post of filteredPosts) {
+          postArray.push({
+            id: post._id,
+            name: post.name,
+            slug: post.slug,
+            description: post.description,
+            author: post.author,
+            category: post.category,
+            display: post.display,
+            media: post.media,
+            likes: post.likes,
+            views: post.views,
+            date: post.date,
+            reviewed: post.reviewed,
+            published: post.published,
+            like: post.like,
+          });
+        }
+        console.log(postArray);
+        resolve(postArray);
+      }
+    });
+  });
+
   return promise;
 };
 
@@ -740,6 +1056,48 @@ exports.fetchCategory = () => {
   return promise;
 };
 
+exports.fetchSpectrumReviews = () => {
+  const promise = new Promise((resolve, reject) => {
+    // generate an aggrator to fetch all spectum from the rewiews of the posts
+    Post.aggregate([
+      {
+        $lookup: {
+          from: "reviews",
+          localField: "reviews",
+          foreignField: "_id",
+          as: "reviews",
+        },
+      },
+      {
+        $unwind: "$reviews",
+      },
+      {
+        $lookup: {
+          from: "spectrum",
+          localField: "reviews.spectrum",
+          foreignField: "_id",
+          as: "spectrum",
+        },
+      },
+      {
+        $unwind: "$spectrum",
+      },
+      {
+        $project: {
+          _id: 0,
+          name: 1,
+          slug: 1,
+          spectrum: 1,
+        },
+      }
+    ]).exec((err, spectrum) => {
+      resolve(spectrum);
+      if (err) reject(err);
+    });
+  });
+  return promise;
+};
+
 // delete category by id
 exports.deleteCategory = (req, res) => {
   const id = req.params.id;
@@ -768,6 +1126,163 @@ exports.deleteCategory = (req, res) => {
       });
     });
 };
+
+exports.updateSpectre = async(req, res) => {
+
+  const userId = req.userId;
+
+  const id = req.params.id;
+  const name = req.body.name;
+  const value = req.body.value;
+
+  const post = await Post.findById(id);
+
+  if (!post) {
+    return res.status(404).send({
+      message: "Post not found id " + id,
+    });
+  }
+
+  let review = await Review.findOne({ _id: { $in: post.reviews }, reviewedBy: userId });
+
+  if (!review) {
+    review = new Review({
+      reviewedBy: userId
+    });
+
+    await review.save();
+    post.reviews.push(review._id);
+    await post.save();
+
+    const spectrumData = new Spectrum({
+      name: name,
+      value: value,
+    });
+
+    await spectrumData.save();
+    review.spectrum = spectrumData._id;
+
+    await review.save();
+
+    res.status(200).send({
+      postId: post._id,
+      reviewId: review._id,
+      spectrum: {
+        id: spectrumData._id,
+        name: spectrumData.name,
+        value: spectrumData.value
+      }
+    });
+
+    return;
+  }
+
+  let spectrum = await Spectrum.findById(review.spectrum);
+
+  if (!spectrum) {
+    spectrum = new Spectrum({
+      name: name,
+      value: value,
+    });
+
+    await spectrum.save();
+    review.spectrum.push(spectrum._id);
+
+    await review.save();
+
+    res.status(200).send({
+      postId: post._id,
+      reviewId: review._id,
+      spectrum: {
+        id: spectrum._id,
+        name: spectrum.name,
+        value: spectrum.value
+      }
+    });
+
+    return;
+
+  } 
+
+  spectrum.name = name;
+  spectrum.value = value;
+
+  await spectrum.save();
+
+  res.status(200).send({
+    postId: post._id,
+    reviewId: review._id,
+    spectrum: {
+      id: spectrum._id,
+      name: spectrum.name,
+      value: spectrum.value
+    }
+  });
+
+};
+
+// createReview
+exports.createReview = async (req, res) => {
+  const userId = req.userId;
+
+  const id = req.params.id;
+
+  const review = req.body.review;
+
+  const post = await Post.findById(id);
+
+  if (!post) {
+    return res.status(404).send({
+      message: "Post not found id " + id,
+    });
+  }
+
+  const _review = await Review.findOne({ _id: review.id, reviewedBy: userId });
+
+  if (!_review) {
+    return res.status(404).send({
+      message: "Review not found id " + review.id,
+    });
+  }
+
+  const comment = new Comment({
+    content: review.reviewComment,
+    author: userId
+  });
+
+  await comment.save();
+
+
+  _review.reviewRating = review.reviewRating;
+  _review.reviewComment = comment._id;
+  _review.spectrum = review.spectrum;
+  _review.reviewed = true;
+  _review.reviewDate = new Date().toISOString();
+
+  await _review.save();
+
+  post.reviewCount = post.reviewCount + 1;
+  
+  await post.save();
+
+  const newReview = await Review.findById(_review._id)
+    .populate('reviewComment', '_id content author date')
+    .populate('spectrum', '_id name value');
+
+  res.status(200).send({
+    id: post._id,
+    review: {
+      id: newReview._id,
+      reviewRating: newReview.reviewRating,
+      reviewComment: newReview.reviewComment,
+      spectrum: newReview.spectrum,
+      reviewDate: newReview.reviewDate,
+      reviewed: newReview.reviewed
+    }
+  });
+
+};
+
 
 // set post views
 exports.setViews = (req, res) => {
@@ -898,7 +1413,7 @@ exports.fetchLatestPosts = (req, res) => {
       .sort({ date: -1 })
       .limit(number)
       .populate("author", "username _id imageUrl slug")
-      .populate("media", "url width height ratio type")
+      .populate("media", "_id url width height ratio type")
       // .populate('whitelist', '-__v')
       // .populate('category', '-__v')
       // .populate('sketch', '_id hash url sizeBytes')
@@ -1098,7 +1613,7 @@ exports.deletePost = (req, res) => {
 };
 
 // admin delete post
-
+/*
 exports.adminDeletePost = async (req, res) => {
   const id = req.params.id;
 
@@ -1135,6 +1650,7 @@ exports.adminDeletePost = async (req, res) => {
       });
     });
 };
+*/
 
 // edit post
 exports.editPost = async (req, res) => {
@@ -1143,7 +1659,7 @@ exports.editPost = async (req, res) => {
   const sketchId = req.body.sketch.id;
 
   const userId = req.userId;
-  const isAdmin = await userIsAdmin(userId);
+  // const isAdmin = await userIsAdmin(userId);
 
   const collabs = [];
 
@@ -1157,11 +1673,13 @@ exports.editPost = async (req, res) => {
     });
   }
   // check if post.author array contains userId
+  /*
   if (!post.author.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: "Unauthorized",
     });
   }
+  */
 
   if (post.supply > 0) {
     return res.status(404).send({
@@ -1286,7 +1804,7 @@ exports.editPost = async (req, res) => {
       });
     });
 };
-
+/*
 exports.editUserPost = async (req, res) => {
   const id = req.params.id;
 
@@ -1414,6 +1932,8 @@ exports.editUserPost = async (req, res) => {
     });
 };
 
+*/
+
 exports.createSection = (req, res) => {
   if (!req.body.title || !req.body.content) {
     return res.status(400).send({
@@ -1443,6 +1963,53 @@ exports.createSection = (req, res) => {
       });
     });
 };
+
+// remove section by id
+exports.deleteSection = async (req, res) => {
+  const id = req.params.id;
+  const sectionId = req.body.sectionId;
+
+  const userId = req.userId;
+
+  // const isAdmin = await userIsAdmin(userId);
+
+  const section = await Section.findById(sectionId);
+
+  if (!section) {
+    return res.status(404).send({
+      message: "Section not found post id " + id,
+    });
+  }
+
+  const post = await Post.findById(id);
+
+  if (!post) {
+    return res.status(404).send({
+      message: "Post not found id " + id,
+    });
+  }
+
+  /*
+  if (!post.author.includes(userId) && !isAdmin) {
+    return res.status(401).send({
+      message: "Unauthorized",
+    });
+  }
+  */
+
+  post.section.pull(sectionId);
+  await post.save();
+
+  section.remove();
+
+  res.status(200).send({
+    id: id,
+    sectionId: sectionId,
+  });
+
+  // sendMail(OWNER_EMAIL, post, "content");
+};
+
 // Retrieve and return section by id from the database.
 exports.fetchSection = (req, res) => {
   Section.findById(req.params.id).exec((err, section) => {
@@ -1647,14 +2214,16 @@ exports.updateSectionList = async (req, res) => {
     });
   }
 
-  const isAdmin = await userIsAdmin(userId);
+  // const isAdmin = await userIsAdmin(userId);
 
   // check if post.author array contains userId
+  /*
   if (!post.author.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: "Unauthorized",
     });
   }
+  */
 
   const sections = post.section;
   const sectionId = req.body.sectionId;
@@ -1732,7 +2301,7 @@ exports.fetchPodcastByArtist = (req, res) => {
 exports.setPostOnDisplay = async (req, res) => {
   const id = req.params.id;
 
-  const isAdmin = await userIsAdmin(req.userId);
+  // const isAdmin = await userIsAdmin(req.userId);
 
   Post.findById(id)
     .then((post) => {
@@ -1743,11 +2312,13 @@ exports.setPostOnDisplay = async (req, res) => {
       }
 
       // check if post.author array contains userId
+      /*
       if (!post.author.includes(req.userId) && !isAdmin) {
         return res.status(401).send({
           message: "Unauthorized",
         });
       }
+      */
 
       post.display = !post.display;
 
@@ -1877,6 +2448,45 @@ exports.commentPodcast = async (req, res) => {
       });
   };
 };
+/*
+exports.postSpectrum = async (req, res) => {
+  const _id = req.params.id;
+
+  const userId = req.userId;
+
+  const spectrum = new Spectrum({
+    atypique: req.body.atypique,
+    critical: req.body.critical,
+    subversive: req.body.subversive,
+    abstract: req.body.abstract,
+    creative: req.body.creative,
+    anarchist: req.body.anarchist,
+    activist: req.body.activist,
+    humanist: req.body.humanist,
+    collectiveIntelligence: req.body.collectiveIntelligence,
+    biaised: req.body.biaised
+  });
+
+  await spectrum.save();
+
+  const post = await Post.findById(_id);
+
+  if (!post) {
+    return res.status(404).send({
+      message: "Post not found id " + _id,
+    });
+  }
+
+  post.spectrum.push(spectrum._id);
+  await post.save();
+
+  res.status(200).send({
+    id: spectrum._id,
+    postId: _id,
+  });
+};
+*/
+
 
 exports.removeComment = async (req, res) => {
   const commentId = req.params.id;
@@ -1931,14 +2541,16 @@ exports.editPodcastName = async (req, res) => {
     });
   }
 
-  const isAdmin = await userIsAdmin(userId);
+  // const isAdmin = await userIsAdmin(userId);
 
   // check if post.author array contains userId
+  /*
   if (!post.author.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: "Unauthorized",
     });
   }
+  */
 
   // check that  the supply is 0
   if (post.supply > 0) {
@@ -1973,14 +2585,16 @@ exports.editPodcastSubtitle = async (req, res) => {
     });
   }
 
-  const isAdmin = await userIsAdmin(userId);
+  // const isAdmin = await userIsAdmin(userId);
 
   // check if post.author array contains userId
+  /*
   if (!post.author.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: "Unauthorized",
     });
   }
+  */
 
   post.subtitle = req.body.subtitle;
 
@@ -1997,7 +2611,7 @@ exports.editPostDescription = async (req, res) => {
 
   const userId = req.userId;
 
-  const isAdmin = await userIsAdmin(userId);
+  // const isAdmin = await userIsAdmin(userId);
 
   Post.findById(id)
     .then((post) => {
@@ -2008,11 +2622,13 @@ exports.editPostDescription = async (req, res) => {
       }
 
       // check if post.author array contains userId
+      /*
       if (!post.author.includes(userId) && !isAdmin) {
         return res.status(401).send({
           message: "Unauthorized",
         });
       }
+      */
 
       post.description = req.body.description;
 
@@ -2049,7 +2665,7 @@ exports.editPodcastDescription = async (req, res) => {
 
   const userId = req.userId;
 
-  const isAdmin = await userIsAdmin(userId);
+  // const isAdmin = await userIsAdmin(userId);
 
   Podcast.findById(id)
     .then((post) => {
@@ -2060,11 +2676,13 @@ exports.editPodcastDescription = async (req, res) => {
       }
 
       // check if post.author array contains userId
+      /*
       if (!post.author.includes(userId) && !isAdmin) {
         return res.status(401).send({
           message: "Unauthorized",
         });
       }
+      */
 
       post.description = req.body.description;
 
@@ -2108,14 +2726,16 @@ exports.editPodcastAudio = async (req, res) => {
     });
   }
 
-  const isAdmin = await userIsAdmin(userId);
+  // const isAdmin = await userIsAdmin(userId);
 
   // check if post.author array contains userId
+  /*
   if (!podcast.author.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: "Unauthorized",
     });
   }
+  */
 
   podcast.audioUrl = req.body.audioUrl;
 
@@ -2124,6 +2744,46 @@ exports.editPodcastAudio = async (req, res) => {
   res.status(200).send({
     id: podcast._id,
     audioUrl: podcast.audioUrl,
+  });
+};
+
+exports.editPostMedia = async (req, res) => {
+  const id = req.params.id;
+
+  const userId = req.userId;
+
+  const post = await Post.findById(id);
+
+  if (!post) {
+    return res.status(404).send({
+      message: "Post not found id " + id,
+    });
+  }
+
+  // const isAdmin = await userIsAdmin(userId);
+
+  // check if post.author array contains userId
+  /*
+  if (!post.author.includes(userId) && !isAdmin) {
+    return res.status(401).send({
+      message: "Unauthorized",
+    });
+  }
+  */
+
+  const media = await Media.findById(post.media);
+
+  media.url = req.body.media.url;
+  media.width = req.body.media.width;
+  media.height = req.body.media.height;
+  media.ratio = req.body.media.ratio;
+  media.type = req.body.media.type;
+
+  media.save();
+
+  res.status(200).send({
+    id: id,
+    media: media,
   });
 };
 
@@ -2140,14 +2800,16 @@ exports.editPodcastMedia = async (req, res) => {
     });
   }
 
-  const isAdmin = await userIsAdmin(userId);
+ // const isAdmin = await userIsAdmin(userId);
 
   // check if post.author array contains userId
+  /*
   if (!podcast.author.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: "Unauthorized",
     });
   }
+  */
 
   const media = await Media.findById(podcast.media);
 
@@ -2182,14 +2844,16 @@ exports.editPostName = async (req, res) => {
     });
   }
 
-  const isAdmin = await userIsAdmin(userId);
+ // const isAdmin = await userIsAdmin(userId);
 
   // check if post.author array contains userId
+  /*
   if (!post.author.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: "Unauthorized",
     });
   }
+  */
 
   post.name = name;
   post.slug = slug;
@@ -2217,14 +2881,16 @@ exports.editPostSubtitle = async (req, res) => {
     });
   }
 
-  const isAdmin = await userIsAdmin(userId);
+  // const isAdmin = await userIsAdmin(userId);
 
   // check if post.author array contains userId
+  /*
   if (!post.author.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: "Unauthorized",
     });
   }
+  */
 
   post.subtitle = req.body.subtitle;
 
@@ -2250,14 +2916,16 @@ exports.updatePostCategory = async (req, res) => {
     });
   }
 
-  const isAdmin = await userIsAdmin(userId);
+ // const isAdmin = await userIsAdmin(userId);
 
   // check if post.author array contains userId
+  /*
   if (!post.author.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: "Unauthorized",
     });
   }
+    */
   const categories = [];
   const categoryArray = req.body.category;
   const newCategories = [];
@@ -2308,14 +2976,16 @@ exports.removePostCategory = async (req, res) => {
     });
   }
 
-  const isAdmin = await userIsAdmin(userId);
+  // const isAdmin = await userIsAdmin(userId);
 
   // check if post.author array contains userId
+  /*
   if (!post.author.includes(userId) && !isAdmin) {
     return res.status(401).send({
       message: "Unauthorized",
     });
   }
+  */
 
   const categoryId = req.body.categoryId;
 
@@ -2338,31 +3008,62 @@ exports.removePostCategory = async (req, res) => {
 };
 
 exports.toggleReviewPost = async (req, res) => {
-  const id = req.params.id;
+  try {
+    const id = req.params.id     // Post ID
+    const userId = req.userId;         // Current user's ID
 
-  const userId = req.userId;
+    // 1) Find the post along with its reviews
+    let post = await Post.findById(id).populate('reviews', '-__v');
+    if (!post) {
+      return res.status(404).json({ message: `Post not found (ID: ${id})` });
+    }
 
-  const post = await Post.findById(id);
+    // 2) Check if current user already has a review on this post
+    const existingReview = post.reviews.find((rev) =>
+      rev.reviewedBy.toString() === userId.toString()
+    );
 
-  if (!post) {
-    return res.status(404).send({
-      message: "Post not found id " + id,
+    if (existingReview) {
+    
+      existingReview.reviewed = !existingReview.reviewed;
+      existingReview.reviewDate = new Date();
+      await existingReview.save();
+    } else {
+      // Create a new review for this user
+      const newReview = new Review({
+        reviewed: true,
+        reviewedBy: userId,
+        reviewDate: new Date()
+      });
+      await newReview.save();
+
+      // Link the new review to the post
+      post.reviews.push(newReview._id);
+      await post.save();
+    }
+
+   
+    post = await Post.findById(id).populate('reviews', '-__v');
+
+  
+    const reviewCount = post.reviews.filter((rev) => rev.reviewed).length;
+    post.reviewCount = reviewCount;
+    post.reviewed = reviewCount === post.reviews.length;
+    await post.save();
+
+
+    return res.status(200).json({
+      id: post._id,
+      reviewed: post.reviewed,
+      reviewCount: post.reviewCount,
+      reviews: post.reviews
     });
+  } catch (error) {
+   
+    return res.status(500).json({ message: 'Internal Server Error' });
   }
-
-  post.reviewed = !post.reviewed;
-  post.reviewedBy.push(userId);
-  post.reviewDate = new Date().toISOString();
-
-  await post.save();
-
-  res.status(200).send({
-    id: post._id,
-    reviewed: post.reviewed,
-    reviewedBy: post.reviewedBy,
-    reviewDate: post.reviewDate,
-  });
 };
+
 /*
 const userIsAdmin = async (userId) => {
   const user = await User.findById(userId);
@@ -2382,6 +3083,7 @@ const userIsAdmin = async (userId) => {
 };
 */
 
+/*
 const userIsAdmin = async (userId) => {
   try {
     const isAdmin = await authJwt.admin(userId); // directly await the result
@@ -2391,6 +3093,7 @@ const userIsAdmin = async (userId) => {
     return false;
   }
 };
+*/
 
 // delete post whitelist by address
 /*

@@ -8,7 +8,9 @@ module.exports = function (app) {
         res.header(
             'Access-Control-Allow-Headers',
             'x-access-token, Origin, Content-Type, Accept',
+            'x-refresh-token, Origin, Content-Type, Accept',
             'session-token, Origin, Content-Type, Accept',
+            'session-refresh, Origin, Content-Type, Accept'
         );
         next();
     });

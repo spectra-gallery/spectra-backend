@@ -44,6 +44,21 @@ async function sendMail(mailOptions) {
   });
 }
 
+async function sendSetupEmail(email, setupUrl) {
+
+  const mailOptions = {
+    
+      from: '"secure@spectra.gallery',
+      to: email,
+      subject: "YubiKey Setup",
+      html: `Hello!\n\nPlease click the link to set up your YubiKey:\n\n${setupUrl}\n`,
+    }
+
+  const info = await sendMail(mailOptions);
+
+  console.log("[MailService] Email messageId:", info.messageId);
+}
+
 /**
  * Gets the mail options for a given recipient, data, and type.
  *

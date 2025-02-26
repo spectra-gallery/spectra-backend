@@ -4,13 +4,18 @@ const cors = require('cors');
 const path = require('path');
 const app = express();
 
+const appCypherConfig = require('./config/app.cypher.config');
+
 require('dotenv').config();
+
+const CLIENT_URL = appCypherConfig.CLIENT_URL;
+const STORAGE_API_URL = appCypherConfig.STORAGE_API_URL;
 
 global.__basedir = __dirname;
 
 
 const corsOptions = {
-  origin: ['http://localhost:3000'],
+  origin: ['http://localhost:3000', 'http://localhost:6001'],
 };
 
 app.use(cors(corsOptions));
@@ -28,8 +33,11 @@ app.get('/', (req, res) => {
   res.json({message: 'Spectra API'});
 });
 
-
 require('./routes/auth.routes')(app);
+require('./routes/sudo.routes')(app);
+require('./routes/app.auth.routes')(app);
+require('./routes/storage.auth.routes')(app);
+require('./routes/data.routes')(app);
 require('./routes/serie.routes')(app);
 require('./routes/article.routes')(app);
 require('./routes/playground.routes')(app);
@@ -47,7 +55,7 @@ require('./routes/print.routes')(app);
 // require('./routes/social.routes')(app);
 
 
-const PORT = process.env.PORT || 8000;
+const PORT = appCypherConfig.PORT || 8000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}.`);
 });

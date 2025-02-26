@@ -1,0 +1,18 @@
+module.exports = {
+  API_ID: "ap1back3nd53rv1c3",
+  API_NAME: "spectra-gallery-api",
+  API_DISPLAY_NAME: "Spectra Gallery API",
+  PORT: 8000,
+  CLIENT_URL: "http://localhost:3000/",
+  BASE_URL: "http://localhost:8000/",
+  STORAGE_API_URL: "http://localhost:6001",
+  RP_ID: "localhost",
+  WEBAUTHN_ORIGIN: "http://localhost:8000",
+  SESSION_SECRET: "5P3C7RA-AP1-6987423681",
+  MAIL_HOST: "mail.infomaniak.com",
+  MAIL_PORT: 465,
+  SPECTRA_EMAIL: "artist@spectra.gallery",
+  ADMIN_EMAIL: "phil@philmo.ch",
+  MAIL_PASSWORS: "G@p4236Raye",
+  STORAGE_SESSION_SECRET: "5P3C7RA-5T0RAG3-6987423681",
+};

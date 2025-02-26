@@ -8,8 +8,10 @@ const Media = mongoose.model(
         height: Number,
         ratio: String,
         type: String,
-        origin: String
+        origin: String,
+        mediaSize: {type: Number, default: 0},
     }),
 );
+
 
 module.exports = Media;

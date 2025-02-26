@@ -14,4 +14,6 @@ const Scope = mongoose.model(
     }),
 );
 
+
+
 module.exports = Scope;
