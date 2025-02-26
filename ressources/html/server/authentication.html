@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>YubiKey Authentication</title>
+</head>
+<body>
+  <h1>Authenticate with Your YubiKey</h1>
+  <p>Please insert or tap your YubiKey, then press "Authenticate".</p>
+  <button id="btn-authenticate">Authenticate</button>
+  <script>
+    const btn = document.getElementById("btn-authenticate");
+
+    btn.onclick = async function() {
+      try {
+        // Get authentication options from the server
+        const resp = await fetch("/app/auth/fido2/auth/options");
+        const options = await resp.json();
+
+        // Convert certain fields from base64 to ArrayBuffer
+        options.challenge = _base64ToArrayBuffer(options.challenge);
+        if (options.allowCredentials) {
+          options.allowCredentials = options.allowCredentials.map((cred) => {
+            cred.id = _bufferDecode(cred.id);
+            return cred;
+          });
+        }
+
+        // WebAuthn authentication
+        const assertion = await navigator.credentials.get({ publicKey: options });
+
+        console.log('Assertion:', assertion);
+
+        // Prepare data to send to the server
+        const rawId = _bufferEncode(assertion.rawId);
+        const clientDataJSON = _bufferEncode(assertion.response.clientDataJSON);
+        const authenticatorData = _bufferEncode(assertion.response.authenticatorData);
+        const signature = _bufferEncode(assertion.response.signature);
+        const userHandle = _bufferEncode(assertion.response.userHandle);
+
+        console.log('Raw ID:', rawId);
+        console.log('Client Data JSON:', clientDataJSON);
+        console.log('Authenticator Data:', authenticatorData);
+        console.log('Signature:', signature);
+        console.log('User Handle:', userHandle);
+
+        // Send the authentication data to the server for verification
+        const verify = await fetch("/app/auth/fido2/auth/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rawId,
+            response: {
+              clientDataJSON,
+              authenticatorData,
+              signature,
+              userHandle
+            },
+            type: assertion.type
+          })
+        });
+
+        const verifyJson = await verify.json();
+        if (verifyJson.success) {
+          alert("Authentication successful! You can now proceed.");
+        } else {
+          alert("Authentication failed: " + JSON.stringify(verifyJson));
+        }
+      } catch (err) {
+        alert("Error: " + err.message);
+        console.error(err);
+      }
+    };
+
+    // Utility functions for encoding and decoding
+    function _base64ToArrayBuffer(base64) {
+      base64 = base64.replace(/-/g, "+").replace(/_/g, "/");
+      const str = atob(base64);
+      const bytes = new Uint8Array(str.length);
+      for (let i = 0; i < str.length; i++) {
+        bytes[i] = str.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+
+    function _stringToArrayBuffer(str) {
+      const buf = new ArrayBuffer(str.length);
+      const bufView = new Uint8Array(buf);
+      for (let i = 0; i < str.length; i++) {
+        bufView[i] = str.charCodeAt(i);
+      }
+      return buf;
+    }
+
+    function _bufferEncode(value) {
+      return btoa(String.fromCharCode(...new Uint8Array(value)));
+    }
+
+    function _bufferDecode(value) {
+      return Uint8Array.from(atob(value), c => c.charCodeAt(0));
+    }
+  </script>
+</body>
+</html>

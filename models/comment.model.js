@@ -10,7 +10,11 @@ const Comment = mongoose.model(
         ref: 'User',
       },
       date: {type: Date, default: Date.now},
-    }),
+      modified: {type: Date}
+    }).pre('save', function(next) {
+      this.modified = new Date().toISOString();
+      next();
+    })
 );
 
 

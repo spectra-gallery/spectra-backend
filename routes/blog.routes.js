@@ -10,11 +10,18 @@ module.exports = function(app) {
     res.header(
         'Access-Control-Allow-Headers',
         'x-access-token, Origin, Content-Type, Accept',
+        'x-refresh-token, Origin, Content-Type, Accept',
         'session-token, Origin, Content-Type, Accept',
+        'session-refresh, Origin, Content-Type, Accept'
     );
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
     // x-frame-options sameorigin
     res.header('X-Frame-Options', 'SAMEORIGIN');
+    next();
+  });
+
+  app.use('/api/blog', (req, res, next) => {
+    req.target = 'post';
     next();
   });
 
@@ -37,9 +44,9 @@ module.exports = function(app) {
   // create blog
   // app.post('/api/blog', [authJwt.verifyToken, authJwt.isCreator, verifyPost.checkDuplicateName], controller.createPost);
 
-  app.post('/api/blog', [authJwt.verifyToken, verifyPost.checkDuplicateName], controller.createPost);
+  app.post('/api/blog', [authJwt.verifyToken, authJwt.isThinker, verifyPost.checkDuplicateName], controller.createPost);
 
-  app.post('/api/blog/podcast', [authJwt.verifyToken, verifyPost.checkDuplicateName], controller.createPodcast);
+  app.post('/api/blog/podcast', [authJwt.verifyToken, authJwt.isThinker, verifyPost.checkDuplicateName], controller.createPodcast);
 
   // createUserPost
   app.post('/api/blog/user', [authJwt.verifyToken, authJwt.isAdmin], controller.createUserPost);
@@ -49,6 +56,9 @@ module.exports = function(app) {
   app.post('/api/blog/comment/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.commentPost);
 
   app.post('/api/blog/podcast/comment/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.commentPodcast);
+
+  // postSpectrum
+  // app.post('/api/blog/spectrum/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.postSpectrum);
 
   // get all series by page
   app.get('/api/blog/all/:page', [authJwt.verifySession], (req, res) => {
@@ -80,8 +90,18 @@ module.exports = function(app) {
   });
 
   // fetchAllPostsByCategory
-  app.get('/api/blog/sort/:number', [authJwt.verifySession], (req, res) => {
+  app.get('/api/blog/category/:number', [authJwt.verifySession], (req, res) => {
     const elements = controller.fetchAllPostsByCategory(req, res);
+    elements.then((elements) => {
+      res.status(200).send({
+        ...elements,
+      });
+    });
+  });
+
+  // fetchAllPostsByCategories
+  app.get('/api/blog/categories/:number', [authJwt.verifySession], (req, res) => {
+    const elements = controller.fetchAllPostsByCategories(req, res);
     elements.then((elements) => {
       res.status(200).send({
         ...elements,
@@ -128,6 +148,16 @@ module.exports = function(app) {
     });
   });
 
+  // get my blog
+  app.get('/api/blog/my', [authJwt.verifySession, authJwt.isAuthorOrAllowed], (req, res) => {
+    const elements = controller.fetchMyPosts(req, res);
+    elements.then((elements) => {
+      res.status(200).send({
+        ...elements,
+      });
+    });
+  });
+
   app.get('/api/blog/media', (req, res) => {
     const elements = controller.fetchAllMedias();
     elements.then((elements) => {
@@ -151,6 +181,22 @@ module.exports = function(app) {
   // load category
   app.get('/api/category/', [authJwt.verifySession], (req, res) => {
     const elements = controller.fetchCategory();
+    elements.then((elements) => {
+      res.status(200).send({
+        ...elements,
+      });
+    });
+  });
+
+  // createReview
+  app.post('/api/blog/spectre/create/:id', [authJwt.verifyToken, authJwt.isAllowedReviewer, objectId.isValidObjectId], controller.createReview);
+
+  // updateSpectre
+  app.post('/api/blog/spectre/update/:id', [authJwt.verifyToken, authJwt.isAllowedReviewer, objectId.isValidObjectId], controller.updateSpectre);
+
+  // fetchSpectrum
+  app.get('/api/blog/spectrum', [authJwt.verifySession], (req, res) => {
+    const elements = controller.fetchSpectrumReviews(req, res);
     elements.then((elements) => {
       res.status(200).send({
         ...elements,
@@ -279,47 +325,47 @@ module.exports = function(app) {
 
 
   // set views
-  app.post('/api/blog/views/:id', [authJwt.verifySession], controller.setViews);
+  app.post('/api/blog/views/:id', [authJwt.verifySession, objectId.isValidObjectId], controller.setViews);
 
   // edit blog
-  app.post('/api/blog/edit/:id', [authJwt.verifyToken, objectId.isValidObjectId, verifyPost.checkDuplicateNameEdit], controller.editPost);
+  app.post('/api/blog/edit/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId, verifyPost.checkDuplicateNameEdit], controller.editPost);
 
   // editUserPost
-  app.post('/api/blog/user/edit/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId], controller.editUserPost);
+  // app.post('/api/blog/user/edit/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId], controller.editUserPost);
 
 
   // set blog on display
-  app.post('/api/blog/display/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.setPostOnDisplay);
+  app.post('/api/blog/display/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId], controller.setPostOnDisplay);
 
   // editPostMedia
-  app.post('/api/blog/media/edit/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editPostMedia);
+  app.post('/api/blog/media/edit/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId], controller.editPostMedia);
 
   // update blog category
-  app.post('/api/blog/category/update/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.updatePostCategory);
+  app.post('/api/blog/category/update/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId], controller.updatePostCategory);
 
   // editPostName
-  app.post('/api/blog/name/:id', [authJwt.verifyToken, objectId.isValidObjectId, verifyPost.checkDuplicateNameEdit], controller.editPostName);
+  app.post('/api/blog/name/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId, verifyPost.checkDuplicateNameEdit], controller.editPostName);
 
   // editPostSubtitle
-  app.post('/api/blog/subtitle/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editPostSubtitle);
+  app.post('/api/blog/subtitle/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId], controller.editPostSubtitle);
 
   // editPostDescription
-  app.post('/api/blog/description/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editPostDescription);
+  app.post('/api/blog/description/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId], controller.editPostDescription);
 
   // editPostName
-  app.post('/api/blog/podcast/name/:id', [authJwt.verifyToken, objectId.isValidObjectId, verifyPost.checkDuplicateNameEdit], controller.editPodcastName);
+  app.post('/api/blog/podcast/name/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId, verifyPost.checkDuplicateNameEdit], controller.editPodcastName);
 
   // editPostSubtitle
-  app.post('/api/blog/podcast/subtitle/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editPodcastSubtitle);
+  app.post('/api/blog/podcast/subtitle/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId], controller.editPodcastSubtitle);
 
   // editPostDescription
-  app.post('/api/blog/podcast/description/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editPodcastDescription);
+  app.post('/api/blog/podcast/description/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId], controller.editPodcastDescription);
 
   // editPodcastAudio
-  app.post('/api/blog/podcast/audio/edit/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editPodcastAudio);
+  app.post('/api/blog/podcast/audio/edit/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId], controller.editPodcastAudio);
 
   // editPodcastMedia
-  app.post('/api/blog/podcast/media/edit/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editPodcastMedia);
+  app.post('/api/blog/podcast/media/edit/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId], controller.editPodcastMedia);
 
   app.post('/api/blog/like/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.likePost);
 
@@ -330,34 +376,34 @@ module.exports = function(app) {
   app.post('/api/blog/category', [authJwt.verifyToken, authJwt.isAdmin], controller.createCategory);
 
   // toggleReviewPost
-  app.post('/api/blog/review/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId], controller.toggleReviewPost);
+  app.post('/api/blog/review/:id', [authJwt.verifyToken, authJwt.isAllowedReviewer, objectId.isValidObjectId], controller.toggleReviewPost);
 
   app.post(
     "/api/blog/section",
-    [authJwt.verifyToken, authJwt.getUsername],
+    [authJwt.verifyToken, authJwt.isThinker, authJwt.getUsername],
     controller.createSection
   );
 
   app.post(
     "/api/blog/section/edit/:id",
-    [authJwt.verifyToken, authJwt.getUsername],
+    [authJwt.verifyToken, authJwt.isAuthorOrAllowed, authJwt.getUsername],
     controller.editSection
   );
 
   //  editSectionTitle
-    app.post('/api/blog/section/title/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editSectionTitle);
+    app.post('/api/blog/section/title/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId], controller.editSectionTitle);
 
     // editSectionContent
-    app.post('/api/blog/section/content/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editSectionContent);
+    app.post('/api/blog/section/content/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId], controller.editSectionContent);
 
     // editSectionImageUrl
-    app.post('/api/blog/section/image/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editSectionImageUrl);
+    app.post('/api/blog/section/image/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId], controller.editSectionImageUrl);
 
     // updateSectionList
-    app.post('/api/blog/section/update/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.updateSectionList);
+    app.post('/api/blog/section/update/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId], controller.updateSectionList);
 
     // deleteSection
-    app.delete('/api/blog/section/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.deleteSection);
+    app.delete('/api/blog/section/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId], controller.deleteSection);
 
   // remeoveWhitelistAddress
   // app.post('/api/blog/whitelist/remove/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.removeWhitelistAddress);
@@ -366,20 +412,20 @@ module.exports = function(app) {
   // app.post('/api/blog/featured', [authJwt.verifyToken, authJwt.isAdmin], controller.setFeaturedPosts);
 
   // delete blog
-  app.delete('/api/blog/user/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.deletePost);
+  app.delete('/api/blog/user/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId], controller.deletePost);
 
   // adminDeletePost
-  app.delete('/api/blog/admin/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId], controller.adminDeletePost);
+  // app.delete('/api/blog/admin/:id', [authJwt.verifyToken, authJwt.isAdmin, objectId.isValidObjectId], controller.adminDeletePost);
 
   // deleteCategory
   app.delete('/api/blog/category/:id', [authJwt.verifyToken, authJwt.isAdmin], controller.deleteCategory);
 
 
   // remove category
-  app.post('/api/blog/category/remove/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.removePostCategory);
+  app.post('/api/blog/category/remove/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId], controller.removePostCategory);
 
   // remove comment
-  app.delete('/api/blog/comment/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.removeComment);
+  app.delete('/api/blog/comment/:id', [authJwt.verifyToken, authJwt.isAuthorOrAllowed, objectId.isValidObjectId], controller.removeComment);
 
   // removePostTrait
   // app.delete('/api/exhibition/blog/trait/remove/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.removePostTrait);

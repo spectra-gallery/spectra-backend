@@ -93,12 +93,13 @@ checkPassword = (req, res, next) => {
   next();
 };
 
+
 const verifySignUp = {
   checkDuplicateUsername,
   checkDuplicateEmail,
   checkDuplicateAddress,
   checkRolesExisted,
-  checkPassword,
+  checkPassword
 };
 
 module.exports = verifySignUp;

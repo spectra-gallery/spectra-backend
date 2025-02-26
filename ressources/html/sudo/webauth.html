@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+      <head><title>Register Admin Key</title></head>
+      <body>
+        <h1>Register your YubiKey (Admin)</h1>
+        <button id="registerButton">Register YubiKey</button>
+        <div id="status"></div>
+        <script>
+          const registerButton = document.getElementById('registerButton');
+          registerButton.onclick = async function() {
+            document.getElementById('status').textContent = 'Requesting registration options...';
+            let optsRes = await fetch('/api/sudo/fido/register/options');
+            if (!optsRes.ok) {
+              alert('Failed to get registration options');
+              return;
+            }
+            let options = await optsRes.json();
+  
+            // Convert certain values from base64 to ArrayBuffer
+            options.challenge = Uint8Array.from(atob(options.challenge), c => c.charCodeAt(0));
+            options.user.id = Uint8Array.from(atob(options.user.id), c => c.charCodeAt(0));
+  
+            if (options.excludeCredentials) {
+              options.excludeCredentials = options.excludeCredentials.map(ec => {
+                ec.id = Uint8Array.from(atob(ec.id), c => c.charCodeAt(0));
+                return ec;
+              });
+            }
+  
+            document.getElementById('status').textContent = 'Please insert/tap your security key...';
+            let cred;
+            try {
+              cred = await navigator.credentials.create({ publicKey: options });
+            } catch (err) {
+              console.error(err);
+              alert('Error creating credentials: ' + err);
+              return;
+            }
+  
+            // Now send the response to the server
+            const attObj = cred.response.attestationObject;
+            const clientDataJSON = cred.response.clientDataJSON;
+            const rawId = cred.rawId;
+  
+            // Convert them to base64
+            const attObjB64 = btoa(String.fromCharCode(...new Uint8Array(attObj)));
+            const clientDataJSONB64 = btoa(String.fromCharCode(...new Uint8Array(clientDataJSON)));
+            const rawIdB64 = btoa(String.fromCharCode(...new Uint8Array(rawId)));
+  
+            let verificationRes = await fetch('/api/sudo/fido/register/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: cred.id,
+                rawId: rawIdB64,
+                type: cred.type,
+                response: {
+                  attestationObject: attObjB64,
+                  clientDataJSON: clientDataJSONB64
+                }
+              })
+            });
+            let verificationJSON = await verificationRes.json();
+            if (verificationJSON.success) {
+              document.getElementById('status').textContent = 'Registration successful! You now have Admin+YubiKey.';
+            } else {
+              document.getElementById('status').textContent = 'Registration failed: ' + verificationJSON.message;
+            }
+          };
+        </script>
+      </body>
+      </html>

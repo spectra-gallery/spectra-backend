@@ -24,7 +24,14 @@ const Neuralmap = mongoose.model(
             },
         ],
         date: {type: String, default: new Date().toISOString()},
-    }),
+    }).pre('save', function (next) {
+        if (!this.slug && this.name) {
+          this.slug = this.name.toLowerCase().replace(/ /g, "-");
+        }
+        next();
+      })
 );
+
+
 
 module.exports = Neuralmap;

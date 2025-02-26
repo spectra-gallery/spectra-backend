@@ -605,7 +605,7 @@
   resolved "https://registry.npmjs.org/@fastify/busboy/-/busboy-2.1.0.tgz"
   integrity sha512-+KpH+QxZU7O4675t3mnkQKcZZg56u+K/Ct2K+N2AZYNVK8kyeo/bI18tI8aPm3tvNNRyTWfj6s5tnGNlcbQRsA==
 
-"@hexagon/base64@~1.1.26":
+"@hexagon/base64@~1.1.28":
   version "1.1.28"
   resolved "https://registry.npmjs.org/@hexagon/base64/-/base64-1.1.28.tgz"
   integrity sha512-lhqDEAvWixy3bZ+UOYbPwUbBkwBq5C1LAJ/xPC8Oi+lL54oyakv/npbA0aU2hgCsx/1NUd4IBvV03+aUBWxerw==
@@ -783,7 +783,7 @@
   dependencies:
     tslib "^2.0.0"
 
-"@peculiar/webcrypto@~1.4.3":
+"@peculiar/webcrypto@~1.4.5":
   version "1.4.5"
   resolved "https://registry.npmjs.org/@peculiar/webcrypto/-/webcrypto-1.4.5.tgz"
   integrity sha512-oDk93QCDGdxFRM8382Zdminzs44dg3M2+E5Np+JWkpqLDyJC9DviMh8F8mEJkYuUcUOGA5jHO5AJJ10MFWdbZw==
@@ -2373,7 +2373,7 @@ cbor-extract@^2.2.0:
     "@cbor-extract/cbor-extract-linux-x64" "2.2.0"
     "@cbor-extract/cbor-extract-win32-x64" "2.2.0"
 
-cbor-x@~1.5.3:
+cbor-x@~1.5.8:
   version "1.5.8"
   resolved "https://registry.npmjs.org/cbor-x/-/cbor-x-1.5.8.tgz"
   integrity sha512-gc3bHBsvG6GClCY6c0/iip+ghlqizkVp+TtaL927lwvP4VP9xBdi1HmqPR5uj/Mj/0TOlngMkIYa25wKg+VNrQ==
@@ -2626,6 +2626,11 @@ cookie-signature@1.0.6:
   resolved "https://registry.npmjs.org/cookie-signature/-/cookie-signature-1.0.6.tgz"
   integrity sha1-4wOogrNCzD7oylE6eZmXNNqzriw=
 
+cookie-signature@1.0.7:
+  version "1.0.7"
+  resolved "https://registry.npmjs.org/cookie-signature/-/cookie-signature-1.0.7.tgz"
+  integrity sha512-NXdYc3dLr47pBkpUCHtKSwIOQXLVn8dZEuywboCOJY/osA0wFSLlSawr3KN8qXJEyX66FcONTH8EIlVuK0yyFA==
+
 cookie@0.4.0:
   version "0.4.0"
   resolved "https://registry.npmjs.org/cookie/-/cookie-0.4.0.tgz"
@@ -2636,10 +2641,10 @@ cookie@0.4.1:
   resolved "https://registry.npmjs.org/cookie/-/cookie-0.4.1.tgz"
   integrity sha512-ZwrFkGJxUR3EIoXtO+yVE69Eb7KlixbaeAWfBQB9vVsNn/o+Yw69gBWSSDK825hQNdN+wF8zELf3dFNl/kxkUA==
 
-cookie@0.4.2:
-  version "0.4.2"
-  resolved "https://registry.npmjs.org/cookie/-/cookie-0.4.2.tgz"
-  integrity sha512-aSWTXFzaKWkvHO1Ny/s+ePFpvKsPnjc551iI41v3ny/ow6tBG5Vd+FuqGNhh1LxOmVzOlGUriIlOaokOvhaStA==
+cookie@0.7.2:
+  version "0.7.2"
+  resolved "https://registry.npmjs.org/cookie/-/cookie-0.7.2.tgz"
+  integrity sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w==
 
 core-util-is@~1.0.0, core-util-is@1.0.2:
   version "1.0.2"
@@ -3558,13 +3563,13 @@ express-http-proxy@^1.6.3:
     es6-promise "^4.1.1"
     raw-body "^2.3.0"
 
-express-session@^1.17.1, express-session@^1.17.3:
-  version "1.17.3"
-  resolved "https://registry.npmjs.org/express-session/-/express-session-1.17.3.tgz"
-  integrity sha512-4+otWXlShYlG1Ma+2Jnn+xgKUZTMJ5QD3YvfilX3AcocOAbIkVylSWEklzALe/+Pu4qV6TYBj5GwOBFfdKqLBw==
+express-session@^1.17.1, express-session@^1.18.1:
+  version "1.18.1"
+  resolved "https://registry.npmjs.org/express-session/-/express-session-1.18.1.tgz"
+  integrity sha512-a5mtTqEaZvBCL9A9aqkrtfz+3SMDhOVUnjafjo+s7A9Txkq+SVX2DLvSp1Zrv4uCXa3lMSK3viWnh9Gg07PBUA==
   dependencies:
-    cookie "0.4.2"
-    cookie-signature "1.0.6"
+    cookie "0.7.2"
+    cookie-signature "1.0.7"
     debug "2.6.9"
     depd "~2.0.0"
     on-headers "~1.0.2"
@@ -3685,18 +3690,19 @@ fd-slicer@~1.1.0:
   dependencies:
     pend "~1.2.0"
 
-fido2-lib@^3.5.0:
-  version "3.5.0"
-  resolved "https://registry.npmjs.org/fido2-lib/-/fido2-lib-3.5.0.tgz"
-  integrity sha512-p/VGC3leW+jKonQXHzvnhJJB8B/cf0HNlIFpJSjkwZePLlahjfIQwlmtnNr4JY0iKNFP0gd3uL6KdBt882RYAg==
+fido2-lib@^3.5.3:
+  version "3.5.3"
+  resolved "https://registry.npmjs.org/fido2-lib/-/fido2-lib-3.5.3.tgz"
+  integrity sha512-IwDuTvCcTpD6rhZkCr1MTp5oZkLUanuWr9xoSvLgc33VdFHl/hc/hkh9L/YzejoY18tP6mkXRkDWfFQMJ69ZfQ==
   dependencies:
-    "@hexagon/base64" "~1.1.26"
-    "@peculiar/webcrypto" "~1.4.3"
+    "@hexagon/base64" "~1.1.28"
+    "@peculiar/webcrypto" "~1.4.5"
     asn1js "~3.0.2"
-    cbor-x "~1.5.3"
-    jose "^4.14.4"
+    cbor-x "~1.5.8"
+    jose "^4.15.5"
     pkijs "~3.0.15"
-    tldts "~6.0.5"
+    punycode.js "^2.3.1"
+    tldts "~6.1.11"
 
 file-entry-cache@^6.0.1:
   version "6.0.1"
@@ -3826,6 +3832,15 @@ fs-constants@^1.0.0:
   version "1.0.0"
   resolved "https://registry.npmjs.org/fs-constants/-/fs-constants-1.0.0.tgz"
   integrity sha512-y6OAwoSIf7FyjMIv94u+b5rdheZEjzR63GTyZJm5qh4Bi+2YgwLCcI/fPFZkL5PSixOt6ZNKm+w+Hfp/Bciwow==
+
+fs-extra@^11.3.0:
+  version "11.3.0"
+  resolved "https://registry.npmjs.org/fs-extra/-/fs-extra-11.3.0.tgz"
+  integrity sha512-Z4XaCL6dUDHfP/jT25jJKMmtxvuwbkrD1vNSMFlo9lNLY2c5FHYSQgHPRZUjAB26TpDEoW9HCOgplrdbaPV/ew==
+  dependencies:
+    graceful-fs "^4.2.0"
+    jsonfile "^6.0.1"
+    universalify "^2.0.0"
 
 fs-extra@^4.0.2:
   version "4.0.3"
@@ -4020,7 +4035,7 @@ got@12.1.0:
     p-cancelable "^3.0.0"
     responselike "^2.0.0"
 
-graceful-fs@^4.1.2, graceful-fs@^4.1.6:
+graceful-fs@^4.1.2, graceful-fs@^4.1.6, graceful-fs@^4.2.0:
   version "4.2.11"
   resolved "https://registry.npmjs.org/graceful-fs/-/graceful-fs-4.2.11.tgz"
   integrity sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==
@@ -4531,10 +4546,10 @@ jiti@^1.21.0:
   resolved "https://registry.npmjs.org/jiti/-/jiti-1.21.6.tgz"
   integrity sha512-2yTgeWTWzMWkHu6Jp9NKgePDaYHbntiwvYuuJLbbN9vl7DC9DvXKOB2BC3ZZ92D3cvV/aflH0osDfwpHepQ53w==
 
-jose@^4.14.4:
-  version "4.15.4"
-  resolved "https://registry.npmjs.org/jose/-/jose-4.15.4.tgz"
-  integrity sha512-W+oqK4H+r5sITxfxpSU+MMdr/YSWGvgZMQDIsNoBDGGy4i7GBPTtvFKibQzW06n3U3TqHjhvBJsirShsEJ6eeQ==
+jose@^4.15.5:
+  version "4.15.9"
+  resolved "https://registry.npmjs.org/jose/-/jose-4.15.9.tgz"
+  integrity sha512-1vUQX+IdDMVPj4k8kOxgUqlcK518yluMuGZwqlr44FS1ppZB/5GWh4rZG89erpOBOJjU/OBsnCVFfapsRz6nEA==
 
 js-beautify@^1.14.9:
   version "1.14.9"
@@ -4641,6 +4656,15 @@ jsonfile@^4.0.0:
   version "4.0.0"
   resolved "https://registry.npmjs.org/jsonfile/-/jsonfile-4.0.0.tgz"
   integrity sha512-m6F1R3z8jjlf2imQHS2Qez5sjKWQzbuuhuJ/FKYFRZvPE3PuHcSMVZzfsLhGVOkfd20obL5SWEBew5ShlquNxg==
+  optionalDependencies:
+    graceful-fs "^4.1.6"
+
+jsonfile@^6.0.1:
+  version "6.1.0"
+  resolved "https://registry.npmjs.org/jsonfile/-/jsonfile-6.1.0.tgz"
+  integrity sha512-5dgndWOriYSm5cnYaJNhalLNDKOqFwyDB/rr1E9ZsGciGvKPs8R2xYGCacuf3z6K1YKDz182fd+fY3cn3pMqXQ==
+  dependencies:
+    universalify "^2.0.0"
   optionalDependencies:
     graceful-fs "^4.1.6"
 
@@ -5829,6 +5853,11 @@ pump@^3.0.0:
     end-of-stream "^1.1.0"
     once "^1.3.1"
 
+punycode.js@^2.3.1:
+  version "2.3.1"
+  resolved "https://registry.npmjs.org/punycode.js/-/punycode.js-2.3.1.tgz"
+  integrity sha512-uxFIHU0YlHYhDQtV4R9J6a52SLx28BCjT+4ieh7IGbgwVJWO+km431c4yRlREUAsAmt/uMjQUyQHNEPf0M39CA==
+
 punycode@^2.1.0:
   version "2.3.0"
   resolved "https://registry.npmjs.org/punycode/-/punycode-2.3.0.tgz"
@@ -6828,17 +6857,17 @@ tiny-secp256k1@^2.2.3:
   dependencies:
     uint8array-tools "0.0.7"
 
-tldts-core@^6.0.23:
-  version "6.1.11"
-  resolved "https://registry.npmjs.org/tldts-core/-/tldts-core-6.1.11.tgz"
-  integrity sha512-ZFcT+/fdEc5VRndQIJtArNBHsaq4udRoeE4E6cwLzGaH0dq7Ng2L7cAoea6riM2uhNFD09EDa1bN8lrfrOBCLg==
+tldts-core@^6.1.76:
+  version "6.1.76"
+  resolved "https://registry.npmjs.org/tldts-core/-/tldts-core-6.1.76.tgz"
+  integrity sha512-uzhJ02RaMzgQR3yPoeE65DrcHI6LoM4saUqXOt/b5hmb3+mc4YWpdSeAQqVqRUlQ14q8ZuLRWyBR1ictK1dzzg==
 
-tldts@~6.0.5:
-  version "6.0.23"
-  resolved "https://registry.npmjs.org/tldts/-/tldts-6.0.23.tgz"
-  integrity sha512-LaA60X7J9mts1EliB7Nq/OBqicaI7TgsheWeQ8RR1uqwcVLjvRVHTGOkWjKAPa/XF+0t2ZBy1oF6OW8ufqOsKA==
+tldts@~6.1.11:
+  version "6.1.76"
+  resolved "https://registry.npmjs.org/tldts/-/tldts-6.1.76.tgz"
+  integrity sha512-6U2ti64/nppsDxQs9hw8ephA3nO6nSQvVVfxwRw8wLQPFtLI1cFI1a1eP22g+LUP+1TA2pKKjUTwWB+K2coqmQ==
   dependencies:
-    tldts-core "^6.0.23"
+    tldts-core "^6.1.76"
 
 tmp@0.0.33:
   version "0.0.33"
@@ -7081,6 +7110,11 @@ universalify@^0.2.0:
   version "0.2.0"
   resolved "https://registry.npmjs.org/universalify/-/universalify-0.2.0.tgz"
   integrity sha512-CJ1QgKmNg3CwvAv/kOFmtnEN05f0D/cn9QntgNOQlQF9dgvVTHj3t+8JPdjqawCHk7V/KA+fbUqzZ9XWhcqPUg==
+
+universalify@^2.0.0:
+  version "2.0.1"
+  resolved "https://registry.npmjs.org/universalify/-/universalify-2.0.1.tgz"
+  integrity sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw==
 
 unpipe@~1.0.0, unpipe@1.0.0:
   version "1.0.0"

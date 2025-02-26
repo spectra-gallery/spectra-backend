@@ -57,7 +57,17 @@ const Element = mongoose.model(
       date: {type: String, default: new Date().toISOString()},
       lastTx: {type: String, default: new Date().toISOString()},
       link: {type: String},
-    }),
+    }).pre('save', function (next) {
+      if (!this.slug && this.name) {
+        this.slug = this.name.toLowerCase().replace(/ /g, "-");
+      }
+
+      this.modified = new Date().toISOString();
+
+    
+    
+      next();
+    })
 );
 
 module.exports = Element;

@@ -11,7 +11,13 @@ const Customer = mongoose.model(
         zip: String,
         country: String,
         email: String,
-    }),
+    }).pre('save', function (next) {
+       // address validation
+  
+      
+      
+        next();
+      })
 );
 
 module.exports = Customer;
