@@ -2,6 +2,7 @@ const authJwt = require('./authJwt');
 const authInit = require('./authInit');
 const authAPI = require('./authAPI');
 const sudoCypher = require('./sudoCypher');
+const monitorSession = require('./monitorSession');
 const verifySignUp = require('./verifySignUp');
 const verifySerie = require('./verifySerie');
 const verifyPost = require('./verifyPost');
@@ -22,6 +23,7 @@ module.exports = {
   authInit,
   authAPI,
   sudoCypher,
+  monitorSession,
   verifySignUp,
   verifySerie,
   verifyPost,

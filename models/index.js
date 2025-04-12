@@ -67,6 +67,6 @@ db.linkmap = require('./linkmap.model');
 db.autotask = require('./autotask.model');
 db.dataviz = require('./dataviz.model');
 
-db.ROLES = ['user', 'admin', 'creator', 'thinker', 'reviewer', 'e-libre', 'myself'];
+db.ROLES = ['user', 'admin', 'creator', 'thinker', 'reviewer', 'e-libre', 'myself', 'azuran'];
 
 module.exports = db;
