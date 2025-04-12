@@ -2,6 +2,7 @@
 const {verifySignUp} = require('../middlewares');
 const {authJwt} = require('../middlewares');
 const {objectId} = require('../middlewares');
+const {monitorSession} = require('../middlewares');
 const controller = require('../controllers/auth.controller');
 const uploadController = require('../controllers/fileUpload.controller');
 const { auth } = require('../models');
@@ -24,7 +25,7 @@ module.exports = function(app) {
   });
 
   // generateSessionToken
-  app.get('/api/auth/generatesession', controller.generateSessionToken);
+  app.get('/api/auth/generatesession', [monitorSession.extractClientIP], controller.generateSessionToken);
 
   // generateStorageToken
   app.post('/api/auth/storage/generatestoragetoken', [authJwt.verifyToken], controller.generateStorageToken);

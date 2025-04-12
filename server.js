@@ -4,6 +4,11 @@ const cors = require('cors');
 const path = require('path');
 const app = express();
 
+/*
+const { Server } = require('socket.io');
+const Quaternion = require('quaternion');
+*/
+
 const appCypherConfig = require('./config/app.cypher.config');
 
 require('dotenv').config();
@@ -24,6 +29,10 @@ app.use(bodyParser.json());
 
 app.use(bodyParser.urlencoded({extended: true}));
 
+/*
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: 'http://localhost:3000' } });
+*/
 
 app.use(express.static(path.join(__dirname, 'ressources'),
     {xframe: 'ALLOW-FROM *'}));
@@ -53,7 +62,26 @@ require('./routes/lab.routes')(app);
 require('./routes/print.routes')(app);
 
 // require('./routes/social.routes')(app);
+/*
+function quantumEncrypt(url) {
+  const encoded = Buffer.from(url).toString('hex');
+  const quaternions = [];
 
+  for (let i = 0; i < encoded.length; i += 4) {
+    const chunk = encoded.substr(i, 4);
+    const nums = chunk.split('').map(c => parseInt(c, 16) / 15);
+    quaternions.push(new Quaternion(...nums));
+  }
+
+  return quaternions;
+}
+
+io.on('connection', socket => {
+  const url = 'https://example.com';
+  const quantumData = quantumEncrypt(url);
+  socket.emit('quantum-data', quantumData.map(q => q.toVector()));
+});
+*/
 
 const PORT = appCypherConfig.PORT || 8000;
 app.listen(PORT, () => {

@@ -9,6 +9,8 @@ const {
   sendNewPassword,
   sendAuthenticationEmail,
 } = require("../services/mail.service");
+
+const { encodeString, decodeString, encryptString, decryptString } = require("../helpers/cypher.helpers");
 // const discord = require('../middlewares/discord');
 require("dotenv").config();
 const User = db.user;
@@ -125,6 +127,8 @@ exports.getUserData = (req, res) => {
         creator: user.creator,
         date: user.date,
         lastLogin: user.lastLogin,
+        _2FA_enabled: user._2FA_enabled,
+        _2FA_registered: user._2FA_registered,
         like: user.like,
         likes: user.likes,
         frequentWords: user.frequentWords,
@@ -155,7 +159,7 @@ exports.generateSessionToken = async (req, res) => {
   // save session token in database
   const session = new Session({
     sessionId: sessionId,
-    ip: req.ip,
+    ip: [req.clientIP]
   });
 
   await session.save();
@@ -986,6 +990,40 @@ exports.removeBtcAddress = async (req, res) => {
 
   res.status(200).send({
     removed: true,
+  });
+};
+
+exports.set2FASecret = async (req, res) => {
+  const userId = req.userId;
+
+  const user = await User.findById(userId).select("+_2FA_secret")
+                    .select("+cypher")
+                    .populate("cypher", "-__v");
+
+  if (!user) {
+    return res.status(404).send({
+      message: "User not found",
+    });
+  }
+
+  if (!user._2FA_secret || user._2FA_secret === '') {
+    user._2FA_registered = false;
+    user._2FA_enabled = false;
+
+    // remove cypher
+    if (user.cypher) {
+      await user.cypher.remove();
+    }
+  }
+
+  const encodedSecret = encodeString(req.body.secret);
+
+  user._2FA_secret = encodedSecret;
+
+  await user.save();  
+
+  res.status(200).send({
+    secret: req.body.secret,
   });
 };
 

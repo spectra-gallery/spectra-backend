@@ -1,3 +1,4 @@
+const { link } = require("fs");
 const mongoose = require("mongoose");
 
 const Post = mongoose.model(
@@ -42,6 +43,14 @@ const Post = mongoose.model(
         ref: "Review",
       },
     ],
+    access: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Access",
+    },
+    sensitivity: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Sensitivity",
+    },
     published: { type: Boolean, default: false },
     featured: { type: Boolean, default: false },
     category: [

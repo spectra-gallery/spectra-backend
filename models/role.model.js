@@ -7,6 +7,7 @@ const Role = mongoose.model(
       type: String,
       enum: ['user', 'admin', 'creator', 'thinker', 'reviewer', 'e-libre', 'myself'],
       required: true,
+      unique: true
     },
     hash: {
       type: String,

@@ -17,6 +17,7 @@ const sudoSession = require("../config/sudo_session.config");
 
 const { globalInclude } = require("../helpers/db.helpers");
 
+const controller = require('../controllers/auth.controller');
 
 const { encodeString, decodeString, encryptString, decryptString } = require("../helpers/cypher.helpers");
 
@@ -247,6 +248,9 @@ module.exports = (app) => {
     next();
   });
 
+
+  app.post('/api/auth/2fa/secret', [authJwt.verifyToken], controller.set2FASecret);
+
   app.post(
     "/api/auth/2fa/register/options",
     [authJwt.verifyToken],
@@ -360,8 +364,11 @@ module.exports = (app) => {
             return res.status(400).json({ message: "Role not found." });
           }
 
+          const decodedSecret = decodeString(user._2FA_secret);
+          const encryptedRouteId = encryptString(pathId, decodedSecret);
+
           const cypher = new Cypher({
-            route_id: pathId,
+            route_id: encryptedRouteId,
             secret: user._2FA_secret,
             role: role._id,
           });
@@ -398,7 +405,7 @@ module.exports = (app) => {
     }
   );
 
-  app.post("/api/auth/2fa/login/options", async (req, res) => {
+  app.post("/api/auth/2fa/login/options", [authJwt.verifyToken], async (req, res) => {
     const userId = req.userId;
 
     const user = await User.findById(userId).populate("credentials");

@@ -67,11 +67,21 @@ const User = mongoose.model(
     date: { type: String, default: new Date().toISOString() },
     lastModified: { type: String },
     lastLogin: { type: String, default: new Date().toISOString() },
-    age: { type: Number, min: 5},
+    personal: { 
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Personal",
+      select: false
+    },
     role: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Role",
+      },
+    ],
+    tribes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Tribe",
       },
     ],
     credentials: [
