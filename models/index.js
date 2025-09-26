@@ -57,7 +57,8 @@ db.fiat = require('./fiat.model');
 db.payment = require('./payment.model');
 db.customer = require('./customer.model');
 db.order = require('./order.model');
-db.psbt = require('./psbt.model');
+  db.psbt = require('./psbt.model');
+  db.recursion = require('./recursion.model');
 db.bid = require('./bid.model');
 db.mint = require('./mint.model');
 db.buying = require('./buying.model');
@@ -66,6 +67,9 @@ db.nodemap = require('./nodemap.model');
 db.linkmap = require('./linkmap.model');
 db.autotask = require('./autotask.model');
 db.dataviz = require('./dataviz.model');
+db.timeline = require('./timeline.model');
+db.telemetry = require('./telemetry.model');
+db.draft = require('./draft.model');
 
 db.ROLES = ['user', 'admin', 'creator', 'thinker', 'reviewer', 'e-libre', 'myself', 'azuran'];
 

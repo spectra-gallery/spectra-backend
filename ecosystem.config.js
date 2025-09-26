@@ -1,9 +1,15 @@
 module.exports = {
-  apps: [{
-    name: 'function-api',
-    exec_mode: 'cluster',
-    instances: 0,
-    script: './server.js',
-    watch: '.',
-  }],
+  apps: [
+    {
+      name: 'spectra-backend',
+      script: './server.js',
+      exec_mode: 'cluster',
+      instances: 0,
+      watch: false,
+      env: {
+        NODE_ENV: 'production'
+      }
+    }
+  ]
 };
+

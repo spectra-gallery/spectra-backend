@@ -5,7 +5,7 @@ module.exports = {
   PORT: 8000,
   CLIENT_URL: "http://localhost:3000/",
   BASE_URL: "http://localhost:8000/",
-  STORAGE_API_URL: "http://localhost:6001",
+  STORAGE_API_URL: "http://localhost:6601",
   RP_ID: "localhost",
   WEBAUTHN_ORIGIN: "http://localhost:8000",
   SESSION_SECRET: "5P3C7RA-AP1-6987423681",
@@ -13,6 +13,8 @@ module.exports = {
   MAIL_PORT: 465,
   SPECTRA_EMAIL: "artist@spectra.gallery",
   ADMIN_EMAIL: "phil@philmo.ch",
-  MAIL_PASSWORS: "G@p4236Raye",
+  MAIL_PASSWORD: "G@nocMup-xetmyn-mekni3",
   STORAGE_SESSION_SECRET: "5P3C7RA-5T0RAG3-6987423681",
+  API_SESSION_SECRET: "5P3C7RA-AP1-6987423681",
+  ADMIN_RESTART_TOKEN: process.env.ADMIN_RESTART_TOKEN
 };

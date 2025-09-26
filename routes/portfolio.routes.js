@@ -3,6 +3,7 @@ const { authJwt } = require("../middlewares");
 const { objectId } = require("../middlewares");
 const { verifyPortfolio } = require("../middlewares");
 const controller = require("../controllers/portfolio.controller");
+const asyncWrap = require("../middlewares/asyncWrap");
 const uploadController = require("../controllers/fileUpload.controller");
 
 module.exports = function (app) {
@@ -27,14 +28,10 @@ module.exports = function (app) {
   app.get("/api/portfolio/slug/:slug", controller.slugToId);
 
   // fetchPortfolioName
-  app.get("/api/portfolio/name", [authJwt.verifyToken], (req, res) => {
-    const elements = controller.fetchPortfolioName(req, res);
-    elements.then((elements) => {
-      res.status(200).send({
-        ...elements,
-      });
-    });
-  });
+  app.get("/api/portfolio/name", [authJwt.verifyToken], asyncWrap(async (req, res) => {
+    const elements = await controller.fetchPortfolioName(req, res);
+    res.status(200).send({ ...elements });
+  }));
 
   // create portfolio
   // app.post('/api/portfolio', [authJwt.verifyToken, authJwt.isCreator, verifyPortfolio.checkDuplicateName], controller.createPortfolio);
@@ -42,25 +39,21 @@ module.exports = function (app) {
   app.post(
     "/api/portfolio",
     [authJwt.verifyToken, verifyPortfolio.checkDuplicateName],
-    controller.createPortfolio
+    asyncWrap(controller.createPortfolio)
   );
 
   // commentPortfolio
   app.post(
     "/api/portfolio/comment/:id",
     [authJwt.verifyToken, objectId.isValidObjectId],
-    controller.commentPortfolio
+    asyncWrap(controller.commentPortfolio)
   );
 
   // get all series by page
-  app.get("/api/portfolio/all/:page", [authJwt.verifySession], (req, res) => {
-    const elements = controller.fetchPortfolios(req, res);
-    elements.then((elements) => {
-      res.status(200).send({
-        ...elements,
-      });
-    });
-  });
+  app.get("/api/portfolio/all/:page", [authJwt.verifySession], asyncWrap(async (req, res) => {
+    const elements = await controller.fetchPortfolios(req, res);
+    res.status(200).send({ ...elements });
+  }));
 
   // getAllPortfolios
   app.get("/api/portfolio/list", [authJwt.verifySession], (req, res) => {

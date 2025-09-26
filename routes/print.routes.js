@@ -2,6 +2,7 @@
 const { authJwt } = require('../middlewares');
 const { objectId } = require('../middlewares');
 const controller = require('../controllers/print.controller');
+const asyncWrap = require('../middlewares/asyncWrap');
 
 module.exports = function (app) {
     app.use(function (req, res, next) {
@@ -16,23 +17,23 @@ module.exports = function (app) {
     });
 
     // createPrintPaymentIntent
-    app.post('/api/print/intent/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.createPrintPaymentIntent);
+    app.post('/api/print/intent/:id', [authJwt.verifyToken, objectId.isValidObjectId], asyncWrap(controller.createPrintPaymentIntent));
 
     // getCountryList
-    app.get('/api/print/countries', [authJwt.verifyToken], controller.getCountryList);
+    app.get('/api/print/countries', [authJwt.verifyToken], asyncWrap(controller.getCountryList));
 
     // getCountryInfo
-    app.get('/api/print/country/:code', [authJwt.verifyToken], controller.getCountryInfo);
+    app.get('/api/print/country/:code', [authJwt.verifyToken], asyncWrap(controller.getCountryInfo));
 
     // getCountryCode
-    app.get('/api/print/countrycode', [authJwt.verifyToken], controller.getCountryCode);
+    app.get('/api/print/countrycode', [authJwt.verifyToken], asyncWrap(controller.getCountryCode));
 
     // calculatePaperWeight
-    app.get('/api/print/weight', [authJwt.verifyToken], controller.calculatePaperWeight);
+    app.get('/api/print/weight', [authJwt.verifyToken], asyncWrap(controller.calculatePaperWeight));
 
     // getPaperPrintPrice
-    app.get('/api/print/price', [authJwt.verifyToken], controller.getPaperPrintPrice);
+    app.get('/api/print/price', [authJwt.verifyToken], asyncWrap(controller.getPaperPrintPrice));
 
     // generatePrint
-    app.post('/api/print/generate', [authJwt.verifyToken], controller.generatePrint);
+    app.post('/api/print/generate', [authJwt.verifyToken], asyncWrap(controller.generatePrint));
 };

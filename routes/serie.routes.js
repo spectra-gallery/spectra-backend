@@ -3,6 +3,7 @@ const {authJwt} = require('../middlewares');
 const {objectId} = require('../middlewares');
 const {verifySerie} = require('../middlewares');
 const controller = require('../controllers/serie.controller');
+const asyncWrap = require('../middlewares/asyncWrap');
 const uploadController = require('../controllers/fileUpload.controller');
 
 module.exports = function(app) {
@@ -194,14 +195,10 @@ module.exports = function(app) {
   });
 
   // load category
-  app.get('/api/category/', [authJwt.verifySession], (req, res) => {
-    const elements = controller.fetchCategory();
-    elements.then((elements) => {
-      res.status(200).send({
-        ...elements,
-      });
-    });
-  });
+  app.get('/api/category/', [authJwt.verifySession], asyncWrap(async (req, res) => {
+    const elements = await controller.fetchCategory();
+    res.status(200).send({ ...elements });
+  }));
 
   // numberOfLikedSeries
 

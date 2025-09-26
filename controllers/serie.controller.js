@@ -1,19 +1,18 @@
-const db = require("../models");
+const Serie = require("../models/serie.model");
+const Whitelist = require("../models/whitelist.model");
+const Trait = require("../models/trait.model");
+const Category = require("../models/category.model");
+const Sketch = require("../models/sketch.model");
+const Media = require("../models/media.model");
+const User = require("../models/user.model");
+const Role = require("../models/role.model");
+const Chain = require("../models/chain.model");
 const mail = require("../middlewares/mail");
 const parseHtml = require("../middlewares/parseHtml");
 const { use } = require("passport");
 const { pipeline } = require("form-data");
 // const discord = require('../middlewares/discord');
 require("dotenv").config();
-const Serie = db.serie;
-const Whitelist = db.whitelist;
-const Trait = db.trait;
-const Category = db.category;
-const Sketch = db.sketch;
-const Media = db.media;
-const User = db.user;
-const Role = db.role;
-const Chain = db.chain;
 
 // slug to serie id
 exports.slugToId = async (req, res) => {

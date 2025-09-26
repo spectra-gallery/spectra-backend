@@ -461,7 +461,18 @@ const verifyStorageSignature = async (data, signature, keypath) => {
     }
     const verifier = crypto.createVerify("RSA-SHA256");
     verifier.update(data);
-    const isValid = verifier.verify(publicKeyPem, signature, "base64");
+    let isValid = verifier.verify(publicKeyPem, signature, "base64");
+    if (!isValid) {
+      // Invalidate and refresh in case of rotation
+      cachedPublicKeyPem = null;
+      cachedPublicKeyPath = null;
+      const refreshed = await getStoragePublicKey();
+      if (refreshed && refreshed.publicKey) {
+        const v2 = crypto.createVerify("RSA-SHA256");
+        v2.update(data);
+        isValid = v2.verify(refreshed.publicKey, signature, "base64");
+      }
+    }
     console.log("Is valid signature:", isValid);
     return {
       valid: isValid,

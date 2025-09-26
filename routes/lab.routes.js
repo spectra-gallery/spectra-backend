@@ -1,6 +1,7 @@
 const { authJwt } = require("../middlewares");
 const {objectId} = require('../middlewares');
 const controller = require("../controllers/lab.controller");
+const asyncWrap = require("../middlewares/asyncWrap");
 const uploadController = require("../controllers/fileUpload.controller");
 
 module.exports = function (app) {
@@ -16,10 +17,10 @@ module.exports = function (app) {
     });
 
     // createNeuralmap
-    app.post('/api/lab/neuralmap/create', [authJwt.verifyToken], controller.createNeuralmap);
+    app.post('/api/lab/neuralmap/create', [authJwt.verifyToken], asyncWrap(controller.createNeuralmap));
 
     // createNode
-    app.post('/api/lab/node/create/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.createNode);
+    app.post('/api/lab/node/create/:id', [authJwt.verifyToken, objectId.isValidObjectId], asyncWrap(controller.createNode));
 
     // createLink
     app.post('/api/lab/link/create/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.createLink);

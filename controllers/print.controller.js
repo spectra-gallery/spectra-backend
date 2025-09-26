@@ -23,6 +23,7 @@ const Sketch = require('../models/sketch.model');
 const Whitelist = require('../models/whitelist.model');
 
 const stripe = require("stripe")('sk_test_51INl1iHxwzCEp0yUOSY7MHhyKuXu0IHD8Q4IIkLmDJBbV1FUa6B3JORUxpEiLvvCOtNFgx3VPqudTlcxKZ23Tsdq00ul7qZ5PA');
+const logger = require('../utils/logger');
 
 const BASE_URL = process.env.BASE_URL;
 const STORAGE_URL = process.env.STORAGE_URL;
@@ -57,9 +58,7 @@ exports.createPrintPaymentIntent = async (req, res) => {
         },
     });
 
-    res.status(200).send({
-        clientSecret: paymentIntent.client_secret,
-    });
+    res.status(200).send({ ok: true, data: { clientSecret: paymentIntent.client_secret }, reqId: req.context && req.context.id });
 
 };
 
@@ -79,9 +78,7 @@ const getCountryList = async () => {
 exports.getCountryList = async (req, res) => {
     const countries = await getCountryList();
 
-    res.status(200).send({
-        countries: countries,
-    });
+    res.status(200).send({ ok: true, data: { countries }, reqId: req.context && req.context.id });
 };
 
 exports.getCountryInfo = async (req, res) => {
@@ -97,9 +94,7 @@ exports.getCountryInfo = async (req, res) => {
 
     const countryInfo = response.data;
 
-    res.status(200).send({
-        countryInfo: countryInfo,
-    });
+    res.status(200).send({ ok: true, data: { countryInfo }, reqId: req.context && req.context.id });
 
 };
 
@@ -118,7 +113,7 @@ const getCountryCode = async (latitude, longitude) => {
         throw new Error('Country code not found')
       }
     } catch (error) {
-      console.error('Error fetching country code:', error)
+        logger.error('country_code_error_fetch', { err: String(error), reqId: req && req.context && req.context.id })
       return null
     }
   }
@@ -139,17 +134,13 @@ exports.getCountryCode = async (req, res) => {
         const data = response.data;
 
         if (data.address && data.address.country_code) {
-            res.status(200).send({
-                countryCode: data.address.country_code.toUpperCase(),
-            });
+            res.status(200).send({ ok: true, data: { countryCode: data.address.country_code.toUpperCase() }, reqId: req.context && req.context.id });
         } else {
             throw new Error('Country code not found');
         }
     } catch (error) {
-        console.error('Error fetching country code:', error);
-        res.status(500).send({
-            message: 'Error fetching country code',
-        });
+        logger.error('country_code_error_fetch', { err: String(error), reqId: req && req.context && req.context.id });
+        res.status(500).send({ ok: false, error: 'country_code_error', reqId: req.context && req.context.id });
     }
 };
 
@@ -165,9 +156,7 @@ exports.calculatePaperWeight = async (req, res) => {
     const volume = width * height * thick;
     const weight = volume * density_mm2;
 
-    res.status(200).send({
-        weight: weight,
-    });
+    res.status(200).send({ ok: true, data: { weight }, reqId: req.context && req.context.id });
 };
 
 // get photo paper price depending on the size, thickness and density
@@ -216,9 +205,7 @@ exports.getPaperPrintPrice = async (req, res) => {
 
 
 
-    res.status(200).send({
-        price: finalPrice.toFixed(2)
-    });
+    res.status(200).send({ ok: true, data: { price: finalPrice.toFixed(2) }, reqId: req.context && req.context.id });
 
 };
 
@@ -238,37 +225,27 @@ exports.generatePrint = async (req, res) => {
     });
 
     if (!order) {
-        return res.status(404).send({
-            message: 'Order not found.'
-        });
+        return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'order_not_found' }, reqId: req.context && req.context.id });
     }
 
     const identifierValid = bcrypt.compareSync(identifier, order.identifier);
 
     if (!identifierValid) {
-        return res.status(401).send({
-            message: 'Invalid identifier.'
-        });
+        return res.status(401).send({ ok: false, error: { code: 'unauthorized', message: 'invalid_identifier' }, reqId: req.context && req.context.id });
     }
 
     if (!order.paid) {
-        return res.status(400).send({
-            message: 'Order not paid.'
-        });
+        return res.status(400).send({ ok: false, error: { code: 'order_unpaid', message: 'order_not_paid' }, reqId: req.context && req.context.id });
     }
 
     if (artworkValue !== order.artworkValue || printValue !== order.printValue || transportValue !== order.transportValue) {
-        return res.status(400).send({
-            message: 'Values mismatch.'
-        });
+        return res.status(400).send({ ok: false, error: { code: 'values_mismatch', message: 'values_mismatch' }, reqId: req.context && req.context.id });
     }
 
     const orderTotalValue = order.artworkValue + order.printValue + order.transportValue;
 
     if (amount !== orderTotalValue) {
-        return res.status(400).send({
-            message: 'Payment Amount mismatch.'
-        });
+        return res.status(400).send({ ok: false, error: { code: 'amount_mismatch', message: 'amount_mismatch' }, reqId: req.context && req.context.id });
     }
 
     Serie.findById(serieId)
@@ -276,21 +253,15 @@ exports.generatePrint = async (req, res) => {
         .populate('whitelist')
         .exec(async (err, serie) => {
             if (err) {
-                return res.status(500).send({
-                    message: err
-                });
+                return res.status(500).send({ ok: false, error: { code: 'internal_error', message: String(err) }, reqId: req.context && req.context.id });
             }
 
             if (!serie) {
-                return res.status(404).send({
-                    message: 'Serie not found.'
-                });
+                return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'serie_not_found' }, reqId: req.context && req.context.id });
             }
 
             if (!serie.onSale) {
-                return res.status(400).send({
-                    message: 'Serie not on sale.'
-                });
+                return res.status(400).send({ ok: false, error: { code: 'not_on_sale', message: 'serie_not_on_sale' }, reqId: req.context && req.context.id });
             }
 
             const whitelist = serie.whitelist;
@@ -311,9 +282,7 @@ exports.generatePrint = async (req, res) => {
                     if (serie.supply + whitelist.length >= serie.totalSupply) {
                         serie.onSale = false;
                         await serie.save();
-                        res.status(500).send({
-                            message: 'Serie sold out.'
-                        });
+                        res.status(409).send({ ok: false, error: { code: 'sold_out', message: 'serie_sold_out' }, reqId: req.context && req.context.id });
                         return;
                     }
                 }
@@ -321,9 +290,7 @@ exports.generatePrint = async (req, res) => {
                 if (serie.supply >= serie.totalSupply) {
                     serie.onSale = false;
                     await serie.save();
-                    res.status(500).send({
-                        message: 'Serie sold out.'
-                    });
+                    res.status(409).send({ ok: false, error: { code: 'sold_out', message: 'serie_sold_out' }, reqId: req.context && req.context.id });
                     return;
                 }
             }
@@ -331,9 +298,7 @@ exports.generatePrint = async (req, res) => {
             const fileUrl = serie.sketch.url;
 
             if (!fileUrl || fileUrl === '') {
-                return res.status(404).send({
-                    message: 'File not found.'
-                });
+                return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'file_not_found' }, reqId: req.context && req.context.id });
             }
 
             const fetchUrl = STORAGE_URL + fileUrl;
@@ -349,7 +314,7 @@ exports.generatePrint = async (req, res) => {
 
             const traits = await getAttributes(hashedHtmlContent, contentUrl);
 
-            console.log('attributes', traits);
+            logger.info('attributes_extracted', { count: traits && traits.length })
             const _traits = [];
             for (const trait of traits) {
                 const attr = new Trait({
@@ -446,7 +411,7 @@ exports.generatePrint = async (req, res) => {
 
             // discord.sendNotification(title, content, image);
             // load element afterward on the client
-            res.status(200).send({
+            res.status(200).send({ ok: true, data: {
                 id: element._id,
                 serieId: serieId,
                 serie: {
@@ -455,16 +420,13 @@ exports.generatePrint = async (req, res) => {
                     supply: serie.supply,
                     volumeUSD: serie.volumeUSD,
                 }
-
-            });
+            }, reqId: req.context && req.context.id });
 
             order.generated = true;
             await order.save();
         })
         .catch((err) => {
-            res.status(500).send({
-                message: err
-            });
+            res.status(500).send({ ok: false, error: { code: 'internal_error', message: String(err) }, reqId: req.context && req.context.id });
         });
 
 
@@ -534,7 +496,7 @@ async function getAttributes(htmlContent, url) {
 
         return traits;
     } catch (err) {
-        console.log(err);
+        logger.error('generate_iframe_error', { err: String(err) })
     }
 }
 
@@ -550,9 +512,9 @@ function sendMail(to, data, type) {
 
     mail.sendMail(options, (err, info) => {
         if (err) {
-            console.log(err);
+            logger.error('mail_send_error', { err: String(err) })
         } else {
-            console.log(info);
+            logger.info('mail_sent', { info })
         }
     });
 }

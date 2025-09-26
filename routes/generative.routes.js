@@ -1,6 +1,7 @@
 const { authJwt } = require("../middlewares");
 const {objectId} = require('../middlewares');
 const controller = require("../controllers/generative.controller");
+const asyncWrap = require("../middlewares/asyncWrap");
 const uploadController = require("../controllers/fileUpload.controller");
 
 module.exports = function (app) {
@@ -16,15 +17,15 @@ module.exports = function (app) {
     });
 
     // getProjects
-    app.get('/api/generative/projects/:number', [authJwt.verifySession], controller.getProjects);
+    app.get('/api/generative/projects/:number', [authJwt.verifySession], asyncWrap(controller.getProjects));
 
     // loadNft
-    app.get('/api/generative/nft/:number', [authJwt.verifySession], controller.loadNft);
+    app.get('/api/generative/nft/:number', [authJwt.verifySession], asyncWrap(controller.loadNft));
 
     // createNft   
-    app.post('/api/generative/nft/create/:id', [authJwt.verifySession, objectId.isValidObjectId], controller.createNft);
+    app.post('/api/generative/nft/create/:id', [authJwt.verifySession, objectId.isValidObjectId], asyncWrap(controller.createNft));
 
     // listenForMint
-    app.post('/api/generative/mint/listen', [authJwt.verifySession], controller.listenForMint);
+    app.post('/api/generative/mint/listen', [authJwt.verifySession], asyncWrap(controller.listenForMint));
 
 };

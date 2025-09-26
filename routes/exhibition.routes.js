@@ -2,6 +2,7 @@
 const {authJwt} = require('../middlewares');
 const {objectId} = require('../middlewares');
 const controller = require('../controllers/exhibition.controller');
+const asyncWrap = require('../middlewares/asyncWrap');
 
 module.exports = function(app) {
   app.use(function(req, res, next) {
@@ -19,33 +20,25 @@ module.exports = function(app) {
   app.get('/api/exhibition/slug/:slug', controller.slugToId);
 
   // get all exhibitions
-  app.get('/api/exhibition/display/:number', [authJwt.verifySession], controller.getDisplayExhibition);
+  app.get('/api/exhibition/display/:number', [authJwt.verifySession], asyncWrap(controller.getDisplayExhibition));
 
   // get exhibition by artist
-  app.get('/api/exhibition/artist/:id', [authJwt.verifySession, objectId.isValidObjectId], (req, res) => {
-    const elements = controller.getExhibitionByArtist(req, res);
-    elements.then((elements) => {
-      res.status(200).send({
-        ...elements,
-      });
-    });
-  });
+  app.get('/api/exhibition/artist/:id', [authJwt.verifySession, objectId.isValidObjectId], asyncWrap(async (req, res) => {
+    const elements = await controller.getExhibitionByArtist(req, res);
+    res.status(200).send({ ...elements });
+  }));
 
   // fetchPalette
-  app.get('/api/exhibition/palette', [authJwt.verifySession], (req, res) => {
-    const elements = controller.fetchPalette();
-    elements.then((elements) => {
-      res.status(200).send({
-        ...elements,
-      });
-    });
-  });
+  app.get('/api/exhibition/palette', [authJwt.verifySession], asyncWrap(async (req, res) => {
+    const elements = await controller.fetchPalette();
+    res.status(200).send({ ...elements });
+  }));
 
   // getExhibitionById
-  app.get('/api/exhibition/:id', [authJwt.verifySession, objectId.isValidObjectId], controller.getExhibitionById);
+  app.get('/api/exhibition/:id', [authJwt.verifySession, objectId.isValidObjectId], asyncWrap(controller.getExhibitionById));
 
   // create collection
-  app.post('/api/exhibition', [authJwt.verifyToken], controller.createExhibition);
+  app.post('/api/exhibition', [authJwt.verifyToken], asyncWrap(controller.createExhibition));
 
   // edit exhibition name
   app.put('/api/exhibition/name/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.editExhibitionName);

@@ -1,14 +1,13 @@
-const db = require("../models");
+const Portfolio = require("../models/portfolio.model");
+const Tag = require("../models/tag.model");
+const Media = require("../models/media.model");
+const User = require("../models/user.model");
+const Comment = require("../models/comment.model");
+const Scope = require("../models/scope.model");
+const Role = require("../models/role.model");
 const mail = require("../middlewares/mail");
 // const discord = require('../middlewares/discord');
 require("dotenv").config();
-const Portfolio = db.portfolio;
-const Tag = db.tag;
-const Media = db.media;
-const User = db.user;
-const Comment = db.comment;
-const Scope = db.scope;
-const Role = db.role;
 
 const OWNER_EMAIL = process.env.OWNER_EMAIL;
 
@@ -686,42 +685,41 @@ exports.fetchLastPortfolioMedia = (req, res) => {
       .sort({ date: -1 })
       .limit(1)
       .populate("medias", "_id url ratio type")
-      // populate medias from scopes
       .populate({
-        "path": "scopes",
-        "populate": {
-          "path": "medias",
-          "select": "_id url ratio type"
-        }
+        path: "scopes",
+        populate: {
+          path: "medias",
+          select: "_id url ratio type",
+        },
       })
       .exec((err, portfolio) => {
-        if (!portfolio) {
+        if (err) return reject(err);
+        if (!portfolio || !Array.isArray(portfolio) || portfolio.length === 0) {
           return resolve([]);
         }
 
+        const first = portfolio[0];
+        const scopes = Array.isArray(first.scopes) ? first.scopes : [];
         const mediaScopes = [];
-        for (const scope of portfolio[0].scopes) {
-          for (const media of scope.medias) {
+        for (const scope of scopes) {
+          const medias = Array.isArray(scope.medias) ? scope.medias : [];
+          for (const media of medias) {
             mediaScopes.push(media);
           }
         }
 
         const _portfolio = {
-          id: portfolio[0]._id,
-          name: portfolio[0].name,
-          slug: portfolio[0].slug,
-          subtitle: portfolio[0].subtitle,
-          description: portfolio[0].description,
-          authors: portfolio[0].authors,
-          tag: portfolio[0].tag,
-          medias: [...portfolio[0].medias, ...mediaScopes],
-          
-        }
+          id: first._id,
+          name: first.name,
+          slug: first.slug,
+          subtitle: first.subtitle,
+          description: first.description,
+          authors: first.authors,
+          tag: first.tag,
+          medias: [...(first.medias || []), ...mediaScopes],
+        };
 
-        if (err) reject(err);
-        else {
-          resolve(_portfolio);
-        }
+        return resolve(_portfolio);
       });
   });
   return promise;

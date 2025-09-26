@@ -1,6 +1,7 @@
 /* eslint-disable max-len */
 const {authJwt} = require('../middlewares');
 const controller = require('../controllers/gallery.controller');
+const asyncWrap = require('../middlewares/asyncWrap');
 const uploadController = require('../controllers/filesUpload.controller');
 
 module.exports = function(app) {
@@ -15,86 +16,62 @@ module.exports = function(app) {
     next();
   });
 
-  app.post('/api/gallery/img', [authJwt.verifyToken], uploadController.multipleUpload);
+  app.post('/api/gallery/img', [authJwt.verifyToken], asyncWrap(uploadController.multipleUpload));
 
   // create collection
-  app.post('/api/gallery', [authJwt.verifyToken], controller.createGallery);
+  app.post('/api/gallery', [authJwt.verifyToken], asyncWrap(controller.createGallery));
 
 
   // get all collections by page
-  app.get('/api/gallery/get/:page', (req, res) => {
-    const elements = controller.fetchGalleries(req, res);
-    elements.then((elements) => {
-      res.status(200).send({
-        ...elements,
-      });
-    });
-  });
+  app.get('/api/gallery/get/:page', asyncWrap(async (req, res) => {
+    const data = await controller.fetchGalleries(req, res);
+    res.status(200).send({ ok: true, data, reqId: req.context && req.context.id });
+  }));
 
   // get collection by id
-  app.get('/api/galleryid/:id', (req, res) => {
-    const elements = controller.fetchGalleryById(req, res);
-    elements.then((elements) => {
-      res.status(200).send({
-        ...elements,
-      });
-    });
-  });
+  app.get('/api/galleryid/:id', asyncWrap(async (req, res) => {
+    const data = await controller.fetchGalleryById(req, res);
+    res.status(200).send({ ok: true, data, reqId: req.context && req.context.id });
+  }));
 
   // get collection by artist
-  app.get('/api/gallery/artist/:id', (req, res) => {
-    const elements = controller.fetchGalleryByArtist(req, res);
-    elements.then((elements) => {
-      res.status(200).send({
-        ...elements,
-      });
-    });
-  });
+  app.get('/api/gallery/artist/:id', asyncWrap(async (req, res) => {
+    const data = await controller.fetchGalleryByArtist(req, res);
+    res.status(200).send({ ok: true, data, reqId: req.context && req.context.id });
+  }));
 
   // usersGallery
-  app.get('/api/gallery/user', [authJwt.verifyToken], (req, res) => {
-    const elements = controller.usersGallery(req, res);
-    elements.then((elements) => {
-      res.status(200).send({
-        ...elements,
-      });
-    });
-  });
+  app.get('/api/gallery/user', [authJwt.verifyToken], asyncWrap(async (req, res) => {
+    const data = await controller.usersGallery(req, res);
+    res.status(200).send({ ok: true, data, reqId: req.context && req.context.id });
+  }));
 
   // userGalleryById
-  app.get('/api/gallery/userid/:id', [authJwt.verifyToken], (req, res) => {
-    const elements = controller.userGalleryById(req, res);
-    elements.then((elements) => {
-      res.status(200).send({
-        ...elements,
-      });
-    });
-  });
+  app.get('/api/gallery/userid/:id', [authJwt.verifyToken], asyncWrap(async (req, res) => {
+    const data = await controller.userGalleryById(req, res);
+    res.status(200).send({ ok: true, data, reqId: req.context && req.context.id });
+  }));
 
 
   // load category
-  app.get('/api/tag/', (req, res) => {
-    const elements = controller.fetchTag();
-    elements.then((elements) => {
-      res.status(200).send({
-        ...elements,
-      });
-    });
-  });
+  app.get('/api/tag/', asyncWrap(async (req, res) => {
+    const data = await controller.fetchTag();
+    res.status(200).send({ ok: true, data, reqId: req.context && req.context.id });
+  }));
 
   // setGalleryExhibition
-  app.post('/api/gallery/exhibition/:id', [authJwt.verifyToken], controller.setGalleryExhibition);
+  app.post('/api/gallery/exhibition/:id', [authJwt.verifyToken], asyncWrap(controller.setGalleryExhibition));
 
   // set views
-  app.post('/api/gallery/views/:id', controller.setViews);
+  app.post('/api/gallery/views/:id', asyncWrap(controller.setViews));
 
   // edit collection
-  app.post('/api/gallery/edit/:id', [authJwt.verifyToken], controller.editGallery);
+  app.post('/api/gallery/edit/:id', [authJwt.verifyToken], asyncWrap(controller.editGallery));
 
 
-  app.post('/api/gallery/like/:id', [authJwt.verifyToken], controller.likeGallery);
+  app.post('/api/gallery/like/:id', [authJwt.verifyToken], asyncWrap(controller.likeGallery));
 
 
   // delete collection
-  app.delete('/api/gallery/:id', [authJwt.verifyToken], controller.deleteGallery);
+  app.delete('/api/gallery/:id', [authJwt.verifyToken], asyncWrap(controller.deleteGallery));
 };

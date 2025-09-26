@@ -2,6 +2,7 @@
 const { authJwt } = require('../middlewares');
 const { objectId } = require('../middlewares');
 const controller = require('../controllers/element.controller');
+const asyncWrap = require('../middlewares/asyncWrap');
 
 module.exports = function (app) {
     app.use(function (req, res, next) {
@@ -16,8 +17,8 @@ module.exports = function (app) {
     });
 
     // fetchAllElementsByNumber
-    app.get('/api/element/all/:number', [authJwt.verifySession], controller.fetchAllElementsByNumber);
+    app.get('/api/element/all/:number', [authJwt.verifySession], asyncWrap(controller.fetchAllElementsByNumber));
 
     // get Element by id
-    app.get('/api/element/get/:id', [authJwt.verifySession, objectId.isValidObjectId], controller.fetchElementById);
+    app.get('/api/element/get/:id', [authJwt.verifySession, objectId.isValidObjectId], asyncWrap(controller.fetchElementById));
 };

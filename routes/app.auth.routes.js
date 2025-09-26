@@ -1,4 +1,4 @@
-const { getAppStatus, setupAuth, markTokenUsed, registrationOptions, _verifyRegistration, authenticationSetup, authenticationOptions, _verifyAuthentication, getPublicKey, _configureStorage, signAndSend, storageValidation, _apiAuthConfig, getStorageConfigStatus, getEncryptedData } = require("../controllers/app.auth.controller");
+const { getAppStatus, setupAuth, markTokenUsed, registrationOptions, _verifyRegistration, authenticationSetup, authenticationOptions, _verifyAuthentication, getPublicKey, _configureStorage, signAndSend, storageValidation, _apiAuthConfig, getStorageConfigStatus, getEncryptedData, adminRestart, adminRehandshake } = require("../controllers/app.auth.controller");
 const { authInit, authAPI } = require("../middlewares");
 
 const session = require("express-session");
@@ -10,7 +10,7 @@ const dbConfig = require('../config/db.config');
 
 const SESSION_SECRET = appCypherConfig.SESSION_SECRET;
 
-const MONGO_URI = `mongodb://${dbConfig.HOST}:${dbConfig.PORT}/${dbConfig.DB}`;
+const MONGO_URI = `mongodb://${dbConfig.DB_USER}:${encodeURIComponent(dbConfig.DB_PASSWORD)}@${dbConfig.HOST}:${dbConfig.PORT}/${dbConfig.DB}?authSource=${dbConfig.AUTH_SOURCE}`;
 
 module.exports = function (app) {
   app.use(
@@ -74,4 +74,8 @@ module.exports = function (app) {
   app.post("/app/auth/sign-and-send", [authInit.verifyToken], signAndSend);
 
   app.post('/app/auth/api/upload/data', [authAPI.verifySignature], /*upload.single('file'),*/ getEncryptedData);
+
+  // Admin controls for recovery (email decision workflow)
+  app.get('/app/admin/restart/:service', adminRestart);
+  app.get('/app/admin/rehandshake/:peer', adminRehandshake);
 };

@@ -1,12 +1,11 @@
 const path = require('path');
-const db = require('../models');
 const mongoose = require('mongoose');
+const Exhibition = require('../models/exhibition.model');
+const Palette = require('../models/palette.model');
+const Serie = require('../models/serie.model');
+const Media = require('../models/media.model');
+const User = require('../models/user.model');
 require('dotenv').config();
-const Exhibition = db.exhibition;
-const Palette = db.palette;
-const Serie = db.serie;
-const Media = db.media;
-const User = db.user;
 
 // slug to exhibition id
 exports.slugToId = async (req, res) => {

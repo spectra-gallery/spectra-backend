@@ -11,7 +11,7 @@ const Role = mongoose.model(
     },
     hash: {
       type: String,
-      required: async () => {
+      required: function () {
         return this.name === "admin";
       },
       select: false
@@ -20,7 +20,7 @@ const Role = mongoose.model(
       type: Boolean,
       default: false
     },
-  }).pre('save', function (next) {
+  }).pre('validate', function (next) {
     if (this.name === "admin") {
       this.hash = crypto.randomBytes(20).toString("hex");
     }

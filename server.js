@@ -2,6 +2,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
+const mongoose  = require('mongoose');
+
 const app = express();
 
 /*
@@ -9,7 +11,14 @@ const { Server } = require('socket.io');
 const Quaternion = require('quaternion');
 */
 
+const ServerInit = require('./utils/ServerInit');
+const initial = ServerInit;
+
 const appCypherConfig = require('./config/app.cypher.config');
+const dbConfig  = require('./config/db.config');
+const requestContext = require('./middlewares/requestContext');
+const errorHandler = require('./middlewares/errorHandler');
+const { ConnectionMonitor } = require('./services/connectionMonitor');
 
 require('dotenv').config();
 
@@ -20,10 +29,13 @@ global.__basedir = __dirname;
 
 
 const corsOptions = {
-  origin: ['http://localhost:3000', 'http://localhost:6001'],
+  origin: ['http://localhost:3000', 'http://localhost:6601'],
 };
 
 app.use(cors(corsOptions));
+
+// request tracing
+app.use(requestContext);
 
 app.use(bodyParser.json());
 
@@ -60,6 +72,15 @@ require('./routes/portfolio.routes')(app);
 require('./routes/generative.routes')(app);
 require('./routes/lab.routes')(app);
 require('./routes/print.routes')(app);
+require('./routes/health.routes')(app);
+require('./routes/ordinal.routes')(app);
+require('./routes/monitor.routes')(app);
+require('./routes/timeline.routes')(app);
+require('./routes/telemetry.routes')(app);
+require('./routes/draft.routes')(app);
+
+// global error handler (keep last)
+app.use(errorHandler);
 
 // require('./routes/social.routes')(app);
 /*
@@ -83,32 +104,81 @@ io.on('connection', socket => {
 });
 */
 
-const PORT = appCypherConfig.PORT || 8000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}.`);
+/*
+const API_PORT = appCypherConfig.PORT || 8000;
+app.listen(API_PORT, () => {
+  console.log(`Server running on port ${API_PORT}.`);
 });
+*/
 
-const db = require('./models');
-const Role = db.role;
+const { HOST, PORT, DB, AUTH_SOURCE, DB_USER, DB_PASSWORD } = dbConfig;
 
-const dbConfig = require('./config/db.config');
+for (const [k, v] of Object.entries({ HOST, PORT, DB, AUTH_SOURCE, DB_USER, DB_PASSWORD })) {
+  if (!v && v !== 0) {
+    console.error(`❌ Missing config: ${k}`);
+    process.exit(1);
+  }
+}
 
-db.mongoose
-    .connect(`mongodb://${dbConfig.HOST}:${dbConfig.PORT}/${dbConfig.DB}`, {
+const baseUri = `mongodb://${HOST}:${PORT}/${DB}`;
+
+console.log(`→ Mongo target: ${baseUri}?authSource=${AUTH_SOURCE}`);
+console.log(`→ Mongo user:   ${DB_USER}`);
+
+const MONGO_URI = `mongodb://${DB_USER}:${DB_PASSWORD}@${HOST}:${PORT}/${DB}?authSource=${AUTH_SOURCE}`;
+
+(async () => {
+
+  try {
+    const db = require('./models');
+
+    await db.mongoose.connect(baseUri, {
+      user: DB_USER,
+      pass: DB_PASSWORD,
+      authSource: AUTH_SOURCE,
+      dbName: DB,                     // extra explicit
+      // autoIndex: true,                // dev; can disable in prod
+      serverSelectionTimeoutMS: 5000,
+      authMechanism: 'SCRAM-SHA-256', // matches Mongo 7 defaults
+      useUnifiedTopology: true, // removes a deprecation warning
       useNewUrlParser: true,
-      useUnifiedTopology: true,
-      useFindAndModify: false,
-    })
-    .then(() => {
-      console.log('Successfully connect to MongoDB.');
-      initial();
-    })
-    .catch((err) => {
-      console.error('Connection error', err);
-      process.exit();
+      useCreateIndex: true,
+      // useUnifiedTopology: true,
+      // useFindAndModify: false
     });
 
-function initial() {
+    await db.mongoose.connection.db.command({ ping: 1 });
+    console.log('✅ Mongo connected & authenticated');
+
+    const API_PORT = appCypherConfig.PORT || 8000;
+    app.listen(API_PORT, () => {
+      console.log(`Server running on port ${API_PORT}.`);
+    });
+
+
+  
+
+
+    initial(db);
+
+    // Start connection monitor (storage/frontend handshake)
+    try {
+      const monitor = new ConnectionMonitor({ intervalMs: 30000 });
+      monitor.start();
+      console.log('→ Connection monitor started');
+    } catch (e) {
+      console.warn('Connection monitor failed to start:', e?.message || e);
+    }
+  } catch (err) {
+    console.error('❌ Mongo connection error:', err);
+    process.exit(1);
+  }
+})();
+
+/*
+function initial(db) {
+  const Role = db.role;
+
   Role.estimatedDocumentCount((err, count) => {
     if (!err && count === 0) {
       new Role({
@@ -163,3 +233,4 @@ function initial() {
     }
   });
 }
+*/

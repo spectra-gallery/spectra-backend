@@ -1,6 +1,7 @@
 const { authJwt } = require("../middlewares");
 const {objectId} = require('../middlewares');
 const controller = require("../controllers/playground.controller");
+const asyncWrap = require("../middlewares/asyncWrap");
 const uploadController = require("../controllers/fileUpload.controller");
 
 module.exports = function (app) {
@@ -36,42 +37,34 @@ module.exports = function (app) {
     */
 
       // generateSketchId
-    app.get('/api/playground/generate', controller.generateSketchId);
+    app.get('/api/playground/generate', asyncWrap(controller.generateSketchId));
 
 
-    app.get('/api/playground/sketch/:id', [objectId.isValidObjectId], controller.getSketchById);
+    app.get('/api/playground/sketch/:id', [objectId.isValidObjectId], asyncWrap(controller.getSketchById));
 
-    app.post("/api/playground/autosave", controller.autoSaveSketch);
+    app.post("/api/playground/autosave", asyncWrap(controller.autoSaveSketch));
 
     // delete sketch by id
-    app.delete("/api/playground/delete/:id", controller.deleteSketchById);
+    app.delete("/api/playground/delete/:id", asyncWrap(controller.deleteSketchById));
 
-    app.get('/api/playground/tag', (req, res) => {
-        const elements = controller.fetchTag();
-        elements.then((elements) => {
-            res.status(200).send({
-                ...elements
-            });
-        });
-    });
+    app.get('/api/playground/tag', asyncWrap(async (req, res) => {
+        const elements = await controller.fetchTag();
+        res.status(200).send({ ...elements });
+    }));
 
-    app.get('/api/attribute', (req, res) => {
-        const elements = controller.fetchAttribute();
-        elements.then((elements) => {
-            res.status(200).send({
-                ...elements
-            });
-        });
-    });
+    app.get('/api/attribute', asyncWrap(async (req, res) => {
+        const elements = await controller.fetchAttribute();
+        res.status(200).send({ ...elements });
+    }));
 
     // minifyCode
-    app.post('/api/playground/minify', [authJwt.verifySession], controller.minifyCode);
+    app.post('/api/playground/minify', [authJwt.verifySession], asyncWrap(controller.minifyCode));
 
     // getSketchesByUserId
-    app.get('/api/playground/user', [authJwt.verifyToken], controller.getSketchesByUserId);
+    app.get('/api/playground/user', [authJwt.verifyToken], asyncWrap(controller.getSketchesByUserId));
 
     // saveSketch
-    app.post('/api/playground/save', [authJwt.verifyToken], controller.saveSketch);
+    app.post('/api/playground/save', [authJwt.verifyToken], asyncWrap(controller.saveSketch));
 
    // app.post("/api/playground", [authJwt.verifyToken, authJwt.getUsername], controller.createSketch);
 

@@ -1,5 +1,6 @@
 const { authJwt } = require("../middlewares");
 const controller = require("../controllers/article.controller");
+const asyncWrap = require("../middlewares/asyncWrap");
 const uploadController = require("../controllers/fileUpload.controller");
 
 module.exports = function (app) {
@@ -12,50 +13,30 @@ module.exports = function (app) {
     next();
   });
 
-  app.get("/api/article", (req, res) => {
-    const elements = controller.fetchArticles();
-    elements.then((elements) => {
-      res.status(200).send({
-        ...elements,
-      });
-    });
-  });
+  app.get("/api/article", asyncWrap(async (req, res) => {
+    const elements = await controller.fetchArticles();
+    res.status(200).send({ ...elements });
+  }));
 
-  app.get("/api/article/:id", (req, res) => {
-    const element = controller.fetchArticle(req, res);
-    element.then((elementObj) => {
-      res.status(200).send({
-        ...elementObj,
-      });
-    });
-  });
+  app.get("/api/article/:id", asyncWrap(async (req, res) => {
+    const elementObj = await controller.fetchArticle(req, res);
+    res.status(200).send({ ...elementObj });
+  }));
 
-  app.get("/api/article/sections/:id", (req, res) => {
-    const elements = controller.fetchSections(req, res);
-    elements.then((elements) => {
-      res.status(200).send({
-        ...elements,
-      });
-    });
-  });
+  app.get("/api/article/sections/:id", asyncWrap(async (req, res) => {
+    const elements = await controller.fetchSections(req, res);
+    res.status(200).send({ ...elements });
+  }));
 
-  app.get("/api/article/section/:id", (req, res) => {
-    const element = controller.fetchSection(req, res);
-    element.then((elementObj) => {
-      res.status(200).send({
-        ...elementObj,
-      });
-    });
-  });
+  app.get("/api/article/section/:id", asyncWrap(async (req, res) => {
+    const elementObj = await controller.fetchSection(req, res);
+    res.status(200).send({ ...elementObj });
+  }));
 
-  app.get("/api/category", (req, res) => {
-    const elements = controller.fetchCategory();
-    elements.then((elements) => {
-      res.status(200).send({
-        ...elements,
-      });
-    });
-  });
+  app.get("/api/category", asyncWrap(async (req, res) => {
+    const elements = await controller.fetchCategory();
+    res.status(200).send({ ...elements });
+  }));
 
   app.post(
     "/api/article/img",
@@ -66,48 +47,48 @@ module.exports = function (app) {
   app.post(
     "/api/article",
     [authJwt.verifyToken, authJwt.getUsername],
-    controller.createArticle
+    asyncWrap(controller.createArticle)
   );
 
   app.post(
     "/api/article/section",
     [authJwt.verifyToken, authJwt.getUsername],
-    controller.createSection
+    asyncWrap(controller.createSection)
   );
 
   app.post(
     "/api/article/section/edit/:id",
     [authJwt.verifyToken, authJwt.getUsername],
-    controller.editSection
+    asyncWrap(controller.editSection)
   );
 
   app.post(
     "/api/article/comment/:id",
     [authJwt.verifyToken, authJwt.getUsername],
-    controller.commentArticle
+    asyncWrap(controller.commentArticle)
   );
 
   app.post(
     "/api/article/like/:id",
     [authJwt.verifyToken, authJwt.getUsername],
-    controller.likeArticle
+    asyncWrap(controller.likeArticle)
   );
 
   app.post(
     "/api/article/edit/:id",
     [authJwt.verifyToken],
-    controller.editArticle
+    asyncWrap(controller.editArticle)
   );
 
   app.delete(
     "/api/article/:id",
     [authJwt.verifyToken],
-    controller.deleteArticle
+    asyncWrap(controller.deleteArticle)
   );
 
   app.delete(
     "/api/category/:id",
     [authJwt.verifyToken],
-    controller.deleteCategory
+    asyncWrap(controller.deleteCategory)
   );
 };

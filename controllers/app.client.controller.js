@@ -145,7 +145,7 @@ async function getPublicKey (req, res) {
 
 async function verifySignature (req, res) {
   const { data, signature } = req.body;
-  const publicKeyPem = getPublicKeyPem();
+  const publicKeyPem = await getPublicKeyPem();
   const verifier = crypto.createVerify("RSA-SHA256");
   verifier.update(data);
   const isValid = verifier.verify(publicKeyPem, signature, "base64");
