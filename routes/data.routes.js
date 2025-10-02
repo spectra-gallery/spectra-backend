@@ -3,6 +3,7 @@ const {authJwt} = require('../middlewares');
 const {objectId} = require('../middlewares');
 const {verifyPost} = require('../middlewares');
 const controller = require('../controllers/data.controller');
+const asyncWrap = require('../middlewares/asyncWrap');
 
 module.exports = function(app) {
   app.use(function(req, res, next) {
@@ -24,6 +25,6 @@ module.exports = function(app) {
     next();
   });
 
-    app.get('/api/data/wordcloud', [authJwt.verifySession], controller.getWordCloud);
+    app.get('/api/data/wordcloud', [authJwt.verifySession], asyncWrap(controller.getWordCloud));
   
 };

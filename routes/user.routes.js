@@ -4,6 +4,7 @@ const { authJwt, verifySignUp, verifyProperty } = require("../middlewares");
 const { objectId } = require("../middlewares");
 const { event } = require("../middlewares");
 const controller = require("../controllers/user.controller");
+const asyncWrap = require("../middlewares/asyncWrap");
 
 module.exports = function (app) {
   app.use(function (req, res, next) {
@@ -21,34 +22,26 @@ module.exports = function (app) {
   app.get(
     "/api/user/id/:username",
     [authJwt.verifySession],
-    controller.usernameToId
+    asyncWrap(controller.usernameToId)
   );
 
   // setViews
   app.post(
     "/api/user/views/:id",
     [authJwt.verifySession, objectId.isValidObjectId, event.debounceView],
-    controller.setViews
+    asyncWrap(controller.setViews)
   );
 
-  app.get("/api/user/sortnumber/:role", [authJwt.verifySession], (req, res) => {
-    const elements = controller.numberOfUsersSort(req, res);
-    elements.then((elements) => {
-      res.status(200).send({
-        number: elements,
-      });
-    });
-  });
+  app.get("/api/user/sortnumber/:role", [authJwt.verifySession], asyncWrap(async (req, res) => {
+    const number = await controller.numberOfUsersSort(req, res);
+    res.status(200).send({ number });
+  }));
 
   // fetchUsers
-  app.get("/api/user/all", [authJwt.verifySession], (req, res) => {
-    const elements = controller.fetchUsers(req, res);
-    elements.then((elements) => {
-      res.status(200).send({
-        ...elements,
-      });
-    });
-  });
+  app.get("/api/user/all", [authJwt.verifySession], asyncWrap(async (req, res) => {
+    const elements = await controller.fetchUsers(req, res);
+    res.status(200).send({ ...elements });
+  }));
 
   // fetchArtistsByRoleSort
   app.get("/api/user/sort/:number", [authJwt.verifySession], (req, res) => {

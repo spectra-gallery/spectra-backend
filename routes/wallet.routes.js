@@ -2,6 +2,7 @@
 const {authJwt} = require('../middlewares');
 const {objectId} = require('../middlewares');
 const controller = require('../controllers/wallet.controller');
+const asyncWrap = require('../middlewares/asyncWrap');
 
 module.exports = function(app) {
   app.use(function(req, res, next) {
@@ -16,77 +17,77 @@ module.exports = function(app) {
   });
 
   // setKey
-  app.post('/api/wallet/setkey', [authJwt.verifyToken, authJwt.isAdmin], controller.setKey);
+  app.post('/api/wallet/setkey', [authJwt.verifyToken, authJwt.isAdmin], asyncWrap(controller.setKey));
 
   // rotateKey
-  app.post('/api/wallet/rotate', [authJwt.verifyToken, authJwt.isAdmin], controller.rotateKey);
+  app.post('/api/wallet/rotate', [authJwt.verifyToken, authJwt.isAdmin], asyncWrap(controller.rotateKey));
 
   // isValidAddress
-  app.get('/api/wallet/valid/:address', [authJwt.verifySession], controller.isValidAddress);
+  app.get('/api/wallet/valid/:address', [authJwt.verifySession], asyncWrap(controller.isValidAddress));
 
   // getExchangeRate
-  app.get('/api/wallet/exchange', [authJwt.verifySession], controller.getExchangeRate);
+  app.get('/api/wallet/exchange', [authJwt.verifySession], asyncWrap(controller.getExchangeRate));
 
   // sendTransaction
   // app.post('/api/wallet/send', [authJwt.isSudoer], controller.sendTransaction);
 
   // checkUTXOS
-  app.get('/api/wallet/check', controller.checkUTXOS);
+  app.get('/api/wallet/check', asyncWrap(controller.checkUTXOS));
 
   // logWallet
-  app.post('/api/wallet/log', [authJwt.verifyToken, authJwt.isAdmin], controller.logWallet);
+  app.post('/api/wallet/log', [authJwt.verifyToken, authJwt.isAdmin], asyncWrap(controller.logWallet));
 
   // generateWallet
-  app.post('/api/wallet/generate', [authJwt.verifyToken, authJwt.isAdmin], controller.generateWallet);
+  app.post('/api/wallet/generate', [authJwt.verifyToken, authJwt.isAdmin], asyncWrap(controller.generateWallet));
 
   // deleteWallet
-  app.post('/api/wallet/delete', [authJwt.verifyToken, authJwt.isAdmin], controller.deleteWallet);
+  app.post('/api/wallet/delete', [authJwt.verifyToken, authJwt.isAdmin], asyncWrap(controller.deleteWallet));
 
   // assignWalletById
-  app.post('/api/wallet/assignid/:id', [authJwt.verifyToken, authJwt.isAdmin], controller.assignWalletById);
+  app.post('/api/wallet/assignid/:id', [authJwt.verifyToken, authJwt.isAdmin], asyncWrap(controller.assignWalletById));
 
   // getAddressVolume
-  app.get('/api/wallet/volume/:address', [authJwt.verifySession], controller.getAddressVolume);
+  app.get('/api/wallet/volume/:address', [authJwt.verifySession], asyncWrap(controller.getAddressVolume));
 
   // logAddressVolume
-  app.post('/api/wallet/logvolume', [authJwt.verifySession], controller.logAddressVolume);
+  app.post('/api/wallet/logvolume', [authJwt.verifySession], asyncWrap(controller.logAddressVolume));
 
   // scheduleTask
-  app.post('/api/wallet/schedule', controller.scheduleTask);
+  app.post('/api/wallet/schedule', asyncWrap(controller.scheduleTask));
 
   // getCurrentWallet
-  app.get('/api/wallet/currentwallet', [authJwt.verifySession], controller.getCurrentWallet);
+  app.get('/api/wallet/currentwallet', [authJwt.verifySession], asyncWrap(controller.getCurrentWallet));
 
   // assignWalletId
-  app.post('/api/wallet/assign', [authJwt.verifyToken, authJwt.isAdmin], controller.assignWalletId);
+  app.post('/api/wallet/assign', [authJwt.verifyToken, authJwt.isAdmin], asyncWrap(controller.assignWalletId));
 
   // getPayments
-  app.get('/api/wallet/payments', [authJwt.verifyToken, authJwt.isAdmin], controller.getPayments);
+  app.get('/api/wallet/payments', [authJwt.verifyToken, authJwt.isAdmin], asyncWrap(controller.getPayments));
 
   // getBalance
-  app.get('/api/wallet/balance/:id', [authJwt.verifyToken, authJwt.isAdmin], controller.getBalance);
+  app.get('/api/wallet/balance/:id', [authJwt.verifyToken, authJwt.isAdmin], asyncWrap(controller.getBalance));
 
   // getTransactionsByAddress
-  app.get('/api/wallet/addresstransactions/:address', [authJwt.verifyToken, authJwt.isAdmin], controller.getTransactionsByAddress);
+  app.get('/api/wallet/addresstransactions/:address', [authJwt.verifyToken, authJwt.isAdmin], asyncWrap(controller.getTransactionsByAddress));
 
   // getTransactions
-  app.get('/api/wallet/transactions', [authJwt.verifyToken, authJwt.isAdmin], controller.getTransactions);
+  app.get('/api/wallet/transactions', [authJwt.verifyToken, authJwt.isAdmin], asyncWrap(controller.getTransactions));
 
   // getWallets
-  app.get('/api/wallet/wallets', [authJwt.verifyToken, authJwt.isAdmin], controller.getWallets);
+  app.get('/api/wallet/wallets', [authJwt.verifyToken, authJwt.isAdmin], asyncWrap(controller.getWallets));
 
   // transactionDetected
-  app.get('/api/wallet/txdetected/:id', [authJwt.verifySession], controller.transactionDetected);
+  app.get('/api/wallet/txdetected/:id', [authJwt.verifySession], asyncWrap(controller.transactionDetected));
 
   // creatPsbt
-  app.post('/api/wallet/psbt', [authJwt.verifyToken], controller.createPsbt);
+  app.post('/api/wallet/psbt', [authJwt.verifyToken], asyncWrap(controller.createPsbt));
 
   // broadcastPsbt
-  app.post('/api/wallet/broadcast', [authJwt.verifyToken], controller.broadcastPsbt);
+  app.post('/api/wallet/broadcast', [authJwt.verifyToken], asyncWrap(controller.broadcastPsbt));
 
   // generateWallet
-  app.post('/api/wallet/generate', [authJwt.verifyToken], controller.generateWallet);
+  app.post('/api/wallet/generate', [authJwt.verifyToken], asyncWrap(controller.generateWallet));
 
   // createPrintPaymentIntent
-  app.post('/api/wallet/print/:id', [authJwt.verifyToken, objectId.isValidObjectId], controller.createPrintPaymentIntent);
+  app.post('/api/wallet/print/:id', [authJwt.verifyToken, objectId.isValidObjectId], asyncWrap(controller.createPrintPaymentIntent));
 };

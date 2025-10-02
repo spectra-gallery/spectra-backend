@@ -1,18 +1,17 @@
-const db = require("../models");
+const Post = require("../models/post.model");
+const Podcast = require("../models/podcast.model");
+const Trait = require("../models/trait.model");
+const Category = require("../models/category.model");
+const Media = require("../models/media.model");
+const User = require("../models/user.model");
+const Role = require("../models/role.model");
+const Comment = require("../models/comment.model");
+const Section = require("../models/section.model");
+const Review = require("../models/review.model");
+const Spectrum = require("../models/spectrum.model");
 const mail = require("../middlewares/mail");
 // const discord = require('../middlewares/discord');
 require("dotenv").config();
-const Post = db.post;
-const Podcast = db.podcast;
-const Trait = db.trait;
-const Category = db.category;
-const Media = db.media;
-const User = db.user;
-const Role = db.role;
-const Comment = db.comment;
-const Section = db.section;
-const Review = db.review;
-const Spectrum = db.spectrum;
 
 const authJwt = require("../middlewares/authJwt");
 

@@ -223,3 +223,22 @@ exports.deleteSketchById = async (req, res) => {
     message: "Sketch Deleted"
   });
 }
+
+// list public (seeded) presets stored as Sketch documents with url starting with 'preset:'
+exports.getPublicSketches = async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit || '50', 10) || 50, 200);
+  const items = await Sketch.find({ url: { $regex: /^preset:/ } })
+    .sort({ date: -1 })
+    .limit(limit);
+  const sketches = items.map((s) => ({
+    id: s._id,
+    name: (s.url || '').replace(/^preset:/, ''),
+    html: s.html,
+    css: s.css,
+    javascript: s.javascript,
+    hash: s.hash,
+    url: s.url,
+    date: s.date,
+  }));
+  res.status(200).send({ sketches });
+};

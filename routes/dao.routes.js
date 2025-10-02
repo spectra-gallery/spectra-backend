@@ -2,6 +2,7 @@
 const {authJwt} = require('../middlewares');
 const {objectId} = require('../middlewares');
 const controller = require('../controllers/dao.controller');
+const asyncWrap = require('../middlewares/asyncWrap');
 
 module.exports = function(app) {
   app.use(function(req, res, next) {
@@ -19,6 +20,6 @@ module.exports = function(app) {
   });
 
   // getMembershipRequests
-    app.get('/api/dao/requests', controller.getMembershipRequests);
+    app.get('/api/dao/requests', asyncWrap(controller.getMembershipRequests));
 
 };

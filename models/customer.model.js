@@ -11,6 +11,12 @@ const Customer = mongoose.model(
         zip: String,
         country: String,
         email: String,
+        addressValidated: {
+          ok: { type: Boolean, default: false },
+          provider: { type: String },
+          ts: { type: Date },
+          meta: { type: Object }
+        }
     }).pre('save', function (next) {
        // address validation
   

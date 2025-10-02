@@ -4,7 +4,12 @@
   "description": "Art Gallery API",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "NODE_OPTIONS='--max-old-space-size=4096' node server.js",
+    "start:prod": "NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' node server.js",
+    "ci:check": "node -e \"require('fs').accessSync('server.js'); console.log('backend ok')\"",
+    "ci:routes": "node scripts/ci/route-check.js",
+    "seed:playground": "node scripts/seed_playground_presets.js",
+    "seed:playground:only": "node scripts/seed_playground_presets.js --only",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -15,7 +20,7 @@
   "author": "philmo",
   "license": "MIT",
   "dependencies": {
-    "@img/sharp-darwin-arm64": "^0.33.4",
+    "@img/sharp-linux-x64": "^0.34.4",
     "@scure/btc-signer": "^1.0.1",
     "@stacks/encryption": "^6.5.5",
     "@taquito/beacon-wallet": "^20.0.1",

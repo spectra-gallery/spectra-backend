@@ -4,6 +4,7 @@ const {authJwt} = require('../middlewares');
 const {objectId} = require('../middlewares');
 const {monitorSession} = require('../middlewares');
 const controller = require('../controllers/auth.controller');
+const asyncWrap = require('../middlewares/asyncWrap');
 const uploadController = require('../controllers/fileUpload.controller');
 const { auth } = require('../models');
 
@@ -34,26 +35,26 @@ module.exports = function(app) {
     "/api/auth/signup",
     [ authJwt.verifySession,
       verifySignUp.checkDuplicateUsername, verifySignUp.checkDuplicateEmail],
-    controller.signup
+    asyncWrap(controller.signup)
   );
 
-  app.post("/api/auth/signin", [authJwt.verifySession], controller.signin);
+  app.post("/api/auth/signin", [authJwt.verifySession], asyncWrap(controller.signin));
 
-  app.post('/api/auth/refreshtoken', [authJwt.verifySession], controller.refreshToken);
+  app.post('/api/auth/refreshtoken', [authJwt.verifySession], asyncWrap(controller.refreshToken));
 
   // refreshSession
   app.post('/api/auth/refreshsession', controller.refreshSessionToken);
 
-  app.post('/api/auth/editprofile', [authJwt.verifyToken, verifySignUp.checkDuplicateUsername, verifySignUp.checkDuplicateEmail], controller.editProfile);
+  app.post('/api/auth/editprofile', [authJwt.verifyToken, verifySignUp.checkDuplicateUsername, verifySignUp.checkDuplicateEmail], asyncWrap(controller.editProfile));
 
   // getSessions
-  app.get('/api/auth/sessions', [authJwt.verifyToken, authJwt.isAdmin], controller.getSessions);
+  app.get('/api/auth/sessions', [authJwt.verifyToken, authJwt.isAdmin], asyncWrap(controller.getSessions));
 
   // editProfileHeadline
-  app.post('/api/auth/editprofileheadline', [authJwt.verifyToken], controller.editProfileHeadline);
+  app.post('/api/auth/editprofileheadline', [authJwt.verifyToken], asyncWrap(controller.editProfileHeadline));
 
   // editProfileBio
-  app.post('/api/auth/editprofilebio', [authJwt.verifyToken], controller.editProfileBio);
+  app.post('/api/auth/editprofilebio', [authJwt.verifyToken], asyncWrap(controller.editProfileBio));
 
   // createTrait
   app.post('/api/auth/traits/create', [authJwt.verifyToken], controller.createTrait);
@@ -62,42 +63,46 @@ module.exports = function(app) {
   app.delete('/api/auth/traits/remove', [authJwt.verifyToken], controller.removeTrait);
 
   // changeMedium
-  app.post('/api/auth/changemedium', [authJwt.verifyToken], controller.changeMedium);
+  app.post('/api/auth/changemedium', [authJwt.verifyToken], asyncWrap(controller.changeMedium));
 
   // deleteusermedium
-  app.delete('/api/auth/deletemedium/:name', [authJwt.verifyToken], controller.deleteUserMedium);
+  app.delete('/api/auth/deletemedium/:name', [authJwt.verifyToken], asyncWrap(controller.deleteUserMedium));
 
   // editProfileImage
-  app.post('/api/auth/editprofileimage', [authJwt.verifyToken], controller.editProfileImage);
+  app.post('/api/auth/editprofileimage', [authJwt.verifyToken], asyncWrap(controller.editProfileImage));
 
   // changeUsername
-  app.post('/api/auth/changeusername', [authJwt.verifyToken, verifySignUp.checkDuplicateUsername], controller.changeUsername);
+  app.post('/api/auth/changeusername', [authJwt.verifyToken, verifySignUp.checkDuplicateUsername], asyncWrap(controller.changeUsername));
 
   // changeEmail
-  app.post('/api/auth/changeemail', [authJwt.verifyToken, verifySignUp.checkDuplicateEmail], controller.changeEmail);
+  app.post('/api/auth/changeemail', [authJwt.verifyToken, verifySignUp.checkDuplicateEmail], asyncWrap(controller.changeEmail));
 
   // addWallet
-  app.post('/api/auth/wallet/add', [authJwt.verifyToken], controller.addWallet);
+  app.post('/api/auth/wallet/add', [authJwt.verifyToken], asyncWrap(controller.addWallet));
 
   // removeAddress
-  app.delete('/api/auth/wallet/remove', [authJwt.verifyToken], controller.removeAddress);
+  app.delete('/api/auth/wallet/remove', [authJwt.verifyToken], asyncWrap(controller.removeAddress));
 
   // editProfileWebsite
   app.post('/api/auth/edit/website', [authJwt.verifyToken], controller.editProfileWebsite);
 
-  app.post('/api/auth/admin/edituser', [authJwt.verifyToken, authJwt.isAdmin], controller.adminEditUser);
+  app.post('/api/auth/admin/edituser', [authJwt.verifyToken, authJwt.isAdmin], asyncWrap(controller.adminEditUser));
+  // admin-grant role
+  app.post('/api/auth/admin/grant', [authJwt.verifyToken, authJwt.isAdmin], asyncWrap(controller.adminGrantRole));
+  // dao grant stub (shared secret)
+  app.post('/api/auth/dao/grant', [authJwt.verifySession], asyncWrap(controller.daoGrantRole));
 
   app.post('/api/user/img', [authJwt.verifyToken], uploadController.uploadMatterImg);
 
-  app.get("/api/auth/web3/:address", controller.isWeb3Registered);
+  app.get("/api/auth/web3/:address", asyncWrap(controller.isWeb3Registered));
 
-  app.post("/api/auth/web3", controller.registerWeb3);
+  app.post("/api/auth/web3", asyncWrap(controller.registerWeb3));
 
   // get nonce for web3
-  app.get("/api/auth/web3/nonce/:address", controller.getNonce);
+  app.get("/api/auth/web3/nonce/:address", asyncWrap(controller.getNonce));
 
   // web3 login
-  app.post("/api/auth/web3/login", controller.web3Login);
+  app.post("/api/auth/web3/login", asyncWrap(controller.web3Login));
 
   app.get('/api/auth/bitcoin/register/:address', controller.isBitcoinRegistered);
 
@@ -114,7 +119,7 @@ module.exports = function(app) {
 
 
   // get user data
-  app.get('/api/auth/user', [authJwt.verifyToken], controller.getUserData);
+  app.get('/api/auth/user', [authJwt.verifyToken], asyncWrap(controller.getUserData));
 
   app.get('/api/auth/artists', [authJwt.verifySession], (req, res) => {
     const elements = controller.fetchArtists();

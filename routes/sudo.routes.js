@@ -31,7 +31,7 @@ const {
 
 const SESSION_SECRET = sudoSession.SESSION_SECRET;
 
-const MONGO_URI = `mongodb://${dbConfig.HOST}:${dbConfig.PORT}/${dbConfig.DB}`;
+const MONGO_URI = `mongodb://${dbConfig.DB_USER}:${encodeURIComponent(dbConfig.DB_PASSWORD)}@${dbConfig.HOST}:${dbConfig.PORT}/${dbConfig.DB}?authSource=${dbConfig.AUTH_SOURCE}`;
 
 
 // FIDO2 Library

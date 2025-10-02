@@ -14,7 +14,9 @@ const Order = db.order;
 const Customer = db.customer;
 
 const axios = require('axios');
-const puppeteer = require('puppeteer');
+const { SwissPostClient, SwissPostAddressClient } = require('../services/swisspostClient');
+const { puppeteer, getLaunchOptions } = require('../helpers/puppeteer.helpers');
+const { puppeteerSemaphore } = require('../helpers/concurrency');
 const bcrypt = require('bcryptjs');
 const keccak256 = require('keccak256')
 const serieController = require('./serie.controller');
@@ -23,12 +25,37 @@ const Sketch = require('../models/sketch.model');
 const Whitelist = require('../models/whitelist.model');
 
 const stripe = require("stripe")('sk_test_51INl1iHxwzCEp0yUOSY7MHhyKuXu0IHD8Q4IIkLmDJBbV1FUa6B3JORUxpEiLvvCOtNFgx3VPqudTlcxKZ23Tsdq00ul7qZ5PA');
+const logger = require('../utils/logger');
 
 const BASE_URL = process.env.BASE_URL;
 const STORAGE_URL = process.env.STORAGE_URL;
 
 const SWISSPOST_API_URL = process.env.SWISSPOST_API_URL;
 const SWISSPOST_API_KEY = process.env.SWISSPOST_API_KEY;
+const SWISSPOST_API_KEY_HEADER = process.env.SWISSPOST_API_KEY_HEADER || 'X-Apim-Api-Key';
+const SWISSPOST_API_CLIENT_ID = process.env.SWISSPOST_API_CLIENT_ID || '';
+const SWISSPOST_API_CLIENT_SECRET = process.env.SWISSPOST_API_CLIENT_SECRET || '';
+const SWISSPOST_COUNTRIES_PATH = process.env.SWISSPOST_COUNTRIES_PATH || '/countries';
+const SWISSPOST_PRODUCTS_PATH = process.env.SWISSPOST_PRODUCTS_PATH || '/products';
+const SWISSPOST_ADDRESS_API_URL = process.env.SWISSPOST_ADDRESS_API_URL || SWISSPOST_API_URL;
+const SWISSPOST_ADDRESS_API_KEY = process.env.SWISSPOST_ADDRESS_API_KEY || SWISSPOST_API_KEY;
+const SWISSPOST_ADDRESS_API_KEY_HEADER = process.env.SWISSPOST_ADDRESS_API_KEY_HEADER || SWISSPOST_API_KEY_HEADER;
+const SWISSPOST_ADDRESS_API_CLIENT_ID = process.env.SWISSPOST_ADDRESS_API_CLIENT_ID || SWISSPOST_API_CLIENT_ID;
+const SWISSPOST_ADDRESS_API_CLIENT_SECRET = process.env.SWISSPOST_ADDRESS_API_CLIENT_SECRET || SWISSPOST_API_CLIENT_SECRET;
+const SWISSPOST_ADDRESS_VALIDATE_PATH = process.env.SWISSPOST_ADDRESS_VALIDATE_PATH || '/addresses/validate';
+
+const spClient = (SWISSPOST_API_URL && SWISSPOST_API_KEY)
+  ? new SwissPostClient({ baseURL: SWISSPOST_API_URL, apiKey: SWISSPOST_API_KEY, apiKeyHeader: SWISSPOST_API_KEY_HEADER, apiClientId: SWISSPOST_API_CLIENT_ID, apiClientSecret: SWISSPOST_API_CLIENT_SECRET, countriesPath: SWISSPOST_COUNTRIES_PATH, productsPath: SWISSPOST_PRODUCTS_PATH, paramMap: {
+    isoCode: process.env.SWISSPOST_PARAM_COUNTRY || 'isoCode',
+    format: process.env.SWISSPOST_PARAM_FORMAT || 'format',
+    weight: process.env.SWISSPOST_PARAM_WEIGHT || 'weight',
+    lang: process.env.SWISSPOST_PARAM_LANG || 'lang',
+    fields: process.env.SWISSPOST_PARAM_FIELDS || 'fields'
+  } })
+  : null;
+const spAddress = (SWISSPOST_ADDRESS_API_URL && SWISSPOST_ADDRESS_API_KEY)
+  ? new SwissPostAddressClient({ baseURL: SWISSPOST_ADDRESS_API_URL, apiKey: SWISSPOST_ADDRESS_API_KEY, apiKeyHeader: SWISSPOST_ADDRESS_API_KEY_HEADER, apiClientId: SWISSPOST_ADDRESS_API_CLIENT_ID, apiClientSecret: SWISSPOST_ADDRESS_API_CLIENT_SECRET, validatePath: SWISSPOST_ADDRESS_VALIDATE_PATH })
+  : null;
 
 /** ----- Print Payment Controller ---- */
 exports.createPrintPaymentIntent = async (req, res) => {
@@ -57,50 +84,133 @@ exports.createPrintPaymentIntent = async (req, res) => {
         },
     });
 
-    res.status(200).send({
-        clientSecret: paymentIntent.client_secret,
-    });
+    res.status(200).send({ ok: true, data: { clientSecret: paymentIntent.client_secret }, reqId: req.context && req.context.id });
 
 };
 
+let countriesCache = { data: null, ts: 0 };
+const COUNTRIES_TTL_MS = Number(process.env.SWISSPOST_COUNTRIES_TTL_MS || 6 * 60 * 60 * 1000); // 6h default
+
 const getCountryList = async () => {
-    const response = await axios.get(`${SWISSPOST_API_URL}/countries?lang=en&fields=isoCode,displayName`, {
-        headers: {
-            'X-Apim-Api-Key': SWISSPOST_API_KEY,
-        },
-    });
-
-    const countries = response.data.countries;
-
-    return countries;
-
+    if (!spClient) return [];
+    const now = Date.now();
+    if (countriesCache.data && (now - countriesCache.ts < COUNTRIES_TTL_MS)) {
+        return countriesCache.data;
+    }
+    // Mock mode for local dev
+    if (process.env.SWISSPOST_MOCK === '1') {
+        const list = [
+            { isoCode: 'CH', displayName: 'Switzerland' },
+            { isoCode: 'DE', displayName: 'Germany' },
+            { isoCode: 'FR', displayName: 'France' },
+            { isoCode: 'US', displayName: 'United States' }
+        ];
+        countriesCache = { data: list, ts: now };
+        return list;
+    }
+    const list = await spClient.getCountries({ lang: 'en' });
+    countriesCache = { data: list, ts: now };
+    return list;
 };
 
 exports.getCountryList = async (req, res) => {
-    const countries = await getCountryList();
-
-    res.status(200).send({
-        countries: countries,
-    });
+    try {
+        const countries = await getCountryList();
+        res.status(200).send({ ok: true, data: { countries }, reqId: req.context && req.context.id });
+    } catch (err) {
+        logger.error('swisspost_countries_error', { err: String(err), reqId: req.context && req.context.id });
+        res.status(502).send({ ok: false, error: 'countries_fetch_failed', reqId: req.context && req.context.id });
+    }
 };
 
 exports.getCountryInfo = async (req, res) => {
-    const countryIsoCode = req.params.code;
-    const format = req.query.format;
-    const weight = req.query.weight;
+    try {
+        const countryIsoCode = (req.params.code || '').toUpperCase();
+        const format = String(req.query.format || '').toUpperCase();
+        // Swiss Post products often expect grams as integer
+        const weightNum = Math.ceil(Number(req.query.weight));
 
-    const response = await axios.get(`${SWISSPOST_API_URL}/products/?isoCode=${countryIsoCode}&format=${format}&weight=${weight}`, {
-        headers: {
-            'X-Apim-Api-Key': SWISSPOST_API_KEY,
-        },
-    });
+        if (!countryIsoCode || !/^[A-Z]{2}$/.test(countryIsoCode)) {
+            return res.status(400).send({ ok: false, error: 'invalid_country_code', reqId: req.context && req.context.id });
+        }
+        if (!format) {
+            return res.status(400).send({ ok: false, error: 'invalid_format', reqId: req.context && req.context.id });
+        }
+        if (!Number.isFinite(weightNum) || weightNum <= 0) {
+            return res.status(400).send({ ok: false, error: 'invalid_weight', reqId: req.context && req.context.id });
+        }
 
-    const countryInfo = response.data;
+        if (!spClient && process.env.SWISSPOST_MOCK !== '1') {
+            return res.status(503).send({ ok: false, error: 'swisspost_unconfigured', reqId: req.context && req.context.id });
+        }
+        let countryInfo = null;
+        if (process.env.SWISSPOST_MOCK === '1') {
+            // Synthesize a few products
+            const base = 9.0 + (countryIsoCode === 'US' ? 6 : countryIsoCode === 'DE' ? 2 : 0);
+            const weightFactor = Math.ceil(weightNum / 250) * 2;
+            const products = [
+                { code: 'PRI', name: 'Priority', price: base + weightFactor, currency: 'CHF', estimatedDays: countryIsoCode === 'CH' ? 1 : 3 },
+                { code: 'ECO', name: 'Economy', price: base - 2 + weightFactor * 0.8, currency: 'CHF', estimatedDays: countryIsoCode === 'CH' ? 2 : 5 }
+            ];
+            countryInfo = { products };
+        } else {
+            countryInfo = await spClient.getProducts({ isoCode: countryIsoCode, format, weight: weightNum });
+        }
+        // Attempt normalization if recognizable structures are present
+        let normalized = null;
+        try {
+            const list = Array.isArray(countryInfo?.products) ? countryInfo.products
+              : Array.isArray(countryInfo?.offers) ? countryInfo.offers
+              : Array.isArray(countryInfo?.items) ? countryInfo.items : null;
+            if (list) {
+                normalized = {
+                    products: list.map((p) => ({
+                        code: p.code || p.id || p.productCode || null,
+                        name: p.name || p.productName || null,
+                        price: (p.price && (p.price.amount || p.price.value)) || p.amount || p.gross || p.price || null,
+                        currency: (p.price && p.price.currency) || p.currency || 'CHF',
+                        estimatedDays: p.estimatedDays || p.deliveryDays || null,
+                        estimatedDate: p.estimatedDate || p.deliveryDate || null,
+                    }))
+                };
+            }
+        } catch (_) {}
+        res.status(200).send({ ok: true, data: { countryInfo, normalized }, reqId: req.context && req.context.id });
+    } catch (err) {
+        logger.error('swisspost_products_error', { err: String(err), reqId: req.context && req.context.id });
+        const status = err?.response?.status;
+        if (status === 400) {
+            return res.status(400).send({ ok: false, error: 'bad_request', details: err?.response?.data || null, reqId: req.context && req.context.id });
+        }
+        res.status(502).send({ ok: false, error: 'products_fetch_failed', reqId: req.context && req.context.id });
+    }
+};
 
-    res.status(200).send({
-        countryInfo: countryInfo,
-    });
-
+exports.validateAddress = async (req, res) => {
+    try {
+        const { street, zip, city, countryIso2 } = req.body || {};
+        if (!street || !zip || !city || !countryIso2) {
+            return res.status(400).send({ ok: false, error: 'missing_fields', reqId: req.context && req.context.id });
+        }
+        if (!spAddress && process.env.SWISSPOST_MOCK !== '1') {
+            return res.status(503).send({ ok: false, error: 'address_api_unconfigured', reqId: req.context && req.context.id });
+        }
+        let validation = null;
+        if (process.env.SWISSPOST_MOCK === '1') {
+            const ok = Boolean(street && zip && city && countryIso2);
+            validation = { ok, score: ok ? 0.98 : 0.0, suggestion: ok ? { street, zip, city, countryIso2: String(countryIso2).toUpperCase() } : null };
+        } else {
+            validation = await spAddress.validateAddress({ street, zip, city, countryIso2: String(countryIso2).toUpperCase() });
+        }
+        res.status(200).send({ ok: true, data: { validation }, reqId: req.context && req.context.id });
+    } catch (err) {
+        logger.error('swisspost_address_validate_error', { err: String(err), reqId: req.context && req.context.id });
+        const status = err?.response?.status;
+        if (status === 400) {
+            return res.status(400).send({ ok: false, error: 'bad_request', details: err?.response?.data || null, reqId: req.context && req.context.id });
+        }
+        res.status(502).send({ ok: false, error: 'address_validate_failed', reqId: req.context && req.context.id });
+    }
 };
 
 
@@ -118,7 +228,7 @@ const getCountryCode = async (latitude, longitude) => {
         throw new Error('Country code not found')
       }
     } catch (error) {
-      console.error('Error fetching country code:', error)
+        logger.error('country_code_error_fetch', { err: String(error), reqId: req && req.context && req.context.id })
       return null
     }
   }
@@ -139,25 +249,25 @@ exports.getCountryCode = async (req, res) => {
         const data = response.data;
 
         if (data.address && data.address.country_code) {
-            res.status(200).send({
-                countryCode: data.address.country_code.toUpperCase(),
-            });
+            res.status(200).send({ ok: true, data: { countryCode: data.address.country_code.toUpperCase() }, reqId: req.context && req.context.id });
         } else {
             throw new Error('Country code not found');
         }
     } catch (error) {
-        console.error('Error fetching country code:', error);
-        res.status(500).send({
-            message: 'Error fetching country code',
-        });
+        logger.error('country_code_error_fetch', { err: String(error), reqId: req && req.context && req.context.id });
+        res.status(500).send({ ok: false, error: 'country_code_error', reqId: req.context && req.context.id });
     }
 };
 
 exports.calculatePaperWeight = async (req, res) => {
-    const width = req.query.width;
-    const height = req.query.height;
-    const thick = req.query.thick;
-    const density = req.query.density; // g/m2
+    const width = Number(req.query.width);
+    const height = Number(req.query.height);
+    const thick = Number(req.query.thick);
+    const density = Number(req.query.density); // g/m2
+
+    if (![width, height, thick, density].every(Number.isFinite)) {
+        return res.status(400).send({ ok: false, error: 'invalid_dimensions', reqId: req.context && req.context.id });
+    }
 
     // convert density from g/cm2 to g/mm2
     const density_mm2 = density / 1000000;
@@ -165,17 +275,19 @@ exports.calculatePaperWeight = async (req, res) => {
     const volume = width * height * thick;
     const weight = volume * density_mm2;
 
-    res.status(200).send({
-        weight: weight,
-    });
+    res.status(200).send({ ok: true, data: { weight }, reqId: req.context && req.context.id });
 };
 
 // get photo paper price depending on the size, thickness and density
 exports.getPaperPrintPrice = async (req, res) => {
-    const width = req.query.width;
-    const height = req.query.height;
-    const thick = req.query.thick;
-    const density = req.query.density * 100; // g/cm3 to g/mm3
+    const width = Number(req.query.width);
+    const height = Number(req.query.height);
+    const thick = Number(req.query.thick);
+    const density = Number(req.query.density) * 100; // g/cm3 to g/mm3
+
+    if (![width, height, thick, density].every(Number.isFinite)) {
+        return res.status(400).send({ ok: false, error: 'invalid_dimensions', reqId: req.context && req.context.id });
+    }
 
     // Define a base price per square meter
     const basePricePerSquareMeter = 100; // €/m²
@@ -216,9 +328,7 @@ exports.getPaperPrintPrice = async (req, res) => {
 
 
 
-    res.status(200).send({
-        price: finalPrice.toFixed(2)
-    });
+    res.status(200).send({ ok: true, data: { price: finalPrice.toFixed(2) }, reqId: req.context && req.context.id });
 
 };
 
@@ -238,37 +348,27 @@ exports.generatePrint = async (req, res) => {
     });
 
     if (!order) {
-        return res.status(404).send({
-            message: 'Order not found.'
-        });
+        return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'order_not_found' }, reqId: req.context && req.context.id });
     }
 
     const identifierValid = bcrypt.compareSync(identifier, order.identifier);
 
     if (!identifierValid) {
-        return res.status(401).send({
-            message: 'Invalid identifier.'
-        });
+        return res.status(401).send({ ok: false, error: { code: 'unauthorized', message: 'invalid_identifier' }, reqId: req.context && req.context.id });
     }
 
     if (!order.paid) {
-        return res.status(400).send({
-            message: 'Order not paid.'
-        });
+        return res.status(400).send({ ok: false, error: { code: 'order_unpaid', message: 'order_not_paid' }, reqId: req.context && req.context.id });
     }
 
     if (artworkValue !== order.artworkValue || printValue !== order.printValue || transportValue !== order.transportValue) {
-        return res.status(400).send({
-            message: 'Values mismatch.'
-        });
+        return res.status(400).send({ ok: false, error: { code: 'values_mismatch', message: 'values_mismatch' }, reqId: req.context && req.context.id });
     }
 
     const orderTotalValue = order.artworkValue + order.printValue + order.transportValue;
 
     if (amount !== orderTotalValue) {
-        return res.status(400).send({
-            message: 'Payment Amount mismatch.'
-        });
+        return res.status(400).send({ ok: false, error: { code: 'amount_mismatch', message: 'amount_mismatch' }, reqId: req.context && req.context.id });
     }
 
     Serie.findById(serieId)
@@ -276,21 +376,15 @@ exports.generatePrint = async (req, res) => {
         .populate('whitelist')
         .exec(async (err, serie) => {
             if (err) {
-                return res.status(500).send({
-                    message: err
-                });
+                return res.status(500).send({ ok: false, error: { code: 'internal_error', message: String(err) }, reqId: req.context && req.context.id });
             }
 
             if (!serie) {
-                return res.status(404).send({
-                    message: 'Serie not found.'
-                });
+                return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'serie_not_found' }, reqId: req.context && req.context.id });
             }
 
             if (!serie.onSale) {
-                return res.status(400).send({
-                    message: 'Serie not on sale.'
-                });
+                return res.status(400).send({ ok: false, error: { code: 'not_on_sale', message: 'serie_not_on_sale' }, reqId: req.context && req.context.id });
             }
 
             const whitelist = serie.whitelist;
@@ -311,9 +405,7 @@ exports.generatePrint = async (req, res) => {
                     if (serie.supply + whitelist.length >= serie.totalSupply) {
                         serie.onSale = false;
                         await serie.save();
-                        res.status(500).send({
-                            message: 'Serie sold out.'
-                        });
+                        res.status(409).send({ ok: false, error: { code: 'sold_out', message: 'serie_sold_out' }, reqId: req.context && req.context.id });
                         return;
                     }
                 }
@@ -321,9 +413,7 @@ exports.generatePrint = async (req, res) => {
                 if (serie.supply >= serie.totalSupply) {
                     serie.onSale = false;
                     await serie.save();
-                    res.status(500).send({
-                        message: 'Serie sold out.'
-                    });
+                    res.status(409).send({ ok: false, error: { code: 'sold_out', message: 'serie_sold_out' }, reqId: req.context && req.context.id });
                     return;
                 }
             }
@@ -331,9 +421,7 @@ exports.generatePrint = async (req, res) => {
             const fileUrl = serie.sketch.url;
 
             if (!fileUrl || fileUrl === '') {
-                return res.status(404).send({
-                    message: 'File not found.'
-                });
+                return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'file_not_found' }, reqId: req.context && req.context.id });
             }
 
             const fetchUrl = STORAGE_URL + fileUrl;
@@ -349,7 +437,7 @@ exports.generatePrint = async (req, res) => {
 
             const traits = await getAttributes(hashedHtmlContent, contentUrl);
 
-            console.log('attributes', traits);
+            logger.info('attributes_extracted', { count: traits && traits.length })
             const _traits = [];
             for (const trait of traits) {
                 const attr = new Trait({
@@ -446,7 +534,7 @@ exports.generatePrint = async (req, res) => {
 
             // discord.sendNotification(title, content, image);
             // load element afterward on the client
-            res.status(200).send({
+            res.status(200).send({ ok: true, data: {
                 id: element._id,
                 serieId: serieId,
                 serie: {
@@ -455,16 +543,13 @@ exports.generatePrint = async (req, res) => {
                     supply: serie.supply,
                     volumeUSD: serie.volumeUSD,
                 }
-
-            });
+            }, reqId: req.context && req.context.id });
 
             order.generated = true;
             await order.save();
         })
         .catch((err) => {
-            res.status(500).send({
-                message: err
-            });
+            res.status(500).send({ ok: false, error: { code: 'internal_error', message: String(err) }, reqId: req.context && req.context.id });
         });
 
 
@@ -505,7 +590,8 @@ const generateHash = async (iteration, id, timestamp) => {
  */
 async function getAttributes(htmlContent, url) {
     try {
-        const browser = await puppeteer.launch({ headless: 'new' });
+        const release = await puppeteerSemaphore.acquire();
+        const browser = await puppeteer.launch(getLaunchOptions());
         const page = await browser.newPage();
 
         await page.setRequestInterception(true);
@@ -531,10 +617,11 @@ async function getAttributes(htmlContent, url) {
             });
         }
         await browser.close();
+        release();
 
         return traits;
     } catch (err) {
-        console.log(err);
+        logger.error('generate_iframe_error', { err: String(err) })
     }
 }
 
@@ -550,9 +637,9 @@ function sendMail(to, data, type) {
 
     mail.sendMail(options, (err, info) => {
         if (err) {
-            console.log(err);
+            logger.error('mail_send_error', { err: String(err) })
         } else {
-            console.log(info);
+            logger.info('mail_sent', { info })
         }
     });
 }

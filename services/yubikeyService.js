@@ -31,6 +31,7 @@ let globalCurrentChallenge = null;
 
 // The decrypted RSA private key in memory (PEM string)
 let decryptedPrivateKey = null;
+let currentPublicKeyPath = null;
 
 // PART 1: RSA Key Generation & Encryption/Decryption ==========================
 
@@ -95,12 +96,51 @@ async function initKeyPair() {
   const encFile = files.find((f) => f.endsWith(".enc"));
 
   if (encFile) {
-    // Decrypt existing private key
+    // Decrypt existing private key (with auto-rotate fallback)
     const encPath = path.join(keysDir, encFile);
-    const encryptedBuf = await fs.readFile(encPath);
-    const pem = decryptPrivateKey(encryptedBuf, secret);
-    decryptedPrivateKey = pem;
-    console.log(`[initKeyPair] Loaded existing private key: ${encFile}`);
+    try {
+      const encryptedBuf = await fs.readFile(encPath);
+      const pem = decryptPrivateKey(encryptedBuf, secret);
+      decryptedPrivateKey = pem;
+      console.log(`[initKeyPair] Loaded existing private key: ${encFile}`);
+    } catch (e) {
+      // If decryption fails (mismatched/changed secret or corrupt file),
+      // safely back up old keys and generate a fresh pair.
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupDir = path.join(keysDir, 'backup', ts);
+      await fs.ensureDir(backupDir);
+
+      try {
+        await fs.move(encPath, path.join(backupDir, encFile), { overwrite: false });
+      } catch (_) { /* ignore */ }
+
+      // Best-effort move of matching public key, if any
+      try {
+        const uuid = encFile.replace(/^privateKey-/, '').replace(/\.enc$/, '');
+        const pubName = `publicKey-${uuid}.pem`;
+        const pubPath = path.join(keysDir, pubName);
+        if (await fs.pathExists(pubPath)) {
+          await fs.move(pubPath, path.join(backupDir, pubName), { overwrite: false });
+        }
+      } catch (_) { /* ignore */ }
+
+      console.warn(`[initKeyPair] Failed to decrypt existing key (${encFile}): ${e?.message || e}. Auto-rotating…`);
+
+      const { privateKey, publicKey } = generateRsaKeyPair();
+      const encrypted = encryptPrivateKey(privateKey, secret);
+
+      const keyId = uuidv4();
+      const encFilename = `privateKey-${keyId}.enc`;
+      const pubFilename = `publicKey-${keyId}.pem`;
+
+      await fs.writeFile(path.join(keysDir, encFilename), encrypted);
+      const pubPath = path.join(keysDir, pubFilename);
+      await fs.writeFile(pubPath, publicKey, "utf8");
+      currentPublicKeyPath = pubPath;
+
+      decryptedPrivateKey = privateKey;
+      console.log(`[initKeyPair] Rotated key pair stored as ${encFilename} / ${pubFilename}`);
+    }
   } else {
     // Generate a new key pair
     console.log("[initKeyPair] Generating new RSA key pair...");
@@ -112,7 +152,9 @@ async function initKeyPair() {
     const pubFilename = `publicKey-${keyId}.pem`;
 
     await fs.writeFile(path.join(keysDir, encFilename), encrypted);
-    await fs.writeFile(path.join(keysDir, pubFilename), publicKey, "utf8");
+    const pubPath = path.join(keysDir, pubFilename);
+    await fs.writeFile(pubPath, publicKey, "utf8");
+    currentPublicKeyPath = pubPath;
 
     decryptedPrivateKey = privateKey;
     console.log(`[initKeyPair] New key pair stored as ${encFilename} / ${pubFilename}`);
@@ -145,6 +187,42 @@ async function getPublicKeyPem() {
   }
   const publicKeyPem = await fs.readFile(path.join(keysDir, pemFile), "utf8");
   return publicKeyPem;
+}
+
+/**
+ * Rotate server RSA keys: generate, encrypt, persist, and load in-memory.
+ */
+async function rotateKeyPair() {
+  const secret = appCypherConfig.SESSION_SECRET;
+  if (!secret || secret.length < 16) {
+    throw new Error("SESSION_SECRET is missing or too short (>= 16 chars).");
+  }
+  const keysDir = path.join(__basedir, "keys", "server");
+  await fs.ensureDir(keysDir);
+
+  const { privateKey, publicKey } = generateRsaKeyPair();
+  const encrypted = encryptPrivateKey(privateKey, secret);
+  const keyId = uuidv4();
+  const encFilename = `privateKey-${keyId}.enc`;
+  const pubFilename = `publicKey-${keyId}.pem`;
+
+  await fs.writeFile(path.join(keysDir, encFilename), encrypted);
+  const pubPath = path.join(keysDir, pubFilename);
+  await fs.writeFile(pubPath, publicKey, "utf8");
+  decryptedPrivateKey = privateKey;
+  currentPublicKeyPath = pubPath;
+  return { encPath: path.join(keysDir, encFilename), pubPath };
+}
+
+/**
+ * Local encode/decode self-test with current keypair
+ */
+function selfEncodingTest() {
+  const sample = JSON.stringify({ t: Date.now(), test: true });
+  const publicKey = fs.readFileSync(currentPublicKeyPath || path.join(__basedir, "keys", "server", fs.readdirSync(path.join(__basedir, "keys", "server")).find(f => f.endsWith('.pem'))), "utf8");
+  const enc = encryptData(sample, publicKey);
+  const dec = decryptData(enc);
+  return dec === sample;
 }
 
 function __base64ToArrayBuffer(base64) {
@@ -367,6 +445,8 @@ module.exports = {
   initKeyPair,
   signDataWithPrivateKey,
   getPublicKeyPem,
+  rotateKeyPair,
+  selfEncodingTest,
   // FIDO2 flows
   getRegistrationOptions,
   verifyRegistration,

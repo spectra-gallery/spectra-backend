@@ -1,7 +1,6 @@
 const config = require("../config/auth.config");
 const sessionConfig = require("../config/session.config");
 const sorageConfig = require("../config/storage.config");
-const db = require("../models");
 const mail = require("../middlewares/mail");
 const {
   sendVerificationEmail,
@@ -13,21 +12,21 @@ const {
 const { encodeString, decodeString, encryptString, decryptString } = require("../helpers/cypher.helpers");
 // const discord = require('../middlewares/discord');
 require("dotenv").config();
-const User = db.user;
-const Medium = db.medium;
-const Comment = db.comment;
-const Token = db.token;
-const Role = db.role;
-const Session = db.session;
-const RefreshToken = db.refreshToken;
-const SessionRefreshToken = db.sessionRefreshToken;
-const Auth = db.auth;
-const Chain = db.chain;
-const Bitcoin = db.bitcoin;
-const Customer = db.customer;
-const Trait = db.trait;
-const Theme = db.theme;
-const Palette = db.palette;
+const User = require("../models/user.model");
+const Medium = require("../models/medium.model");
+const Comment = require("../models/comment.model");
+const Token = require("../models/token.model");
+const Role = require("../models/role.model");
+const Session = require("../models/session.model");
+const RefreshToken = require("../models/refreshToken.model");
+const SessionRefreshToken = require("../models/sessionRefreshToken.model");
+const Auth = require("../models/auth.model");
+const Chain = require("../models/chain.model");
+const Bitcoin = require("../models/bitcoin.model");
+const Customer = require("../models/customer.model");
+const Trait = require("../models/trait.model");
+const Theme = require("../models/theme.model");
+const Palette = require("../models/palette.model");
 
 const bitcoin = require("bitcoinjs-lib");
 const ecc = require("tiny-secp256k1");
@@ -65,11 +64,9 @@ exports.validateToken = (req, res) => {
     .populate("role", "-__v")
     .exec(async (err, user) => {
       if (!user) {
-        return res.status(403).send(false);
+        return res.status(403).send({ ok: false, error: { code: 'forbidden', message: 'invalid_user' }, reqId: req.context && req.context.id });
       }
-
-      // if user found return true
-      res.status(200).send(true);
+      res.status(200).send({ ok: true, data: true, reqId: req.context && req.context.id });
     });
 };
 
@@ -87,7 +84,7 @@ exports.getUserData = (req, res) => {
     .populate("frequentWords", "-__v")
     .exec(async (err, user) => {
       if (!user) {
-        return res.status(403).send(false);
+        return res.status(403).send({ ok: false, error: { code: 'forbidden', message: 'invalid_user' }, reqId: req.context && req.context.id });
       }
 
       const authorities = [];
@@ -100,7 +97,7 @@ exports.getUserData = (req, res) => {
       }
 
       // if user found return true
-      res.status(200).send({
+      const payload = {
         id: user._id,
         username: user.username,
         slug: user.slug,
@@ -132,7 +129,8 @@ exports.getUserData = (req, res) => {
         like: user.like,
         likes: user.likes,
         frequentWords: user.frequentWords,
-      });
+      };
+      res.status(200).send({ ok: true, data: payload, ...payload, reqId: req.context && req.context.id });
     });
 };
 
@@ -168,16 +166,11 @@ exports.generateSessionToken = async (req, res) => {
   const refreshToken = await SessionRefreshToken.createToken(session);
 
   if (!refreshToken) {
-    return res.status(500).send({
-      message: "Error creating refresh token",
-    });
+    return res.status(500).send({ ok: false, error: { code: 'internal_error', message: 'refresh_token_failed' }, reqId: req.context && req.context.id });
   }
 
-  res.status(200).send({
-    sessionId: sessionId,
-    sessionToken: token,
-    sessionRefresh: refreshToken
-  });
+  const payload = { sessionId, sessionToken: token, sessionRefresh: refreshToken };
+  res.status(200).send({ ok: true, data: payload, ...payload, reqId: req.context && req.context.id });
 };
 
 // get last 10 sessions
@@ -187,7 +180,7 @@ exports.getSessions = (req, res) => {
     .limit(10)
     .exec((err, sessions) => {
       if (err) {
-        res.status(500).send({ message: err });
+        res.status(500).send({ ok: false, error: { code: 'internal_error', message: String(err) }, reqId: req.context && req.context.id });
         return;
       }
 
@@ -204,9 +197,7 @@ exports.getSessions = (req, res) => {
         }
       }
 
-      res.status(200).send({
-        sessions: _sessions,
-      });
+      res.status(200).send({ ok: true, data: _sessions, sessions: _sessions, reqId: req.context && req.context.id });
     });
 };
 
@@ -217,53 +208,54 @@ exports.isWeb3Registered = async (req, res) => {
     address: req.params.address,
   });
 
-  if (user) {
-    res.status(200).send({
-      registered: true,
-    });
-  } else {
-    res.status(200).send({
-      registered: false,
-    });
-  }
+  const registered = Boolean(user);
+  res.status(200).send({ ok: true, data: { registered }, registered, reqId: req.context && req.context.id });
 };
 
 exports.registerWeb3 = async (req, res) => {
-  // generate a random username
-  const username = Math.random().toString(36).substring(7);
+  try {
+    // generate a random username
+    const username = Math.random().toString(36).substring(7);
 
-  const chain = new Chain({
-    name: "ethereum",
-    address: req.body.address,
-  });
-
-  await chain.save();
-
-  const chainId = chain._id;
-
-  // create new user with address
-
-  const user = new User({
-    address: req.body.address,
-    username: username,
-    email: "",
-    password: "",
-    imageUrl: "",
-    chain: [chainId],
-  });
-
-  const role = await Role.findOne({ name: "user" });
-  user.role = [role._id];
-
-  user.save((err, user) => {
-    if (err) {
-      res.status(500).send({ message: err });
-      return res.status(200).send(false);
+    // If already registered, return quickly (idempotent)
+    const existingUser = await User.findOne({ address: req.body.address });
+    if (existingUser) {
+      return res.status(200).send({ ok: true, data: { registered: true }, registered: true, reqId: req.context && req.context.id });
     }
 
-    // return true if user is created
-    res.status(200).send(true);
-  });
+    const chain = new Chain({
+      name: "ethereum",
+      address: req.body.address,
+    });
+    await chain.save();
+
+    const user = new User({
+      address: req.body.address,
+      username,
+      email: "",
+      password: "",
+      imageUrl: "",
+      chain: [chain._id],
+    });
+
+    // assign base role
+    let baseRole = await Role.findOne({ name: "user" });
+    if (!baseRole) { baseRole = await Role.create({ name: 'user' }); }
+    user.role = [baseRole._id];
+
+    // first user bootstrap: grant admin
+    const existing = await User.countDocuments({});
+    if (existing === 0) {
+      let adminRole = await Role.findOne({ name: 'admin' });
+      if (!adminRole) { adminRole = await Role.create({ name: 'admin' }); }
+      user.role.push(adminRole._id);
+    }
+
+    await user.save();
+    return res.status(200).send({ ok: true, data: { registered: true }, registered: true, reqId: req.context && req.context.id });
+  } catch (err) {
+    return res.status(500).send({ ok: false, error: { code: 'internal_error', message: String(err && err.message ? err.message : err) }, reqId: req.context && req.context.id });
+  }
 };
 
 exports.getNonce = async (req, res) => {
@@ -273,11 +265,9 @@ exports.getNonce = async (req, res) => {
   });
 
   if (user) {
-    res.status(200).send({
-      nonce: user.nonce,
-    });
+    res.status(200).send({ ok: true, data: { nonce: user.nonce }, nonce: user.nonce, reqId: req.context && req.context.id });
   } else {
-    res.status(200).send(false);
+    res.status(200).send({ ok: true, data: false, reqId: req.context && req.context.id });
   }
 };
 
@@ -334,9 +324,7 @@ exports.web3Login = async (req, res) => {
       // Change user nonce
       user.nonce = Math.floor(Math.random() * 1000000);
       user.save((err) => {
-        if (err) {
-          res.send(err);
-        }
+        if (err) { try { console.error('nonce_save_error', err); } catch (_) {} }
       });
 
       var token = jwt.sign(
@@ -358,18 +346,12 @@ exports.web3Login = async (req, res) => {
         authorities.push("ROLE_" + user.role[i].name.toUpperCase());
       }
 
-      res.status(200).send({
-        id: user._id,
-        accessToken: token,
-        refreshToken: refreshToken,
-        role: authorities,
-      });
+      res.status(200).send({ ok: true, data: { id: user._id, accessToken: token, refreshToken: refreshToken, role: authorities }, id: user._id, accessToken: token, refreshToken: refreshToken, role: authorities, reqId: req.context && req.context.id });
     } else {
-      // User is not authenticated
-      res.status(401).send("Invalid credentials");
+      res.status(401).send({ ok: false, error: { code: 'invalid_credentials', message: 'Invalid credentials' }, reqId: req.context && req.context.id });
     }
   } else {
-    res.send("User does not exist");
+    res.status(404).send({ ok: false, error: { code: 'not_found', message: 'user_not_found' }, reqId: req.context && req.context.id });
   }
 };
 
@@ -405,23 +387,23 @@ exports.registerNewUser = async (req, res) => {
     });
   }
 
-  await user.save();
+  // assign roles prior to save (first-user bootstrap)
+  let baseRole = await Role.findOne({ name: 'user' });
+  if (!baseRole) { baseRole = await Role.create({ name: 'user' }); }
+  user.role = [baseRole._id];
+  const existing = await User.countDocuments({});
+  if (existing === 0) {
+    let adminRole = await Role.findOne({ name: 'admin' });
+    if (!adminRole) { adminRole = await Role.create({ name: 'admin' }); }
+    user.role.push(adminRole._id);
+  }
 
-  const role = await Role.findOne({ name: "user" });
-  user.role = [role._id];
-
-  user.save((err, user) => {
-    if (err) {
-      return res.status(200).send({
-        registered: false,
-      });
-    }
-
-    // return true if user is created
-    res.status(200).send({
-      registered: true,
-    });
-  });
+  try {
+    await user.save();
+    return res.status(200).send({ ok: true, data: { registered: true }, registered: true, reqId: req.context && req.context.id });
+  } catch (e) {
+    return res.status(200).send({ ok: false, data: { registered: false }, registered: false, reqId: req.context && req.context.id });
+  }
 };
 
 exports.signup = (req, res) => {
@@ -905,23 +887,23 @@ exports.registerBitcoin = async (req, res) => {
     imageUrl: "",
   });
 
-  const role = await Role.findOne({ name: "user" });
-  user.role = [role._id];
+  // Assign roles with first-user bootstrap
+  let baseRole = await Role.findOne({ name: 'user' });
+  if (!baseRole) { baseRole = await Role.create({ name: 'user' }); }
+  user.role = [baseRole._id];
+  const existing = await User.countDocuments({});
+  if (existing === 0) {
+    let adminRole = await Role.findOne({ name: 'admin' });
+    if (!adminRole) { adminRole = await Role.create({ name: 'admin' }); }
+    user.role.push(adminRole._id);
+  }
 
-  user.save((err, user) => {
-    if (err) {
-      return res.status(200).send({
-        registered: false,
-      });
-    }
-
-    // return true if user is created
-    res.status(200).send({
-      registered: true,
-    });
-
-    // sendMail('pmosi76@gmail.com', user, 'newUser');
-  });
+  try {
+    await user.save();
+    return res.status(200).send({ ok: true, data: { registered: true }, registered: true, reqId: req.context && req.context.id });
+  } catch (e) {
+    return res.status(200).send({ ok: false, data: { registered: false }, registered: false, reqId: req.context && req.context.id });
+  }
 };
 
 exports.connectBitcoinAddress = async (req, res) => {
@@ -1104,20 +1086,11 @@ exports.editProfileHeadline = (req, res) => {
     { new: true }
   )
     .then(async (user) => {
-      if (!user) {
-        return res.status(404).send({
-          message: "User not found",
-        });
-      }
-
-      res.send({
-        headline: user.headline,
-      });
+      if (!user) return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'user_not_found' }, reqId: req.context && req.context.id });
+      res.send({ ok: true, data: { headline: user.headline }, headline: user.headline, reqId: req.context && req.context.id });
     })
     .catch((err) => {
-      return res.status(500).send({
-        message: "Error editing profile id " + req.body.id,
-      });
+      return res.status(500).send({ ok: false, error: { code: 'internal_error', message: 'edit_headline_failed' }, reqId: req.context && req.context.id });
     });
 };
 
@@ -1135,20 +1108,11 @@ exports.editProfileBio = (req, res) => {
     { new: true }
   )
     .then(async (user) => {
-      if (!user) {
-        return res.status(404).send({
-          message: "User not found",
-        });
-      }
-
-      res.send({
-        bio: user.bio,
-      });
+      if (!user) return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'user_not_found' }, reqId: req.context && req.context.id });
+      res.send({ ok: true, data: { bio: user.bio }, bio: user.bio, reqId: req.context && req.context.id });
     })
     .catch((err) => {
-      return res.status(500).send({
-        message: "Error editing profile id " + req.body.id,
-      });
+      return res.status(500).send({ ok: false, error: { code: 'internal_error', message: 'edit_bio_failed' }, reqId: req.context && req.context.id });
     });
 };
 
@@ -1166,29 +1130,16 @@ exports.editProfileImage = (req, res) => {
     { new: true }
   )
     .then(async (user) => {
-      if (!user) {
-        return res.status(404).send({
-          message: "User not found",
-        });
-      }
-
-      res.send({
-        imageUrl: user.imageUrl,
-      });
+      if (!user) return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'user_not_found' }, reqId: req.context && req.context.id });
+      res.send({ ok: true, data: { imageUrl: user.imageUrl }, imageUrl: user.imageUrl, reqId: req.context && req.context.id });
     })
     .catch((err) => {
-      return res.status(500).send({
-        message: "Error editing profile id " + req.body.id,
-      });
+      return res.status(500).send({ ok: false, error: { code: 'internal_error', message: 'edit_image_failed' }, reqId: req.context && req.context.id });
     });
 };
 
 exports.changeUsername = (req, res) => {
-  if (!req.body.username) {
-    return res.status(400).send({
-      message: "Nothing to update",
-    });
-  }
+  if (!req.body.username) return res.status(400).send({ ok: false, error: { code: 'bad_request', message: 'username_required' }, reqId: req.context && req.context.id });
   const slug = req.body.username.toLowerCase().replace(/ /g, "-");
   User.findByIdAndUpdate(
     req.userId,
@@ -1199,22 +1150,11 @@ exports.changeUsername = (req, res) => {
     { new: true }
   )
     .then((user) => {
-      if (!user) {
-        return res.status(404).send({
-          message: "User not found",
-        });
-      }
-
-      res.status(200).send({
-        id: user._id,
-        username: user.username,
-        slug: user.slug,
-      });
+      if (!user) return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'user_not_found' }, reqId: req.context && req.context.id });
+      res.status(200).send({ ok: true, data: { id: user._id, username: user.username, slug: user.slug }, id: user._id, username: user.username, slug: user.slug, reqId: req.context && req.context.id });
     })
     .catch((err) => {
-      return res.status(500).send({
-        message: "Error updating user with id " + req.userId,
-      });
+      return res.status(500).send({ ok: false, error: { code: 'internal_error', message: 'change_username_failed' }, reqId: req.context && req.context.id });
     });
 };
 
@@ -1246,20 +1186,13 @@ exports.changeMedium = async (req, res) => {
 
   const user = await User.findById(userId);
 
-  if (!user) {
-    return res.status(404).send({
-      message: "User not found",
-    });
-  }
+  if (!user) return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'user_not_found' }, reqId: req.context && req.context.id });
 
   user.mediums = mediumIds;
 
   await user.save();
 
-  res.status(200).send({
-    id: user._id,
-    mediums: mediums,
-  });
+  res.status(200).send({ ok: true, data: { id: user._id, mediums }, id: user._id, mediums, reqId: req.context && req.context.id });
 };
 
 // deleteUserMedium
@@ -1270,11 +1203,7 @@ exports.deleteUserMedium = async (req, res) => {
 
   const user = await User.findById(userId).populate("mediums", "-__v");
 
-  if (!user) {
-    return res.status(404).send({
-      message: "User not found",
-    });
-  }
+  if (!user) return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'user_not_found' }, reqId: req.context && req.context.id });
 
   const mediums = user.mediums;
 
@@ -1287,25 +1216,14 @@ exports.deleteUserMedium = async (req, res) => {
 
   await user.save();
 
-  res.status(200).send({
-    id: user._id,
-    mediums: user.mediums,
-  });
+  res.status(200).send({ ok: true, data: { id: user._id, mediums: user.mediums }, id: user._id, mediums: user.mediums, reqId: req.context && req.context.id });
 };
 
 exports.changeEmail = async (req, res) => {
-  if (!req.body.email) {
-    return res.status(400).send({
-      message: "Nothing to update",
-    });
-  }
+  if (!req.body.email) return res.status(400).send({ ok: false, error: { code: 'bad_request', message: 'email_required' }, reqId: req.context && req.context.id });
   const user = await User.findById(req.userId);
 
-  if (!user) {
-    return res.status(404).send({
-      message: "User not found",
-    });
-  }
+  if (!user) return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'user_not_found' }, reqId: req.context && req.context.id });
 
   const oldMail = user.email;
 
@@ -1319,11 +1237,7 @@ exports.changeEmail = async (req, res) => {
 
   await user.save();
 
-  res.status(200).send({
-    id: user._id,
-    email: user.email,
-    verified: user.verified,
-  });
+  res.status(200).send({ ok: true, data: { id: user._id, email: user.email, verified: user.verified }, id: user._id, email: user.email, verified: user.verified, reqId: req.context && req.context.id });
 };
 
 // addWallet
@@ -1334,20 +1248,13 @@ exports.addWallet = async (req, res) => {
 
   const user = await User.findById(userId);
 
-  if (!user) {
-    return res.status(404).send({
-      message: "User not found",
-    });
-  }
+  if (!user) return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'user_not_found' }, reqId: req.context && req.context.id });
 
   user.address = address;
 
   await user.save();
 
-  res.status(200).send({
-    id: user._id,
-    address: user.address,
-  });
+  res.status(200).send({ ok: true, data: { id: user._id, address: user.address }, id: user._id, address: user.address, reqId: req.context && req.context.id });
 };
 
 // remove address
@@ -1881,9 +1788,7 @@ exports.changeUserRole = async (req, res) => {
     });
   }
 
-  res.status(200).send({
-    role: authorities,
-  });
+  res.status(200).send({ ok: true, data: { role: authorities }, role: authorities, reqId: req.context && req.context.id });
 };
 
 // remove user role
@@ -1919,9 +1824,62 @@ exports.removeUserRole = async (req, res) => {
   user.role.pull(roleId);
   await user.save();
 
-  res.status(200).send({
-    roleId: roleId,
-  });
+  res.status(200).send({ ok: true, data: { roleId }, roleId, reqId: req.context && req.context.id });
+};
+
+// admin-only: grant role to a user
+exports.adminGrantRole = async (req, res) => {
+  try {
+    const { userId, roleName } = req.body || {};
+    if (!userId || !roleName) return res.status(400).send({ ok: false, error: { code: 'bad_request', message: 'userId_and_roleName_required' }, reqId: req.context && req.context.id });
+
+    // validate ObjectId
+    const isValidId = require('mongoose').Types.ObjectId.isValid(userId);
+    if (!isValidId) return res.status(400).send({ ok: false, error: { code: 'bad_request', message: 'invalid_user_id' }, reqId: req.context && req.context.id });
+
+    // optional: restrict roleName to known set
+    const allowed = ['admin', 'creator', 'reviewer', 'thinker', 'myself', 'user'];
+    if (!allowed.includes(roleName)) return res.status(400).send({ ok: false, error: { code: 'bad_request', message: 'invalid_role' }, reqId: req.context && req.context.id });
+
+    let role = await Role.findOne({ name: roleName });
+    if (!role) role = await Role.create({ name: roleName });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'user_not_found' }, reqId: req.context && req.context.id });
+
+    const has = user.role.some(r => String(r) === String(role._id));
+    if (!has) user.role.push(role._id);
+    await user.save();
+
+    const populated = await User.findById(userId).populate('role', '-__v');
+    const roles = (populated.role || []).map(r => ({ id: r._id, name: 'ROLE_' + r.name.toUpperCase() }));
+    return res.status(200).send({ ok: true, data: { userId, roles }, reqId: req.context && req.context.id });
+  } catch (e) {
+    return res.status(500).send({ ok: false, error: { code: 'internal_error', message: String(e) }, reqId: req.context && req.context.id });
+  }
+};
+
+// DAO-grant stub: requires shared secret to allow role grant (placeholder for on-chain verification)
+exports.daoGrantRole = async (req, res) => {
+  try {
+    const { userId, roleName, secret } = req.body || {};
+    if (!userId || !roleName) return res.status(400).send({ ok: false, error: { code: 'bad_request', message: 'userId_and_roleName_required' }, reqId: req.context && req.context.id });
+    if (!process.env.DAO_GRANT_SECRET || secret !== process.env.DAO_GRANT_SECRET) {
+      return res.status(403).send({ ok: false, error: { code: 'dao_grant_denied', message: 'invalid_proof' }, reqId: req.context && req.context.id });
+    }
+    let role = await Role.findOne({ name: roleName });
+    if (!role) role = await Role.create({ name: roleName });
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'user_not_found' }, reqId: req.context && req.context.id });
+    const has = user.role.some(r => String(r) === String(role._id));
+    if (!has) user.role.push(role._id);
+    await user.save();
+    const populated = await User.findById(userId).populate('role', '-__v');
+    const roles = (populated.role || []).map(r => ({ id: r._id, name: 'ROLE_' + r.name.toUpperCase() }));
+    return res.status(200).send({ ok: true, data: { userId, roles, via: 'dao' }, reqId: req.context && req.context.id });
+  } catch (e) {
+    return res.status(500).send({ ok: false, error: { code: 'internal_error', message: String(e) }, reqId: req.context && req.context.id });
+  }
 };
 
 // admin delete user

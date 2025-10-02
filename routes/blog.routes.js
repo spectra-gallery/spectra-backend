@@ -3,6 +3,7 @@ const {authJwt} = require('../middlewares');
 const {objectId} = require('../middlewares');
 const {verifyPost} = require('../middlewares');
 const controller = require('../controllers/blog.controller');
+const asyncWrap = require('../middlewares/asyncWrap');
 const uploadController = require('../controllers/fileUpload.controller');
 
 module.exports = function(app) {
@@ -206,24 +207,16 @@ module.exports = function(app) {
 
   // numberOfLikedPosts
 
-  app.get('/api/blog/likednumber/:id', [authJwt.verifySession, objectId.isValidObjectId], (req, res) => {
-    const elements = controller.numberOfLikedPosts(req, res);
-    elements.then((elements) => {
-      res.status(200).send({
-        number: elements,
-      });
-    });
-  });
+  app.get('/api/blog/likednumber/:id', [authJwt.verifySession, objectId.isValidObjectId], asyncWrap(async (req, res) => {
+    const number = await controller.numberOfLikedPosts(req, res);
+    res.status(200).send({ number });
+  }));
 
   // fetchLikedPosts
-  app.get('/api/blog/liked/:id', [authJwt.verifySession, objectId.isValidObjectId], (req, res) => {
-    const elements = controller.fetchLikedPosts(req, res);
-    elements.then((elements) => {
-      res.status(200).send({
-        ...elements,
-      });
-    });
-  });
+  app.get('/api/blog/liked/:id', [authJwt.verifySession, objectId.isValidObjectId], asyncWrap(async (req, res) => {
+    const elements = await controller.fetchLikedPosts(req, res);
+    res.status(200).send({ ...elements });
+  }));
 
 
   // fetchLatestPostByArtist

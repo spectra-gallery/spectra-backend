@@ -96,7 +96,9 @@ async function initController() {
   }
 }
 
-initController();
+if (process.env.DISABLE_AUTO_SETUP !== '1') {
+  initController();
+}
 
 function getAppStatus(req, res) {
   res.json({
@@ -110,6 +112,51 @@ function getAppStatus(req, res) {
 
 function getPendingTokens(token) {
   return pendingTokens[token] || null;
+}
+
+// Admin: re-run handshake and key/public-key fetch with Storage
+const { getStorageToken } = require("../services/storageSetup");
+
+async function adminRehandshake(req, res) {
+  try {
+    const token = getStorageToken();
+    // 1) Ensure storage is configured
+    const cfg = await _configureStorage({ token }, { json: () => {} });
+    // 2) Ensure API <-> Storage auth is valid
+    const apiCfg = await _apiAuthConfig({ token }, { json: () => {} });
+    // 3) Trigger a sign-and-send ping to validate signature + transport
+    const payload = JSON.stringify({ apiId: appCypherConfig.API_ID });
+    const result = await verifyApiSignature(payload, signDataWithPrivateKey(payload), token);
+
+    res.json({ ok: true, step: { cfg: !!cfg, apiCfg: !!apiCfg }, result });
+  } catch (e) {
+    console.error('[adminRehandshake] error', e);
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+}
+
+// Admin: request a restart; assumes external supervisor (PM2/systemd) to bring it back
+async function adminRestart(req, res) {
+  try {
+    const { service } = req.params;
+    if (service === 'backend') {
+      res.json({ ok: true, restarting: true });
+      setTimeout(() => process.exit(1), 250);
+      return;
+    }
+    if (service === 'storage') {
+      // best-effort ping for storage to encourage a soft cycle if exposed
+      try {
+        // No standard restart endpoint; send a configuration nudge
+        await _configureStorage({ token: req?.token }, { json: () => {} });
+      } catch (_) {}
+      res.json({ ok: true, message: 'Requested storage re-config; ensure your supervisor restarts it if down.' });
+      return;
+    }
+    res.status(400).json({ ok: false, error: 'Unknown service' });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
 }
 
 async function setupAuth(req, res) {
@@ -413,7 +460,7 @@ async function _verifyAuthentication(req, res) {
 }
 
 async function signAndSend(req, res) {
-  const token = pendingTokens[req.token].token;
+  const token = (pendingTokens[req.token]?.token) || getStorageToken();
   try {
     const data = JSON.stringify({
       apiId: appCypherConfig.API_ID,
@@ -858,4 +905,6 @@ module.exports = {
   _apiAuthConfig,
   getStorageConfigStatus,
   getEncryptedData,
+  adminRestart,
+  adminRehandshake,
 };

@@ -3,6 +3,7 @@ const mail = require('../middlewares/mail');
 require('dotenv').config();
 const Gallery = db.gallery;
 const Tag = db.tag;
+const logger = require('../utils/logger');
 
 exports.fetchGalleries = (req, res) => {
   const page = req.params.page;
@@ -81,9 +82,7 @@ exports.fetchGalleryById = (req, res) => {
 
 exports.createGallery = (req, res) => {
   if (!req.body.name || !req.body.description) {
-    return res.status(400).send({
-      message: 'Fields cannot be empty',
-    });
+    return res.status(400).send({ ok: false, error: { code: 'bad_request', message: 'fields_required' }, reqId: req.context && req.context.id });
   }
 
   const userId = req.userId;
@@ -114,7 +113,7 @@ exports.createGallery = (req, res) => {
                 .then((data) => {
                   _gallery.tag.push(data._id);
                 }).catch((err) => {
-                  console.log(err);
+                  logger.error('gallery_tag_create_failed', { err: String(err), reqId: req && req.context && req.context.id });
                 });
           }
           if (element) {
@@ -130,9 +129,7 @@ exports.createGallery = (req, res) => {
           id: _gallery._id,
         });
       }).catch((err) => {
-        res.status(500).send({
-          message: err.message || 'Error Creating Gallery',
-        });
+        res.status(500).send({ ok: false, error: { code: 'internal_error', message: err.message || 'gallery_create_failed' }, reqId: req.context && req.context.id });
       });
 
 
@@ -140,11 +137,7 @@ exports.createGallery = (req, res) => {
 
 
   mail.sendMail(options, (err, info) => {
-    if (err) {
-      console.log(err);
-    } else {
-      console.log(info);
-    }
+    if (err) { logger.error('gallery_mail_send_error', { err: String(err) }) } else { logger.info('gallery_mail_sent', { info }) }
   });
 };
 
@@ -236,24 +229,15 @@ exports.setViews = (req, res) => {
 
         gallery.save()
             .then((data) => {
-              res.send({
-                id: data._id,
-                views: data.views,
-              });
+              res.status(200).send({ ok: true, data: { id: data._id, views: data.views }, reqId: req.context && req.context.id });
             }).catch((err) => {
-              res.status(500).send({
-                message: err.message || 'Error View gallery',
-              });
+              res.status(500).send({ ok: false, error: { code: 'internal_error', message: err.message || 'gallery_view_error' }, reqId: req.context && req.context.id });
             });
       }).catch((err) => {
         if (err.kind === 'ObjectId') {
-          return res.status(404).send({
-            message: 'Gallery not found id ' + id,
-          });
+          return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'gallery_not_found' }, reqId: req.context && req.context.id });
         }
-        return res.status(500).send({
-          message: 'Gallery not update id ' + id,
-        });
+        return res.status(500).send({ ok: false, error: { code: 'internal_error', message: 'gallery_update_failed' }, reqId: req.context && req.context.id });
       });
 };
 
@@ -262,36 +246,23 @@ exports.deleteGallery = (req, res) => {
   Gallery.findById(req.params.id)
       .then((gallery) => {
         if (!gallery) {
-          return res.status(404).send({
-            message: 'Gallery not found id ' + req.params.id,
-          });
+          return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'gallery_not_found' }, reqId: req.context && req.context.id });
         }
 
         if (!gallery.artists.includes(req.userId)) {
-          return res.status(404).send({
-            message: 'You are not authorized to delete this gallery',
-          });
+          return res.status(403).send({ ok: false, error: { code: 'forbidden', message: 'not_owner' }, reqId: req.context && req.context.id });
         }
         gallery.remove()
             .then((data) => {
-              res.send({
-                id: data._id,
-              });
+              res.status(200).send({ ok: true, data: { id: data._id }, reqId: req.context && req.context.id });
             }).catch((err) => {
-              res.status(500).send({
-                message: err.message ||
-                'Could not delete Gallery id ' + req.params.id,
-              });
+              res.status(500).send({ ok: false, error: { code: 'internal_error', message: err.message || 'gallery_delete_failed' }, reqId: req.context && req.context.id });
             });
       }).catch((err) => {
         if (err.kind === 'ObjectId') {
-          return res.status(404).send({
-            message: 'Gallery not found id ' + req.params.id,
-          });
+          return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'gallery_not_found' }, reqId: req.context && req.context.id });
         }
-        return res.status(500).send({
-          message: 'Could not delete Gallery id ' + req.params.id,
-        });
+        return res.status(500).send({ ok: false, error: { code: 'internal_error', message: 'gallery_delete_failed' }, reqId: req.context && req.context.id });
       });
 };
 
@@ -314,15 +285,11 @@ exports.editGallery = async (req, res) => {
   const gallery = await Gallery.findById(id);
 
   if (!gallery) {
-    return res.status(404).send({
-      message: 'Gallery not found id ' + id,
-    });
+    return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'gallery_not_found' }, reqId: req.context && req.context.id });
   }
 
   if (!gallery.artists.includes(userId)) {
-    return res.status(404).send({
-      message: 'You are not authorized to edit this gallery',
-    });
+    return res.status(403).send({ ok: false, error: { code: 'forbidden', message: 'not_owner' }, reqId: req.context && req.context.id });
   }
 
   Gallery.findByIdAndUpdate(id, {
@@ -364,7 +331,7 @@ exports.editGallery = async (req, res) => {
                 .then((data) => {
                   gallery.tag.push(data._id);
                 }).catch((err) => {
-                  console.log(err);
+                  logger.error('gallery_tag_push_failed', { err: String(err), reqId: req && req.context && req.context.id });
                 });
           }
 
@@ -375,18 +342,12 @@ exports.editGallery = async (req, res) => {
         await Promise.all(tagPromises);
         await gallery.save();
 
-        res.send({
-          id: gallery._id,
-        });
+        res.status(200).send({ ok: true, data: { id: gallery._id }, reqId: req.context && req.context.id });
       }).catch((err) => {
         if (err.kind === 'ObjectId') {
-          return res.status(404).send({
-            message: 'Gallery not found id ' + req.params.id,
-          });
+          return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'gallery_not_found' }, reqId: req.context && req.context.id });
         }
-        return res.status(500).send({
-          message: 'Gallery not update id ' + req.params.id,
-        });
+        return res.status(500).send({ ok: false, error: { code: 'internal_error', message: 'gallery_update_failed' }, reqId: req.context && req.context.id });
       });
 };
 
@@ -414,9 +375,7 @@ exports.likeGallery = (req, res) => {
   Gallery.findById(req.params.id)
       .then((gallery) => {
         if (!gallery) {
-          return res.status(404).send({
-            message: 'Gallery not found',
-          });
+          return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'gallery_not_found' }, reqId: req.context && req.context.id });
         }
 
         const like = gallery.like;
@@ -438,17 +397,11 @@ exports.likeGallery = (req, res) => {
         gallery.likes = likes;
         gallery.save();
 
-        res.send({
-          id: gallery._id,
-          like: gallery.like,
-          likes: gallery.likes,
-        });
+        res.status(200).send({ ok: true, data: { id: gallery._id, like: gallery.like, likes: gallery.likes }, reqId: req.context && req.context.id });
 
         // res.send({});
       }).catch((err) => {
-        return res.status(500).send({
-          message: 'Error liking Gallery',
-        });
+        return res.status(500).send({ ok: false, error: { code: 'internal_error', message: 'gallery_like_failed' }, reqId: req.context && req.context.id });
       });
 };
 
@@ -461,12 +414,12 @@ exports.setGalleryExhibition = async (req, res) => {
   const gallery = await Gallery.findOne({_id: id});
 
   if (!gallery) {
-    res.status(404).send({message: 'Gallery Not found.'});
+    res.status(404).send({ ok: false, error: { code: 'not_found', message: 'gallery_not_found' }, reqId: req.context && req.context.id });
     return;
   }
 
   if (!gallery.artists.includes(userId)) {
-    res.status(404).send({message: 'You are not the owner of this gallery.'});
+    res.status(403).send({ ok: false, error: { code: 'forbidden', message: 'not_owner' }, reqId: req.context && req.context.id });
     return;
   }
 
@@ -474,12 +427,9 @@ exports.setGalleryExhibition = async (req, res) => {
 
   gallery.save((err, gallery) => {
     if (err) {
-      res.status(500).send({message: err});
+      res.status(500).send({ ok: false, error: { code: 'internal_error', message: String(err) }, reqId: req.context && req.context.id });
       return;
     }
-    res.status(200).send({
-      id: gallery._id,
-      exhibition: gallery.exhibition,
-    });
+    res.status(200).send({ ok: true, data: { id: gallery._id, exhibition: gallery.exhibition }, reqId: req.context && req.context.id });
   });
 };

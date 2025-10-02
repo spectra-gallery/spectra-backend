@@ -7,7 +7,8 @@ const User = db.user;
 
 const { ethers } = require("ethers");
 
-const puppeteer = require('puppeteer');
+const { puppeteer, getLaunchOptions } = require('../helpers/puppeteer.helpers');
+const { puppeteerSemaphore } = require('../helpers/concurrency');
 
 const contract = require("../artifacts/contracts/Spectra.sol/Spectra.json");
 
@@ -243,7 +244,8 @@ const parseAttributes = async (htmlContent, hash) => {
   const sketchContent = htmlContent.replace('___FIDDLER__HASH___', hashFunction)
 
     try {
-      const browser = await puppeteer.launch({headless: 'new'});
+      const release = await puppeteerSemaphore.acquire();
+      const browser = await puppeteer.launch(getLaunchOptions());
       const page = await browser.newPage();
   
       await page.setViewport({
@@ -273,7 +275,8 @@ const parseAttributes = async (htmlContent, hash) => {
         });
       }
       await browser.close();
-  
+      release();
+
       return traits;
     } catch (err) {
       console.log(err);

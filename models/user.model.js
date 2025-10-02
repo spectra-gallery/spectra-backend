@@ -16,7 +16,8 @@ const User = mongoose.model(
     email: String,
     password: {
       type: String,
-      required: true,
+      // Require password only when neither ETH address nor Bitcoin reference is present (email/password accounts)
+      required: function () { return !(this.address || this.bitcoin); },
       select: false
     },
     imageUrl: String,

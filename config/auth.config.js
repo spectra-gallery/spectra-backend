@@ -1,5 +1,5 @@
 module.exports = {
-  secret: 'spectra-6987423681',
-  jwtExpiration: 86400, // 24h
-  jwtRefreshExpiration: 172800, // 48h
+  secret: process.env.JWT_SECRET || 'change-me-in-prod',
+  jwtExpiration: Number(process.env.JWT_EXPIRATION || 86400), // seconds
+  jwtRefreshExpiration: Number(process.env.JWT_REFRESH_EXPIRATION || 172800),
 };

@@ -1,19 +1,19 @@
-const db = require("../models");
+// import models directly to reduce circular require warnings
+const User = require("../models/user.model");
+const Role = require("../models/role.model");
+const Medium = require("../models/medium.model");
+const Apply = require("../models/apply.model");
+const Serie = require("../models/serie.model");
+const Post = require("../models/post.model");
+const Portfolio = require("../models/portfolio.model");
+const Podcast = require("../models/podcast.model");
+const Word = require("../models/word.model");
+const Theme = require("../models/theme.model");
 const mail = require("../middlewares/mail");
 const { address } = require("bitcoinjs-lib");
 
 // const discord = require('../middlewares/discord');
 require("dotenv").config();
-const User = db.user;
-const Role = db.role;
-const Medium = db.medium;
-const Apply = db.apply;
-const Serie = db.serie;
-const Post = db.post;
-const Portfolio = db.portfolio;
-const Podcast = db.podcast;
-const Word = db.word;
-const Theme = db.theme;
 
 const dataViz = require("../config/dataviz.config");
 
@@ -25,11 +25,7 @@ exports.usernameToId = async (req, res) => {
     slug: username,
   });
 
-  if (!user) {
-    return res.status(404).send({
-      message: "User not found",
-    });
-  }
+  if (!user) return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'user_not_found' }, reqId: req.context && req.context.id });
 
   return res.status(200).send({
     id: user._id,
@@ -1762,11 +1758,7 @@ exports.getApplyId = async (req, res) => {
     user: user._id,
   });
 
-  if (!apply) {
-    return res.status(404).send({
-      message: "Application not found",
-    });
-  }
+  if (!apply) return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'application_not_found' }, reqId: req.context && req.context.id });
 
   res.status(200).send({
     id: apply._id,
@@ -1854,15 +1846,8 @@ exports.getApplications = async (req, res) => {
     user: id,
   });
 
-  if (!applications) {
-    return res.status(404).send({
-      message: "Applications not found",
-    });
-  }
-
-  res.status(200).send({
-    applications: applications,
-  });
+  if (!applications) return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'applications_not_found' }, reqId: req.context && req.context.id });
+  res.status(200).send({ ok: true, data: { applications }, applications, reqId: req.context && req.context.id });
 };
 
 // get creator applications
@@ -1872,11 +1857,7 @@ exports.getCreatorApplications = async (req, res) => {
     .populate("grantedBy", "username _id imageUrl")
     .populate("user", "username _id imageUrl");
 
-  if (!applications) {
-    return res.status(404).send({
-      message: "Applications not found",
-    });
-  }
+  if (!applications) return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'applications_not_found' }, reqId: req.context && req.context.id });
 
   const applicationsArray = [];
 
@@ -1893,9 +1874,7 @@ exports.getCreatorApplications = async (req, res) => {
     });
   }
 
-  res.status(200).send({
-    applications: applicationsArray,
-  });
+  res.status(200).send({ ok: true, data: { applications: applicationsArray }, applications: applicationsArray, reqId: req.context && req.context.id });
 };
 
 // grant application
@@ -1971,12 +1950,7 @@ exports.grantApplication = async (req, res) => {
     _id: id,
   }).populate("grantedBy", "username _id imageUrl");
 
-  res.status(200).send({
-    id: apply._id,
-    granted: apply.granted,
-    grantedBy: apply.grantedBy,
-    status: apply.status,
-  });
+  res.status(200).send({ ok: true, data: { id: apply._id, granted: apply.granted, grantedBy: apply.grantedBy, status: apply.status }, id: apply._id, granted: apply.granted, grantedBy: apply.grantedBy, status: apply.status, reqId: req.context && req.context.id });
 };
 
 // deny application
@@ -1989,21 +1963,13 @@ exports.denyApplication = async (req, res) => {
     _id: id,
   }).populate("user", "username _id imageUrl");
 
-  if (!apply) {
-    return res.status(404).send({
-      message: "Application not found",
-    });
-  }
+  if (!apply) return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'application_not_found' }, reqId: req.context && req.context.id });
 
   const user = await User.findOne({
     _id: apply.user._id,
   });
 
-  if (!user) {
-    return res.status(404).send({
-      message: "User not found",
-    });
-  }
+  if (!user) return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'user_not_found' }, reqId: req.context && req.context.id });
 
   const role = await Role.findOne({
     name: "creator",
@@ -2028,12 +1994,7 @@ exports.denyApplication = async (req, res) => {
     _id: id,
   }).populate("grantedBy", "username _id imageUrl");
 
-  res.status(200).send({
-    id: apply._id,
-    granted: apply.granted,
-    grantedBy: apply.grantedBy,
-    status: apply.status,
-  });
+  res.status(200).send({ ok: true, data: { id: apply._id, granted: apply.granted, grantedBy: apply.grantedBy, status: apply.status }, id: apply._id, granted: apply.granted, grantedBy: apply.grantedBy, status: apply.status, reqId: req.context && req.context.id });
 };
 
 // admin remove application
@@ -2044,18 +2005,11 @@ exports.adminRemoveApplication = async (req, res) => {
     _id: id,
   });
 
-  if (!apply) {
-    return res.status(404).send({
-      message: "Application not found",
-    });
-  }
+  if (!apply) return res.status(404).send({ ok: false, error: { code: 'not_found', message: 'application_not_found' }, reqId: req.context && req.context.id });
 
   await apply.remove();
 
-  res.status(200).send({
-    id: id,
-    message: "Application removed",
-  });
+  res.status(200).send({ ok: true, data: { id }, id, message: 'Application removed', reqId: req.context && req.context.id });
 };
 
 // Retrieve and return section by id from the database.

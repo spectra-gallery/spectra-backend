@@ -1,11 +1,10 @@
-const db = require('../models');
+const Serie = require('../models/serie.model');
+const Element = require('../models/element.model');
+const User = require('../models/user.model');
 const mail = require('../middlewares/mail');
 const { path } = require('chromium');
 
 require('dotenv').config();
-const Serie = db.serie;
-const Element = db.element;
-const User = db.user;
 
 /*
 exports.fetchAllSeriesByNumber = (req, res) => {
@@ -124,7 +123,7 @@ exports.fetchAllElementsByNumber = async (req, res) => {
         .exec();
 
     if (!elements) {
-        return res.status(404).send({ message: 'Elements not found' });
+        return res.status(404).send({ ok: false, error: 'not_found', reqId: req.context && req.context.id });
     }
 
     const elementObj = [];
@@ -156,9 +155,7 @@ exports.fetchAllElementsByNumber = async (req, res) => {
         });
     }
 
-    return res.status(200).send({
-        elements: elementObj,
-    });
+    return res.status(200).send({ ok: true, data: { elements: elementObj }, reqId: req.context && req.context.id });
 }
 
 exports.fetchElementById = async (req, res) => {
@@ -190,10 +187,7 @@ exports.fetchElementById = async (req, res) => {
         .exec();
 
     if (!element) {
-        return res.status(404).send({ message: 'Element not found' });
+        return res.status(404).send({ ok: false, error: 'not_found', reqId: req.context && req.context.id });
     }
-
-    return res.status(200).send({
-        element,
-    });
+    return res.status(200).send({ ok: true, data: { element }, reqId: req.context && req.context.id });
 };

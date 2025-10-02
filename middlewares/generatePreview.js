@@ -1,4 +1,5 @@
-const puppeteer = require('puppeteer');
+const { puppeteer, getLaunchOptions } = require('../helpers/puppeteer.helpers');
+const { puppeteerSemaphore } = require('../helpers/concurrency');
 const fs = require('fs');
 require('dotenv').config();
 
@@ -20,7 +21,8 @@ generatePreview = async (previewUrl, captureDelay, cssSelector, hash) => {
  * @return {Promise<Buffer>} A promise that resolves with the PNG image.
  */
     async function htmlToPng(_url, _cssSelector) {
-      const browser = await puppeteer.launch({headless: 'new'});
+      const release = await puppeteerSemaphore.acquire();
+      const browser = await puppeteer.launch(getLaunchOptions());
       const page = await browser.newPage();
 
       // proxy requests to ordinals endpoints
@@ -94,6 +96,7 @@ generatePreview = async (previewUrl, captureDelay, cssSelector, hash) => {
           }});
       }
       await browser.close();
+      release();
       return imageBuffer;
     }
 
@@ -136,7 +139,8 @@ generateRawPreview = async (previewUrl, captureDelay, hash) => {
  * @return {Promise<Buffer>} A promise that resolves with the PNG image.
  */
     async function htmlToPng(_url) {
-      const browser = await puppeteer.launch({headless: 'new'});
+      const release = await puppeteerSemaphore.acquire();
+      const browser = await puppeteer.launch(getLaunchOptions());
       const page = await browser.newPage();
       await page.setViewport({
         width: 800,
@@ -150,6 +154,7 @@ generateRawPreview = async (previewUrl, captureDelay, hash) => {
         type: 'png',
       });
       await browser.close();
+      release();
       return imageBuffer;
     }
 
