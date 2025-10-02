@@ -10,22 +10,27 @@ const dbConfig = require('../config/db.config');
 
 const SESSION_SECRET = appCypherConfig.SESSION_SECRET;
 
-const MONGO_URI = `mongodb://${dbConfig.DB_USER}:${encodeURIComponent(dbConfig.DB_PASSWORD)}@${dbConfig.HOST}:${dbConfig.PORT}/${dbConfig.DB}?authSource=${dbConfig.AUTH_SOURCE}`;
+const hasDbCreds = Boolean(dbConfig.DB_USER && dbConfig.DB_PASSWORD);
+const MONGO_URI = hasDbCreds
+  ? `mongodb://${dbConfig.DB_USER}:${encodeURIComponent(dbConfig.DB_PASSWORD)}@${dbConfig.HOST}:${dbConfig.PORT}/${dbConfig.DB}?authSource=${dbConfig.AUTH_SOURCE}`
+  : `mongodb://${dbConfig.HOST}:${dbConfig.PORT}/${dbConfig.DB}`;
 
 module.exports = function (app) {
+  const cookieSecure = (process.env.COOKIE_SECURE === '1') || (process.env.NODE_ENV === 'production');
   app.use(
-      session({
-        secret: SESSION_SECRET || "keyboard cat",
-        resave: false,
-        saveUninitialized: false,
-        store: MongoStore.create({ mongoUrl: MONGO_URI }),
-        cookie: {
-          httpOnly: true,
-          secure: false, // set to true if you run HTTPS in production
-          maxAge: 1000 * 60 * 60, // 1 hour
-        },
-      })
-    );
+    session({
+      secret: SESSION_SECRET || 'keyboard cat',
+      resave: false,
+      saveUninitialized: false,
+      store: MongoStore.create({ mongoUrl: MONGO_URI }),
+      cookie: {
+        httpOnly: true,
+        secure: cookieSecure,
+        sameSite: cookieSecure ? 'none' : 'lax',
+        maxAge: 1000 * 60 * 60,
+      },
+    })
+  );
 
   app.use(function (req, res, next) {
     res.header(
@@ -75,7 +80,8 @@ module.exports = function (app) {
 
   app.post('/app/auth/api/upload/data', [authAPI.verifySignature], /*upload.single('file'),*/ getEncryptedData);
 
-  // Admin controls for recovery (email decision workflow)
-  app.get('/app/admin/restart/:service', adminRestart);
-  app.get('/app/admin/rehandshake/:peer', adminRehandshake);
+  // Admin controls for recovery (protected by token)
+  const adminToken = require('../middlewares/adminToken');
+  app.get('/app/admin/restart/:service', adminToken, adminRestart);
+  app.get('/app/admin/rehandshake/:peer', adminToken, adminRehandshake);
 };

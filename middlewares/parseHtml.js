@@ -43,7 +43,8 @@ const parseHTML = async (htmlString) => {
     const fileUrl = BASE_URL + filePath;
 
     // Launch puppeteer
-    const browser = await puppeteer.launch();
+    const release = await puppeteerSemaphore.acquire();
+    const browser = await puppeteer.launch(getLaunchOptions());
     const page = await browser.newPage();
 
     // Load the HTML file into the page
@@ -70,6 +71,7 @@ const parseHTML = async (htmlString) => {
 
     // Close the browser
     await browser.close();
+    release();
 
     // Return the parsed content
     return {

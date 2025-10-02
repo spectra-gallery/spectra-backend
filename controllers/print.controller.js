@@ -14,7 +14,9 @@ const Order = db.order;
 const Customer = db.customer;
 
 const axios = require('axios');
-const puppeteer = require('puppeteer');
+const { SwissPostClient, SwissPostAddressClient } = require('../services/swisspostClient');
+const { puppeteer, getLaunchOptions } = require('../helpers/puppeteer.helpers');
+const { puppeteerSemaphore } = require('../helpers/concurrency');
 const bcrypt = require('bcryptjs');
 const keccak256 = require('keccak256')
 const serieController = require('./serie.controller');
@@ -30,6 +32,30 @@ const STORAGE_URL = process.env.STORAGE_URL;
 
 const SWISSPOST_API_URL = process.env.SWISSPOST_API_URL;
 const SWISSPOST_API_KEY = process.env.SWISSPOST_API_KEY;
+const SWISSPOST_API_KEY_HEADER = process.env.SWISSPOST_API_KEY_HEADER || 'X-Apim-Api-Key';
+const SWISSPOST_API_CLIENT_ID = process.env.SWISSPOST_API_CLIENT_ID || '';
+const SWISSPOST_API_CLIENT_SECRET = process.env.SWISSPOST_API_CLIENT_SECRET || '';
+const SWISSPOST_COUNTRIES_PATH = process.env.SWISSPOST_COUNTRIES_PATH || '/countries';
+const SWISSPOST_PRODUCTS_PATH = process.env.SWISSPOST_PRODUCTS_PATH || '/products';
+const SWISSPOST_ADDRESS_API_URL = process.env.SWISSPOST_ADDRESS_API_URL || SWISSPOST_API_URL;
+const SWISSPOST_ADDRESS_API_KEY = process.env.SWISSPOST_ADDRESS_API_KEY || SWISSPOST_API_KEY;
+const SWISSPOST_ADDRESS_API_KEY_HEADER = process.env.SWISSPOST_ADDRESS_API_KEY_HEADER || SWISSPOST_API_KEY_HEADER;
+const SWISSPOST_ADDRESS_API_CLIENT_ID = process.env.SWISSPOST_ADDRESS_API_CLIENT_ID || SWISSPOST_API_CLIENT_ID;
+const SWISSPOST_ADDRESS_API_CLIENT_SECRET = process.env.SWISSPOST_ADDRESS_API_CLIENT_SECRET || SWISSPOST_API_CLIENT_SECRET;
+const SWISSPOST_ADDRESS_VALIDATE_PATH = process.env.SWISSPOST_ADDRESS_VALIDATE_PATH || '/addresses/validate';
+
+const spClient = (SWISSPOST_API_URL && SWISSPOST_API_KEY)
+  ? new SwissPostClient({ baseURL: SWISSPOST_API_URL, apiKey: SWISSPOST_API_KEY, apiKeyHeader: SWISSPOST_API_KEY_HEADER, apiClientId: SWISSPOST_API_CLIENT_ID, apiClientSecret: SWISSPOST_API_CLIENT_SECRET, countriesPath: SWISSPOST_COUNTRIES_PATH, productsPath: SWISSPOST_PRODUCTS_PATH, paramMap: {
+    isoCode: process.env.SWISSPOST_PARAM_COUNTRY || 'isoCode',
+    format: process.env.SWISSPOST_PARAM_FORMAT || 'format',
+    weight: process.env.SWISSPOST_PARAM_WEIGHT || 'weight',
+    lang: process.env.SWISSPOST_PARAM_LANG || 'lang',
+    fields: process.env.SWISSPOST_PARAM_FIELDS || 'fields'
+  } })
+  : null;
+const spAddress = (SWISSPOST_ADDRESS_API_URL && SWISSPOST_ADDRESS_API_KEY)
+  ? new SwissPostAddressClient({ baseURL: SWISSPOST_ADDRESS_API_URL, apiKey: SWISSPOST_ADDRESS_API_KEY, apiKeyHeader: SWISSPOST_ADDRESS_API_KEY_HEADER, apiClientId: SWISSPOST_ADDRESS_API_CLIENT_ID, apiClientSecret: SWISSPOST_ADDRESS_API_CLIENT_SECRET, validatePath: SWISSPOST_ADDRESS_VALIDATE_PATH })
+  : null;
 
 /** ----- Print Payment Controller ---- */
 exports.createPrintPaymentIntent = async (req, res) => {
@@ -62,40 +88,129 @@ exports.createPrintPaymentIntent = async (req, res) => {
 
 };
 
+let countriesCache = { data: null, ts: 0 };
+const COUNTRIES_TTL_MS = Number(process.env.SWISSPOST_COUNTRIES_TTL_MS || 6 * 60 * 60 * 1000); // 6h default
+
 const getCountryList = async () => {
-    const response = await axios.get(`${SWISSPOST_API_URL}/countries?lang=en&fields=isoCode,displayName`, {
-        headers: {
-            'X-Apim-Api-Key': SWISSPOST_API_KEY,
-        },
-    });
-
-    const countries = response.data.countries;
-
-    return countries;
-
+    if (!spClient) return [];
+    const now = Date.now();
+    if (countriesCache.data && (now - countriesCache.ts < COUNTRIES_TTL_MS)) {
+        return countriesCache.data;
+    }
+    // Mock mode for local dev
+    if (process.env.SWISSPOST_MOCK === '1') {
+        const list = [
+            { isoCode: 'CH', displayName: 'Switzerland' },
+            { isoCode: 'DE', displayName: 'Germany' },
+            { isoCode: 'FR', displayName: 'France' },
+            { isoCode: 'US', displayName: 'United States' }
+        ];
+        countriesCache = { data: list, ts: now };
+        return list;
+    }
+    const list = await spClient.getCountries({ lang: 'en' });
+    countriesCache = { data: list, ts: now };
+    return list;
 };
 
 exports.getCountryList = async (req, res) => {
-    const countries = await getCountryList();
-
-    res.status(200).send({ ok: true, data: { countries }, reqId: req.context && req.context.id });
+    try {
+        const countries = await getCountryList();
+        res.status(200).send({ ok: true, data: { countries }, reqId: req.context && req.context.id });
+    } catch (err) {
+        logger.error('swisspost_countries_error', { err: String(err), reqId: req.context && req.context.id });
+        res.status(502).send({ ok: false, error: 'countries_fetch_failed', reqId: req.context && req.context.id });
+    }
 };
 
 exports.getCountryInfo = async (req, res) => {
-    const countryIsoCode = req.params.code;
-    const format = req.query.format;
-    const weight = req.query.weight;
+    try {
+        const countryIsoCode = (req.params.code || '').toUpperCase();
+        const format = String(req.query.format || '').toUpperCase();
+        // Swiss Post products often expect grams as integer
+        const weightNum = Math.ceil(Number(req.query.weight));
 
-    const response = await axios.get(`${SWISSPOST_API_URL}/products/?isoCode=${countryIsoCode}&format=${format}&weight=${weight}`, {
-        headers: {
-            'X-Apim-Api-Key': SWISSPOST_API_KEY,
-        },
-    });
+        if (!countryIsoCode || !/^[A-Z]{2}$/.test(countryIsoCode)) {
+            return res.status(400).send({ ok: false, error: 'invalid_country_code', reqId: req.context && req.context.id });
+        }
+        if (!format) {
+            return res.status(400).send({ ok: false, error: 'invalid_format', reqId: req.context && req.context.id });
+        }
+        if (!Number.isFinite(weightNum) || weightNum <= 0) {
+            return res.status(400).send({ ok: false, error: 'invalid_weight', reqId: req.context && req.context.id });
+        }
 
-    const countryInfo = response.data;
+        if (!spClient && process.env.SWISSPOST_MOCK !== '1') {
+            return res.status(503).send({ ok: false, error: 'swisspost_unconfigured', reqId: req.context && req.context.id });
+        }
+        let countryInfo = null;
+        if (process.env.SWISSPOST_MOCK === '1') {
+            // Synthesize a few products
+            const base = 9.0 + (countryIsoCode === 'US' ? 6 : countryIsoCode === 'DE' ? 2 : 0);
+            const weightFactor = Math.ceil(weightNum / 250) * 2;
+            const products = [
+                { code: 'PRI', name: 'Priority', price: base + weightFactor, currency: 'CHF', estimatedDays: countryIsoCode === 'CH' ? 1 : 3 },
+                { code: 'ECO', name: 'Economy', price: base - 2 + weightFactor * 0.8, currency: 'CHF', estimatedDays: countryIsoCode === 'CH' ? 2 : 5 }
+            ];
+            countryInfo = { products };
+        } else {
+            countryInfo = await spClient.getProducts({ isoCode: countryIsoCode, format, weight: weightNum });
+        }
+        // Attempt normalization if recognizable structures are present
+        let normalized = null;
+        try {
+            const list = Array.isArray(countryInfo?.products) ? countryInfo.products
+              : Array.isArray(countryInfo?.offers) ? countryInfo.offers
+              : Array.isArray(countryInfo?.items) ? countryInfo.items : null;
+            if (list) {
+                normalized = {
+                    products: list.map((p) => ({
+                        code: p.code || p.id || p.productCode || null,
+                        name: p.name || p.productName || null,
+                        price: (p.price && (p.price.amount || p.price.value)) || p.amount || p.gross || p.price || null,
+                        currency: (p.price && p.price.currency) || p.currency || 'CHF',
+                        estimatedDays: p.estimatedDays || p.deliveryDays || null,
+                        estimatedDate: p.estimatedDate || p.deliveryDate || null,
+                    }))
+                };
+            }
+        } catch (_) {}
+        res.status(200).send({ ok: true, data: { countryInfo, normalized }, reqId: req.context && req.context.id });
+    } catch (err) {
+        logger.error('swisspost_products_error', { err: String(err), reqId: req.context && req.context.id });
+        const status = err?.response?.status;
+        if (status === 400) {
+            return res.status(400).send({ ok: false, error: 'bad_request', details: err?.response?.data || null, reqId: req.context && req.context.id });
+        }
+        res.status(502).send({ ok: false, error: 'products_fetch_failed', reqId: req.context && req.context.id });
+    }
+};
 
-    res.status(200).send({ ok: true, data: { countryInfo }, reqId: req.context && req.context.id });
-
+exports.validateAddress = async (req, res) => {
+    try {
+        const { street, zip, city, countryIso2 } = req.body || {};
+        if (!street || !zip || !city || !countryIso2) {
+            return res.status(400).send({ ok: false, error: 'missing_fields', reqId: req.context && req.context.id });
+        }
+        if (!spAddress && process.env.SWISSPOST_MOCK !== '1') {
+            return res.status(503).send({ ok: false, error: 'address_api_unconfigured', reqId: req.context && req.context.id });
+        }
+        let validation = null;
+        if (process.env.SWISSPOST_MOCK === '1') {
+            const ok = Boolean(street && zip && city && countryIso2);
+            validation = { ok, score: ok ? 0.98 : 0.0, suggestion: ok ? { street, zip, city, countryIso2: String(countryIso2).toUpperCase() } : null };
+        } else {
+            validation = await spAddress.validateAddress({ street, zip, city, countryIso2: String(countryIso2).toUpperCase() });
+        }
+        res.status(200).send({ ok: true, data: { validation }, reqId: req.context && req.context.id });
+    } catch (err) {
+        logger.error('swisspost_address_validate_error', { err: String(err), reqId: req.context && req.context.id });
+        const status = err?.response?.status;
+        if (status === 400) {
+            return res.status(400).send({ ok: false, error: 'bad_request', details: err?.response?.data || null, reqId: req.context && req.context.id });
+        }
+        res.status(502).send({ ok: false, error: 'address_validate_failed', reqId: req.context && req.context.id });
+    }
 };
 
 
@@ -145,10 +260,14 @@ exports.getCountryCode = async (req, res) => {
 };
 
 exports.calculatePaperWeight = async (req, res) => {
-    const width = req.query.width;
-    const height = req.query.height;
-    const thick = req.query.thick;
-    const density = req.query.density; // g/m2
+    const width = Number(req.query.width);
+    const height = Number(req.query.height);
+    const thick = Number(req.query.thick);
+    const density = Number(req.query.density); // g/m2
+
+    if (![width, height, thick, density].every(Number.isFinite)) {
+        return res.status(400).send({ ok: false, error: 'invalid_dimensions', reqId: req.context && req.context.id });
+    }
 
     // convert density from g/cm2 to g/mm2
     const density_mm2 = density / 1000000;
@@ -161,10 +280,14 @@ exports.calculatePaperWeight = async (req, res) => {
 
 // get photo paper price depending on the size, thickness and density
 exports.getPaperPrintPrice = async (req, res) => {
-    const width = req.query.width;
-    const height = req.query.height;
-    const thick = req.query.thick;
-    const density = req.query.density * 100; // g/cm3 to g/mm3
+    const width = Number(req.query.width);
+    const height = Number(req.query.height);
+    const thick = Number(req.query.thick);
+    const density = Number(req.query.density) * 100; // g/cm3 to g/mm3
+
+    if (![width, height, thick, density].every(Number.isFinite)) {
+        return res.status(400).send({ ok: false, error: 'invalid_dimensions', reqId: req.context && req.context.id });
+    }
 
     // Define a base price per square meter
     const basePricePerSquareMeter = 100; // €/m²
@@ -467,7 +590,8 @@ const generateHash = async (iteration, id, timestamp) => {
  */
 async function getAttributes(htmlContent, url) {
     try {
-        const browser = await puppeteer.launch({ headless: 'new' });
+        const release = await puppeteerSemaphore.acquire();
+        const browser = await puppeteer.launch(getLaunchOptions());
         const page = await browser.newPage();
 
         await page.setRequestInterception(true);
@@ -493,6 +617,7 @@ async function getAttributes(htmlContent, url) {
             });
         }
         await browser.close();
+        release();
 
         return traits;
     } catch (err) {

@@ -3,6 +3,7 @@ const { authJwt } = require('../middlewares');
 const { objectId } = require('../middlewares');
 const controller = require('../controllers/print.controller');
 const asyncWrap = require('../middlewares/asyncWrap');
+const shipping = require('../controllers/shipping.controller');
 
 module.exports = function (app) {
     app.use(function (req, res, next) {
@@ -34,6 +35,15 @@ module.exports = function (app) {
     // getPaperPrintPrice
     app.get('/api/print/price', [authJwt.verifyToken], asyncWrap(controller.getPaperPrintPrice));
 
+    // address validation (Swiss Post Address REST)
+    app.post('/api/print/address/validate', [authJwt.verifyToken], asyncWrap(controller.validateAddress));
+
     // generatePrint
     app.post('/api/print/generate', [authJwt.verifyToken], asyncWrap(controller.generatePrint));
+
+    // Swiss Post Digital Commerce (configurable endpoints) — optional
+    app.post('/api/shipping/orders', [authJwt.verifyToken], asyncWrap(shipping.createOrder));
+    app.post('/api/shipping/orders/:orderKey/approval', [authJwt.verifyToken], asyncWrap(shipping.approveOrder));
+    app.post('/api/shipping/labels', [authJwt.verifyToken], asyncWrap(shipping.createLabel));
+    app.get('/api/shipping/track/:id', [authJwt.verifyToken], asyncWrap(shipping.trackShipment));
 };

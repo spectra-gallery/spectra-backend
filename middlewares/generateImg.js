@@ -1,4 +1,5 @@
-const puppeteer = require('puppeteer');
+const { puppeteer, getLaunchOptions } = require('../helpers/puppeteer.helpers');
+const { puppeteerSemaphore } = require('../helpers/concurrency');
 const fs = require('fs');
 require('dotenv').config();
 
@@ -46,7 +47,8 @@ generateImg = async (req, res) => {
  * A promise that resolves when the screenshot has been taken.
  */
 async function urlToPng(url, delayTime=5000, cssSelector='body') {
-  const browser = await puppeteer.launch({headless: 'new'});
+  const release = await puppeteerSemaphore.acquire();
+  const browser = await puppeteer.launch(getLaunchOptions());
   const page = await browser.newPage();
 
 
@@ -133,6 +135,7 @@ async function urlToPng(url, delayTime=5000, cssSelector='body') {
       }});
   }
   await browser.close();
+  release();
   return imageBuffer;
 }
 
@@ -141,9 +144,8 @@ htmlToPng = async (html) => {
     // using fs to get html content from file url
 
 
-    const browser = await puppeteer.launch({
-      args: ['--no-sandbox', '--disable-gpu'],
-    });
+    const release = await puppeteerSemaphore.acquire();
+    const browser = await puppeteer.launch(getLaunchOptions());
     const page = await browser.newPage();
     await page.setViewport({
       width: 800,
@@ -154,6 +156,7 @@ htmlToPng = async (html) => {
     await delay(5000);
     const imageBuffer = await page.screenshot({type: 'png'});
     await browser.close();
+    release();
     return imageBuffer;
 
 

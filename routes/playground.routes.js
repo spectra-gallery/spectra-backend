@@ -52,6 +52,9 @@ module.exports = function (app) {
         res.status(200).send({ ...elements });
     }));
 
+    // public seeded presets
+    app.get('/api/playground/public', asyncWrap(controller.getPublicSketches));
+
     app.get('/api/attribute', asyncWrap(async (req, res) => {
         const elements = await controller.fetchAttribute();
         res.status(200).send({ ...elements });

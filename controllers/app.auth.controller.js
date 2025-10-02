@@ -96,7 +96,9 @@ async function initController() {
   }
 }
 
-initController();
+if (process.env.DISABLE_AUTO_SETUP !== '1') {
+  initController();
+}
 
 function getAppStatus(req, res) {
   res.json({
