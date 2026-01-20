@@ -1,13 +1,20 @@
-// dotenv config with APP_ENV-aware file selection
+// dotenv config with APP_ENV-aware file selection (single source of truth)
 (() => {
   const path = require('path');
+  const fs = require('fs');
   const dotenv = require('dotenv');
   const env = (process.env.APP_ENV || process.env.NODE_ENV || '').toLowerCase();
   const map = { development: '.env.dev', dev: '.env.dev', staging: '.env.staging', production: '.env', prod: '.env' };
-  const filename = map[env] || (env ? `.env.${env}` : '.env');
+  let filename = map[env] || (env ? `.env.${env}` : '.env');
+  // Prefer .env.prod if running prod and file exists
+  if ((env === 'production' || env === 'prod') && fs.existsSync(path.join(__dirname, '..', '.env.prod'))) {
+    filename = '.env.prod';
+  }
   const envPath = path.join(__dirname, '..', filename);
+  // Load specific file first, then base .env without overriding existing vars
   dotenv.config({ path: envPath });
   dotenv.config();
+  process.env.__ENV_FILE = filename;
 })();
 
 module.exports = {
@@ -17,7 +24,10 @@ module.exports = {
   PORT: parseInt(process.env.PORT || 8000, 10),
   CLIENT_URL: process.env.CLIENT_URL || 'https://spectra.gallery/',
   BASE_URL: process.env.BASE_URL || 'https://api.spectra.gallery/',
-  STORAGE_API_URL: process.env.STORAGE_API_URL || 'https://storage.spectra.gallery',
+  // Public URL used in links shown to users
+  STORAGE_PUBLIC_URL: process.env.STORAGE_PUBLIC_URL || process.env.STORAGE_API_URL || 'https://storage.spectra.gallery',
+  // Internal URL used for service-to-service calls (prefer loopback to avoid proxy timing)
+  STORAGE_INTERNAL_URL: process.env.STORAGE_INTERNAL_URL || process.env.STORAGE_API_URL || 'http://127.0.0.1:6601',
   RP_ID: process.env.RP_ID || 'spectra.gallery',
   WEBAUTHN_ORIGIN: process.env.WEBAUTHN_ORIGIN || 'https://api.spectra.gallery',
   SESSION_SECRET: process.env.SESSION_SECRET || 'change-me-in-prod',

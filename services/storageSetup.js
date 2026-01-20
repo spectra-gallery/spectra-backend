@@ -9,22 +9,54 @@ const appCypherConfig = require("../config/app.cypher.config");
 const API_SESSION_SECRET = appCypherConfig.API_SESSION_SECRET;
 let storageToken = null;
 
+// Retry/backoff controls
+const MAX_RETRIES = parseInt(process.env.STORAGE_PROBE_MAX_RETRIES || "5", 10);
+const BACKOFF_MS = parseInt(process.env.STORAGE_PROBE_BACKOFF_MS || "500", 10);
+const NON_FATAL = String(process.env.STORAGE_PROBE_NON_FATAL || "true").toLowerCase() === "true";
+const VERBOSE_PROBE_LOG = String(process.env.STORAGE_PROBE_VERBOSE || "false").toLowerCase() === "true";
+
+const STORAGE_DOMAIN = process.env.STORAGE_DOMAIN || 'storage.spectra.gallery';
+
+async function getWithRetry(path, config = {}) {
+  let attempt = 0;
+  let lastErr = null;
+  while (attempt <= MAX_RETRIES) {
+    try {
+      const res = await axiosInstance.request({ url: path, method: "GET", ...config });
+      return res;
+    } catch (e) {
+      lastErr = e;
+      if (VERBOSE_PROBE_LOG) {
+        console.warn(`[storageStatus] attempt ${attempt + 1} failed: ${e?.message || e}`);
+      }
+      const delay = BACKOFF_MS * Math.pow(2, attempt);
+      await new Promise((r) => setTimeout(r, delay));
+      attempt++;
+    }
+  }
+  // Final fallback: try direct storage domain to bypass reverse proxy issues
+  try {
+    const directUrl = `https://${STORAGE_DOMAIN.replace(/\/$/, '')}${path.startsWith('/') ? '' : '/'}${path}`;
+    const res = await axios.request({ url: directUrl, method: 'GET', timeout: 7000, headers: { 'Accept': 'application/json' } });
+    return res;
+  } catch (e) {
+    lastErr = e;
+  }
+  if (!NON_FATAL) throw lastErr;
+  return null;
+}
+
 const storageStatus = async () => {
   try {
-    const response = await axiosInstance.get("/app/storage/status");
+    const response = await getWithRetry("/app/storage/status");
+    if (!response || !response.data) return null;
 
-    const { initialized, registered, authenticated, publickey, api } =
-      response.data;
+    const { initialized, registered, authenticated, publickey, api } = response.data;
 
-    return {
-      initialized,
-      registered,
-      authenticated,
-      publickey,
-      api,
-    };
+    return { initialized, registered, authenticated, publickey, api };
   } catch (err) {
-    console.error(err);
+    // keep concise log
+    console.warn(`[storageStatus] probe error: ${err?.message || err}`);
     return null;
   }
 };
@@ -37,7 +69,9 @@ const setupStorage = async () => {
 
     if (success) {
       storageToken = token;
-      return setupUrl;
+      // Present a localhost URL for human use in dev logs/UI
+      const base = (process.env.STORAGE_PUBLIC_URL || appCypherConfig.STORAGE_PUBLIC_URL || 'http://localhost:6601').replace(/\/+$/,'');
+      return `${base}/app/auth/init/setup?token=${token}`;
     }
 
     return null;

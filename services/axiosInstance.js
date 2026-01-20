@@ -1,27 +1,51 @@
 require('dotenv').config();
 
 const appCypherConfig = require('../config/app.cypher.config');
-
-const STORAGE_API_URL = appCypherConfig.STORAGE_API_URL;
-
 const axios = require('axios');
 
+// Support multiple base URLs with failover. Priority: explicit list -> internal -> public
+const basesEnv = process.env.SPECTRA_STORAGE_BASES || '';
+const bases = basesEnv
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
+const INTERNAL = appCypherConfig.STORAGE_INTERNAL_URL;
+const PUBLIC = appCypherConfig.STORAGE_PUBLIC_URL;
+
+const baseCandidates = [...bases];
+if (!baseCandidates.includes(INTERNAL)) baseCandidates.push(INTERNAL);
+if (!baseCandidates.includes(PUBLIC)) baseCandidates.push(PUBLIC);
+
 const axiosInstance = axios.create({
-  baseURL: STORAGE_API_URL,
-  timeout: 5000, // example configuration
-  headers: {
-    'Content-Type': 'application/json',
-  }
+  baseURL: baseCandidates[0],
+  timeout: 7000,
+  headers: { 'Content-Type': 'application/json' }
 });
 
-// Optionally add interceptors
-axiosInstance.interceptors.request.use(
-  config => {
-    // e.g., attach an auth token
-    // config.headers.Authorization = `Bearer ${token}`;
-    return config;
-  },
-  error => Promise.reject(error)
+// Simple retry-on-next-base interceptor for connection/proxy errors
+axiosInstance.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    const retriable = ["ECONNREFUSED", "ENOTFOUND", "ECONNRESET", "ETIMEDOUT"]; // network
+    const status = error?.response?.status;
+    const shouldFailover = retriable.includes(error?.code) || status === 502 || status === 503 || status === 504;
+
+    const cfg = error.config || {};
+    if (!shouldFailover || cfg.__triedBases?.length >= baseCandidates.length) {
+      return Promise.reject(error);
+    }
+
+    cfg.__triedBases = cfg.__triedBases || [];
+    const last = cfg.baseURL || axiosInstance.defaults.baseURL;
+    if (!cfg.__triedBases.includes(last)) cfg.__triedBases.push(last);
+
+    const nextBase = baseCandidates.find(b => !cfg.__triedBases.includes(b));
+    if (!nextBase) return Promise.reject(error);
+
+    cfg.baseURL = nextBase;
+    return axiosInstance.request(cfg);
+  }
 );
 
 module.exports = axiosInstance;

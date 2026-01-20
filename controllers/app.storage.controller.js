@@ -1,7 +1,6 @@
 // authentication storage API
 const fs = require("fs-extra");
 const { v4: uuidv4 } = require("uuid");
-const db = require("../models");
 const mail = require("../middlewares/mail");
 const crypto = require("crypto");
 require("dotenv").config();
@@ -110,7 +109,8 @@ const autoConfigureStorageOption = async (option) => {
       case "registered":
         if (!status.registered) {
           const storageToken = getStorageToken();
-          const setupUrl = `${appCypherConfig.STORAGE_API_URL}/app/auth/init/setup?token=${storageToken}`;
+          const base = (process.env.STORAGE_PUBLIC_URL || appCypherConfig.STORAGE_PUBLIC_URL || 'http://localhost:6601').replace(/\/+$/,'');
+          const setupUrl = `${base}/app/auth/init/setup?token=${storageToken}`;
           return {
             ready: false,
             init: true,
@@ -123,7 +123,8 @@ const autoConfigureStorageOption = async (option) => {
       case "authenticated":
         if (!status.authenticated) {
           const storageToken = getStorageToken();
-          const authUrl = `${appCypherConfig.STORAGE_API_URL}/app/auth/fido2/auth/setup?token=${storageToken}`;
+          const base = (process.env.STORAGE_PUBLIC_URL || appCypherConfig.STORAGE_PUBLIC_URL || 'http://localhost:6601').replace(/\/+$/,'');
+          const authUrl = `${base}/app/auth/fido2/auth/setup?token=${storageToken}`;
           return {
             ready: false,
             init: true,
@@ -251,14 +252,16 @@ const autoConfigureStorage = async (status) => {
       };
     } else if (initialized && registered && !authenticated) {
       const storageToken = getStorageToken();
-      const authUrl = `${appCypherConfig.STORAGE_API_URL}/app/auth/fido2/auth/setup?token=${storageToken}`;
+      const base = (process.env.STORAGE_PUBLIC_URL || appCypherConfig.STORAGE_PUBLIC_URL || 'http://localhost:6601').replace(/\/+$/,'');
+      const authUrl = `${base}/app/auth/fido2/auth/setup?token=${storageToken}`;
       return {
         ready: false,
         data: authUrl,
       };
     } else if (initialized && !registered) {
       const storageToken = getStorageToken();
-      const setupUrl = `${appCypherConfig.STORAGE_API_URL}/app/auth/init/setup?token=${storageToken}`;
+      const base = (process.env.STORAGE_PUBLIC_URL || appCypherConfig.STORAGE_PUBLIC_URL || 'http://localhost:6601').replace(/\/+$/,'');
+      const setupUrl = `${base}/app/auth/init/setup?token=${storageToken}`;
       return {
         ready: false,
         data: setupUrl,
@@ -393,7 +396,8 @@ const storageStatusOption = async (option) => {
   if (status) {
     return status[option];
   } else {
-    throw new Error("Error getting storage status");
+    // Non-fatal: storage status unavailable; treat as false
+    return false;
   }
 };
 

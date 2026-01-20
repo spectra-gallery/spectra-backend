@@ -90,6 +90,8 @@ verifyToken = (req, res, next) => {
   const token = req.headers["x-access-token"];
   
   if (!token) {
+    // Hint client to attempt a refresh if possible
+    res.setHeader("refresh-token", "false");
     return res.status(403).send({ message: "No access token provided!" });
   }
   
@@ -100,6 +102,8 @@ verifyToken = (req, res, next) => {
         const refreshToken = req.headers["x-refresh-token"];
 
         if (!refreshToken) {
+          // Signal client that a refresh is needed but missing
+          res.setHeader("refresh-token", "false");
           return res.status(403).send({ message: "No refresh token provided!" });
         }
 
@@ -141,11 +145,12 @@ const checkSessionRefreshToken = async (req, res, next) => {
       return;
     }
 
+    // Issue a new SESSION access token using the session secret and TTL
     const newAccessToken = jwt.sign(
       { id: refreshToken.sessionId },
-      config.secret,
+      sessionConfig.secret,
       {
-        expiresIn: config.jwtExpiration,
+        expiresIn: sessionConfig.jwtExpiration,
       }
     );
     // set header in the response to refresh token
@@ -160,11 +165,12 @@ const checkSessionRefreshToken = async (req, res, next) => {
 
 };
 
+// Allow explicit bypass of session gate for controlled dev/staging or containerized local runs
+const __BYPASS_SESSION__ = (process.env.BYPASS_SESSION === '1') || (process.env.NODE_ENV == 'development');
+
 verifySession =
-  process.env.NODE_ENV == "development"
-    ? (req, res, next) => {
-        next();
-      }
+  __BYPASS_SESSION__
+    ? (req, res, next) => { next(); }
     : (req, res, next) => {
         const token = req.headers["session-token"];
 
@@ -182,6 +188,8 @@ verifySession =
               const refreshToken = req.headers["session-refresh"];
       
               if (!refreshToken) {
+                // Signal client that a session refresh is needed but missing
+                res.setHeader("refresh-session-token", "false");
                 return res.status(403).send({ message: "No refresh session token provided!" });
               }
       

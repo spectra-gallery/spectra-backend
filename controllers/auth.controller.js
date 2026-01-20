@@ -1314,7 +1314,7 @@ exports.loginWithPassword = async (req, res) => {
   const user = await User.findOne({
     email: req.body.email,
   })
-    .select("+pasword")
+    .select("+password")
     .populate("role", "-__v");
 
   if (!user) {
@@ -1821,6 +1821,10 @@ exports.adminGrantRole = async (req, res) => {
 
     const has = user.role.some(r => String(r) === String(role._id));
     if (!has) user.role.push(role._id);
+    // Auto-whitelist when granting admin
+    if (roleName === 'admin' && !user.whitelisted) {
+      user.whitelisted = true;
+    }
     await user.save();
 
     const populated = await User.findById(userId).populate('role', '-__v');

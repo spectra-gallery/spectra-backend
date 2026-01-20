@@ -20,24 +20,30 @@ const SPECTRA_CONTRACT_ADDRESS = process.env.SPECTRA_CONTRACT_ADDRESS;
 
 const GEN_OFFSET = process.env.GEN_OFFSET;
 
-const alchemyProvider = new ethers.providers.JsonRpcProvider(ETH_API_URL);
-
-const wallet = new ethers.Wallet(ETH_PRIVATE_KEY, alchemyProvider);
-
-const spectraContract = new ethers.Contract(
-  SPECTRA_CONTRACT_ADDRESS,
-  contract.abi,
-  wallet
-);
+let spectraContract = null;
+function getSpectra() {
+  if (spectraContract) return spectraContract;
+  if (!ETH_API_URL || !ETH_PRIVATE_KEY || !SPECTRA_CONTRACT_ADDRESS) return null;
+  try {
+    const provider = new ethers.providers.JsonRpcProvider(ETH_API_URL);
+    const wallet = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
+    spectraContract = new ethers.Contract(SPECTRA_CONTRACT_ADDRESS, contract.abi, wallet);
+    return spectraContract;
+  } catch (_) {
+    return null;
+  }
+}
 
 // NFTs Marketplace
 exports.getProjects = async (req, res) => {
   const number = parseInt(req.params.number);
+  const contractInst = getSpectra();
+  if (!contractInst) return res.status(503).json({ error: 'Spectra contract not configured' });
 
   let projects = [];
 
   for (let i = 0; i < 1; i++) {
-    const project = await spectraContract.getProject(i);
+    const project = await contractInst.getProject(i);
 
     // convert base64 to json
     let projectJson = atob(project.split(",")[1]);
@@ -70,9 +76,11 @@ exports.getProjects = async (req, res) => {
 exports.loadNft = async (req, res) => {
 
   const number = parseInt(req.params.number);
+  const contractInst2 = getSpectra();
+  if (!contractInst2) return res.status(503).json({ error: 'Spectra contract not configured' });
 
 
-  const totalSupply = await spectraContract.getProjectsLength();
+  const totalSupply = await contractInst2.getProjectsLength();
   console.log(totalSupply);
 
   let nfts = [];
@@ -81,13 +89,13 @@ exports.loadNft = async (req, res) => {
 
     const index = i * GEN_OFFSET;
     
-    const nft = await spectraContract.tokenURI(index);
+    const nft = await contractInst2.tokenURI(index);
 
-    const value = await spectraContract.getNftValue(index);
+    const value = await contractInst2.getNftValue(index);
 
-    const royalty = await spectraContract.royaltyInfo(index, 32000000);
+    const royalty = await contractInst2.royaltyInfo(index, 32000000);
 
-    const owner = await spectraContract.ownerOf(index);
+    const owner = await contractInst2.ownerOf(index);
 
     // convert base64 to json
     let nftJson = atob(nft.split(",")[1]);
