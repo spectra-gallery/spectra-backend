@@ -190,6 +190,10 @@ module.exports = function(app) {
   // helpVisible
   app.post('/api/auth/helpvisible', [authJwt.verifySession], controller.helpVisible);
 
+  // User preferences routes
+  app.get('/api/auth/preferences', [authJwt.verifyToken], asyncWrap(controller.getUserPreferences));
+  app.post('/api/auth/preferences', [authJwt.verifyToken], asyncWrap(controller.updateUserPreferences));
+  app.post('/api/auth/preferences/theme', [authJwt.verifyToken], asyncWrap(controller.updateThemePreference));
 
   // getSession
   app.get('/api/auth/session', [authJwt.verifySession], controller.getSession);

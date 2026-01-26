@@ -2186,6 +2186,126 @@ exports.helpVisible = async (req, res) => {
   });
 };
 
+// User Preferences methods
+const UserPreference = require("../models/userPreference.model");
+
+exports.getUserPreferences = async (req, res) => {
+  try {
+    const userId = req.userId;
+    
+    // Find existing preferences or create default ones
+    let preferences = await UserPreference.findOne({ userId });
+    
+    if (!preferences) {
+      // Create default preferences for new users
+      preferences = new UserPreference({
+        userId,
+        theme: "default",
+        layoutStyle: "standard",
+        typography: "standard",
+        colorScheme: "system"
+      });
+      await preferences.save();
+    }
+    
+    res.status(200).send({
+      success: true,
+      preferences
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: error.message || "Error retrieving user preferences"
+    });
+  }
+};
+
+exports.updateUserPreferences = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { theme, layoutStyle, typography, colorScheme, showAdvancedOptions } = req.body;
+    
+    // Find or create preferences
+    let preferences = await UserPreference.findOne({ userId });
+    
+    if (!preferences) {
+      preferences = new UserPreference({ userId });
+    }
+    
+    // Update preferences
+    if (theme) preferences.theme = theme;
+    if (layoutStyle) preferences.layoutStyle = layoutStyle;
+    if (typography) preferences.typography = typography;
+    if (colorScheme) preferences.colorScheme = colorScheme;
+    if (showAdvancedOptions !== undefined) preferences.showAdvancedOptions = showAdvancedOptions;
+    
+    await preferences.save();
+    
+    res.status(200).send({
+      success: true,
+      message: "Preferences updated successfully",
+      preferences
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: error.message || "Error updating user preferences"
+    });
+  }
+};
+
+exports.updateThemePreference = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { theme } = req.body;
+    
+    if (!theme) {
+      return res.status(400).send({
+        message: "Theme parameter is required"
+      });
+    }
+    
+    // Validate theme value
+    const validThemes = ["default", "arty", "minimalist", "golden-ratio"];
+    if (!validThemes.includes(theme)) {
+      return res.status(400).send({
+        message: `Invalid theme. Must be one of: ${validThemes.join(', ')}`
+      });
+    }
+    
+    // Find or create preferences
+    let preferences = await UserPreference.findOne({ userId });
+    
+    if (!preferences) {
+      preferences = new UserPreference({ userId });
+    }
+    
+    preferences.theme = theme;
+    
+    // Set layout style based on theme
+    if (theme === "golden-ratio") {
+      preferences.layoutStyle = "golden-ratio-grid";
+      preferences.typography = "big-titles";
+    } else if (theme === "arty") {
+      preferences.layoutStyle = "minimalist-grid";
+      preferences.typography = "big-titles";
+    } else {
+      preferences.layoutStyle = "standard";
+      preferences.typography = "standard";
+    }
+    
+    await preferences.save();
+    
+    res.status(200).send({
+      success: true,
+      message: "Theme updated successfully",
+      preferences
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: error.message || "Error updating theme preference"
+    });
+  }
+};
+
 exports.getSession = async (req, res) => {
   const id = req.sessionId;
 
