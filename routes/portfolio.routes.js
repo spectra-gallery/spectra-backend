@@ -193,10 +193,9 @@ module.exports = function (app) {
     }
   );
 
-  // fetchLatestPortfolios
+  // fetchLatestPortfolios (public - no session required for homepage)
   app.get(
     "/api/portfolio/post/:number",
-    [authJwt.verifySession],
     (req, res) => {
       const elements = controller.fetchLatestPortfolios(req, res);
       elements.then((elements) => {
