@@ -10,13 +10,17 @@ const { auth } = require('../models');
 
 module.exports = function(app) {
   app.use(function(req, res, next) {
-    res.header(
-        'Access-Control-Allow-Headers',
-        'x-access-token, Origin, Content-Type, Accept',
-        'x-refresh-token, Origin, Content-Type, Accept',
-        'session-token, Origin, Content-Type, Accept',
-        'session-refresh, Origin, Content-Type, Accept'
-    );
+    // Consolidate allowed headers into a single, comma-separated value
+    const allowed = [
+      'x-access-token',
+      'x-refresh-token',
+      'session-token',
+      'session-refresh',
+      'Origin',
+      'Content-Type',
+      'Accept'
+    ].join(', ')
+    res.header('Access-Control-Allow-Headers', allowed)
     next();
   });
 
@@ -31,14 +35,16 @@ module.exports = function(app) {
   // generateStorageToken
   app.post('/api/auth/storage/generatestoragetoken', [authJwt.verifyToken], controller.generateStorageToken);
 
+  // Signup should not hard-require an existing session; extract client IP for telemetry
   app.post(
     "/api/auth/signup",
-    [ authJwt.verifySession,
+    [ monitorSession.extractClientIP,
       verifySignUp.checkDuplicateUsername, verifySignUp.checkDuplicateEmail],
     asyncWrap(controller.signup)
   );
 
-  app.post("/api/auth/signin", [authJwt.verifySession], asyncWrap(controller.signin));
+  // Signin also should not be blocked by missing session; allow creating access/refresh tokens
+  app.post("/api/auth/signin", [monitorSession.extractClientIP], asyncWrap(controller.signin));
 
   app.post('/api/auth/refreshtoken', [authJwt.verifySession], asyncWrap(controller.refreshToken));
 
@@ -184,6 +190,10 @@ module.exports = function(app) {
   // helpVisible
   app.post('/api/auth/helpvisible', [authJwt.verifySession], controller.helpVisible);
 
+  // User preferences routes
+  app.get('/api/auth/preferences', [authJwt.verifyToken], asyncWrap(controller.getUserPreferences));
+  app.post('/api/auth/preferences', [authJwt.verifyToken], asyncWrap(controller.updateUserPreferences));
+  app.post('/api/auth/preferences/theme', [authJwt.verifyToken], asyncWrap(controller.updateThemePreference));
 
   // getSession
   app.get('/api/auth/session', [authJwt.verifySession], controller.getSession);

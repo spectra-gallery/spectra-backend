@@ -33,7 +33,7 @@ async function monitor(req, res) {
     const storageHealth = await ping((appCypherConfig.STORAGE_API_URL || 'http://localhost:6601') + '/health');
 
     // Frontend
-    const frontendUrl = (appCypherConfig.CLIENT_URL || 'http://localhost:3000/').replace(/\/$/, '');
+    const frontendUrl = (appCypherConfig.CLIENT_URL || 'http://localhost:3201/').replace(/\/$/, '');
     const frontend = await ping(frontendUrl);
 
     const aggregate = {
@@ -52,4 +52,3 @@ async function monitor(req, res) {
 }
 
 module.exports = { monitor };
-

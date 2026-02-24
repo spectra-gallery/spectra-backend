@@ -248,8 +248,8 @@ module.exports = function(app) {
     });
   });
 
-  // fetchLatestPosts
-  app.get('/api/blog/post/:number', [authJwt.verifySession], (req, res) => {
+  // fetchLatestPosts (public - no session required for homepage)
+  app.get('/api/blog/post/:number', (req, res) => {
     const elements = controller.fetchLatestPosts(req, res);
     elements.then((elements) => {
       res.status(200).send({

@@ -23,7 +23,8 @@ RefreshTokenSchema.statics.createToken = async function(user) {
   const _object = new this({
     token: _token,
     user: user._id,
-    expiryDate: expiredAt.getTime(),
+    // store as Date for consistent casting
+    expiryDate: expiredAt,
   });
 
   // console.log(_object);

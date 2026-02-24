@@ -194,8 +194,8 @@ module.exports = function(app) {
     });
   });
 
-  // load category
-  app.get('/api/category/', [authJwt.verifySession], asyncWrap(async (req, res) => {
+  // load category (public - no session required for metadata)
+  app.get('/api/category/', asyncWrap(async (req, res) => {
     const elements = await controller.fetchCategory();
     res.status(200).send({ ...elements });
   }));
@@ -252,8 +252,8 @@ module.exports = function(app) {
     });
   });
 
-  // fetchLatestSeries
-  app.get('/api/serie/serie/:number', [authJwt.verifySession], (req, res) => {
+  // fetchLatestSeries (public - no session required for homepage)
+  app.get('/api/serie/serie/:number', (req, res) => {
     const elements = controller.fetchLatestSeries(req, res);
     elements.then((elements) => {
       res.status(200).send({

@@ -1,10 +1,10 @@
 module.exprts = {
     PORT: 8000,
-    CLIENT_URL: "http://localhost:3000/",
+    CLIENT_URL: "http://localhost:3201/",
     BASE_URL: "http://localhost:8000/",
     STORAGE_API_URL: "http://localhost:6001",
     RP_ID: "localhost",
-    WEBAUTHN_ORIGIN: "http://localhost:3000",
+    WEBAUTHN_ORIGIN: "http://localhost:3201",
     SESSION_SECRET: "5SP3CTRA-CL13NT-6987423681",
     MAIL_HOST: "mail.infomaniak.com",
     MAIL_PORT: 465,

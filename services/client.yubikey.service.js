@@ -154,6 +154,38 @@ const fido2 = new Fido2Lib({
   authenticatorUserVerification: "preferred",
 });
 
+function resolveExpectedOrigin(val) {
+  const fallback = "http://localhost:3201";
+  try {
+    if (!val) return fallback;
+    let primary = null;
+    if (typeof val === "object" && val !== null) {
+      if (Array.isArray(val)) primary = val[0];
+      else {
+        const vals = Object.values(val);
+        if (vals.length) primary = vals[0];
+      }
+    } else if (typeof val === "string") {
+      const trimmed = val.trim();
+      if ((trimmed.startsWith("[") && trimmed.endsWith("]")) ||
+          (trimmed.startsWith("{") && trimmed.endsWith("}"))) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) primary = parsed[0];
+          else if (parsed && typeof parsed === "object") {
+            const vals = Object.values(parsed);
+            if (vals.length) primary = vals[0];
+          }
+        } catch (_) {}
+      }
+      if (!primary) primary = String(trimmed.split(',')[0]).trim();
+    }
+    if (!primary) primary = fallback;
+    try { primary = new URL(String(primary)).origin; } catch (_) {}
+    return String(primary);
+  } catch (_) { return fallback; }
+}
+
 /**
  * Registration Step 1: Return Attestation Options
  */
@@ -197,7 +229,7 @@ async function verifyRegistration(attestationResponse) {
   const expectedChallenge = globalCurrentChallenge;
   const result = await fido2.attestationResult(attestationResponse, {
     challenge: expectedChallenge,
-    origin: clientCypherConfig.WEBAUTHN_ORIGIN || "http://localhost:3000",
+    origin: resolveExpectedOrigin(process.env.WEBAUTHN_ORIGINS || clientCypherConfig.WEBAUTHN_ORIGIN || "http://localhost:3201"),
     factor: "either",
     rpId: clientCypherConfig.RP_ID || "localhost",
   });
@@ -261,7 +293,7 @@ async function verifyAuthentication(assertionResponse) {
 
   const result = await fido2.assertionResult(assertionResponse, {
     challenge: expectedChallenge,
-    origin: clientCypherConfig.WEBAUTHN_ORIGIN || "http://localhost:3000",
+    origin: resolveExpectedOrigin(process.env.WEBAUTHN_ORIGINS || clientCypherConfig.WEBAUTHN_ORIGIN || "http://localhost:3201"),
     factor: "either",
     publicKey: globalCredential.publicKey,
     prevCounter: globalCredential.counter,

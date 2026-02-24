@@ -17,6 +17,11 @@ debounceView = async (req, res, next) => {
   */
 
   const session = req.sessionId;
+  // In dev or when session verification is bypassed, req.sessionId may be undefined.
+  // If no session is available, skip view debouncing to avoid validation errors.
+  if (!session) {
+    return next();
+  }
 
   const view = await View.findOne({
     session: session,

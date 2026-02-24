@@ -70,6 +70,8 @@ db.dataviz = require('./dataviz.model');
 db.timeline = require('./timeline.model');
 db.telemetry = require('./telemetry.model');
 db.draft = require('./draft.model');
+db.onchainTx = require('./onchainTx.model');
+db.provenance = require('./provenance.model');
 
 db.ROLES = ['user', 'admin', 'creator', 'thinker', 'reviewer', 'e-libre', 'myself', 'azuran'];
 

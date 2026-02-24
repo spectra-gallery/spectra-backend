@@ -1,5 +1,7 @@
 const { getAppStatus, setupAuth, markTokenUsed, registrationOptions, _verifyRegistration, authenticationSetup, authenticationOptions, _verifyAuthentication, getPublicKey, _configureStorage, signAndSend, storageValidation, _apiAuthConfig, getStorageConfigStatus, getEncryptedData, adminRestart, adminRehandshake } = require("../controllers/app.auth.controller");
-const { authInit, authAPI } = require("../middlewares");
+// Import only what we need to avoid pulling all middlewares (which may require DB)
+const authInit = require("../middlewares/authInit");
+const authAPI = require("../middlewares/authAPI");
 
 const session = require("express-session");
 const MongoStore = require("connect-mongo");
@@ -16,13 +18,16 @@ const MONGO_URI = hasDbCreds
   : `mongodb://${dbConfig.HOST}:${dbConfig.PORT}/${dbConfig.DB}`;
 
 module.exports = function (app) {
+  const allowedOrigins = (process.env.ALLOWED_ORIGINS || `${appCypherConfig.CLIENT_URL},https://spectra.gallery,https://api.spectra.gallery`).split(',').map(s => s.trim()).filter(Boolean);
   const cookieSecure = (process.env.COOKIE_SECURE === '1') || (process.env.NODE_ENV === 'production');
+  const useMemory = process.env.SKIP_DB === '1' || !hasDbCreds;
+  const store = useMemory ? new session.MemoryStore() : MongoStore.create({ mongoUrl: MONGO_URI });
   app.use(
     session({
       secret: SESSION_SECRET || 'keyboard cat',
       resave: false,
       saveUninitialized: false,
-      store: MongoStore.create({ mongoUrl: MONGO_URI }),
+      store,
       cookie: {
         httpOnly: true,
         secure: cookieSecure,
@@ -33,12 +38,18 @@ module.exports = function (app) {
   );
 
   app.use(function (req, res, next) {
-    res.header(
-      "Access-Control-Allow-Headers",
-      "x-access-token, Origin, Content-Type, Accept",
-      "session-token, Origin, Content-Type, Accept",
-      "spectra-api-session-token, Origin, Content-Type, Accept"
-    );
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Vary', 'Origin');
+      res.header('Access-Control-Allow-Credentials', 'true');
+    } else if (!origin) {
+      // Non-browser or same-origin
+      res.header('Access-Control-Allow-Origin', '*');
+    }
+    res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'x-access-token, session-token, spectra-api-session-token, Origin, Content-Type, Accept');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
   });
 

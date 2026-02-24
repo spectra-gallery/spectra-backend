@@ -406,62 +406,34 @@ exports.registerNewUser = async (req, res) => {
   }
 };
 
-exports.signup = (req, res) => {
-  const user = new User({
-    username: req.body.username,
-    email: req.body.email,
-    isVerified: false,
-    password: bcrypt.hashSync(req.body.password, 8),
-  });
-  user.save((err, user) => {
-    if (err) {
-      res.status(500).send({ message: err });
-      return;
-    }
+exports.signup = async (req, res) => {
+  try {
+    const user = new User({
+      username: req.body.username,
+      email: req.body.email,
+      isVerified: false,
+      password: bcrypt.hashSync(req.body.password, 8),
+    });
 
-    if (req.body.role) {
-      Role.find(
-        {
-          name: { $in: req.body.role },
-        },
-        (err, role) => {
-          if (err) {
-            res.status(500).send({ message: err });
-            return;
-          }
-
-          user.role = role.map((role) => role._id);
-          user.save((err) => {
-            if (err) {
-              res.status(500).send({ message: err });
-              return;
-            }
-
-            res.send({ message: "User was registered successfully!" });
-          });
-        }
-      );
+    // Resolve roles (default to "user"). If explicit roles are provided, map them.
+    if (Array.isArray(req.body.role) && req.body.role.length > 0) {
+      const roles = await Role.find({ name: { $in: req.body.role } }).exec();
+      user.role = roles.map((r) => r._id);
     } else {
-      Role.findOne({ name: "user" }, (err, role) => {
-        if (err) {
-          res.status(500).send({ message: err });
-          return;
-        }
-
-        user.role = [role._id];
-        user.save((err) => {
-          if (err) {
-            res.status(500).send({ message: err });
-            return;
-          }
-
-          res.send({ message: "User was registered successfully!" });
-        });
-      });
+      let role = await Role.findOne({ name: 'user' }).exec();
+      if (!role) role = await Role.create({ name: 'user' });
+      user.role = [role._id];
     }
 
-    // mail.sendVerificationEmail(user, req, res);
-  });
+    await user.save();
+
+    // Optional: send verification email in future
+    // await sendVerificationEmail(user, req, res)
+
+    return res.status(200).send({ ok: true, data: { registered: true }, registered: true, message: 'User was registered successfully!', reqId: req.context && req.context.id });
+  } catch (err) {
+    return res.status(500).send({ ok: false, error: { code: 'internal_error', message: String(err && err.message ? err.message : err) }, reqId: req.context && req.context.id });
+  }
 };
 /*
 exports.getLoggedInUserObject = async (req, res, next) => {
@@ -1342,7 +1314,7 @@ exports.loginWithPassword = async (req, res) => {
   const user = await User.findOne({
     email: req.body.email,
   })
-    .select("+pasword")
+    .select("+password")
     .populate("role", "-__v");
 
   if (!user) {
@@ -1849,6 +1821,10 @@ exports.adminGrantRole = async (req, res) => {
 
     const has = user.role.some(r => String(r) === String(role._id));
     if (!has) user.role.push(role._id);
+    // Auto-whitelist when granting admin
+    if (roleName === 'admin' && !user.whitelisted) {
+      user.whitelisted = true;
+    }
     await user.save();
 
     const populated = await User.findById(userId).populate('role', '-__v');
@@ -2208,6 +2184,126 @@ exports.helpVisible = async (req, res) => {
   res.status(200).send({
     helpOff: session.helpOff,
   });
+};
+
+// User Preferences methods
+const UserPreference = require("../models/userPreference.model");
+
+exports.getUserPreferences = async (req, res) => {
+  try {
+    const userId = req.userId;
+    
+    // Find existing preferences or create default ones
+    let preferences = await UserPreference.findOne({ userId });
+    
+    if (!preferences) {
+      // Create default preferences for new users
+      preferences = new UserPreference({
+        userId,
+        theme: "default",
+        layoutStyle: "standard",
+        typography: "standard",
+        colorScheme: "system"
+      });
+      await preferences.save();
+    }
+    
+    res.status(200).send({
+      success: true,
+      preferences
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: error.message || "Error retrieving user preferences"
+    });
+  }
+};
+
+exports.updateUserPreferences = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { theme, layoutStyle, typography, colorScheme, showAdvancedOptions } = req.body;
+    
+    // Find or create preferences
+    let preferences = await UserPreference.findOne({ userId });
+    
+    if (!preferences) {
+      preferences = new UserPreference({ userId });
+    }
+    
+    // Update preferences
+    if (theme) preferences.theme = theme;
+    if (layoutStyle) preferences.layoutStyle = layoutStyle;
+    if (typography) preferences.typography = typography;
+    if (colorScheme) preferences.colorScheme = colorScheme;
+    if (showAdvancedOptions !== undefined) preferences.showAdvancedOptions = showAdvancedOptions;
+    
+    await preferences.save();
+    
+    res.status(200).send({
+      success: true,
+      message: "Preferences updated successfully",
+      preferences
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: error.message || "Error updating user preferences"
+    });
+  }
+};
+
+exports.updateThemePreference = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { theme } = req.body;
+    
+    if (!theme) {
+      return res.status(400).send({
+        message: "Theme parameter is required"
+      });
+    }
+    
+    // Validate theme value
+    const validThemes = ["default", "arty", "minimalist", "golden-ratio"];
+    if (!validThemes.includes(theme)) {
+      return res.status(400).send({
+        message: `Invalid theme. Must be one of: ${validThemes.join(', ')}`
+      });
+    }
+    
+    // Find or create preferences
+    let preferences = await UserPreference.findOne({ userId });
+    
+    if (!preferences) {
+      preferences = new UserPreference({ userId });
+    }
+    
+    preferences.theme = theme;
+    
+    // Set layout style based on theme
+    if (theme === "golden-ratio") {
+      preferences.layoutStyle = "golden-ratio-grid";
+      preferences.typography = "big-titles";
+    } else if (theme === "arty") {
+      preferences.layoutStyle = "minimalist-grid";
+      preferences.typography = "big-titles";
+    } else {
+      preferences.layoutStyle = "standard";
+      preferences.typography = "standard";
+    }
+    
+    await preferences.save();
+    
+    res.status(200).send({
+      success: true,
+      message: "Theme updated successfully",
+      preferences
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: error.message || "Error updating theme preference"
+    });
+  }
 };
 
 exports.getSession = async (req, res) => {

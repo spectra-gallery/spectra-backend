@@ -22,7 +22,8 @@ SessionRefreshTokenSchema.statics.createToken = async function(session) {
   const _object = new this({
     token: _token,
     sessionId: session.sessionId,
-    expiryDate: expiredAt.getTime(),
+    // store as Date for consistent casting
+    expiryDate: expiredAt,
   });
 
   // console.log(_object);

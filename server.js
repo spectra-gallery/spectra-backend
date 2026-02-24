@@ -4,6 +4,8 @@ const cors = require('cors');
 const path = require('path');
 const mongoose  = require('mongoose');
 const http = require('http');
+const https = (() => { try { return require('https'); } catch (_) { return null; } })();
+const fs = require('fs');
 
 const app = express();
 
@@ -19,29 +21,44 @@ const requestContext = require('./middlewares/requestContext');
 const errorHandler = require('./middlewares/errorHandler');
 // defer ConnectionMonitor require until DB is connected to avoid loading mail/models in SKIP_DB mode
 
-// Load environment based on APP_ENV/NODE_ENV to pick the right .env file
-(() => {
-  const path = require('path');
-  const dotenv = require('dotenv');
-  const env = (process.env.APP_ENV || process.env.NODE_ENV || '').toLowerCase();
-  const map = { development: '.env.dev', dev: '.env.dev', staging: '.env.staging', production: '.env', prod: '.env' };
-  const filename = map[env] || (env ? `.env.${env}` : '.env');
-  const envPath = path.join(__dirname, filename);
-  // Load specific file first (if exists), then fallback to base .env
-  dotenv.config({ path: envPath });
-  dotenv.config();
-})();
+// Env is loaded in config/app.cypher.config.js (sets __ENV_FILE)
 
 const CLIENT_URL = process.env.CLIENT_URL || appCypherConfig.CLIENT_URL;
-const STORAGE_API_URL = process.env.STORAGE_API_URL || appCypherConfig.STORAGE_API_URL;
+const STORAGE_API_URL = process.env.STORAGE_PUBLIC_URL || appCypherConfig.STORAGE_PUBLIC_URL;
 
 global.__basedir = __dirname;
 
 
-const corsOrigins = [CLIENT_URL, STORAGE_API_URL, 'http://localhost', 'https://dev.spectra.gallery']
-  .filter(Boolean)
-  .map(u => (typeof u === 'string' ? u.replace(/\/+$/, '') : u));
-const corsOptions = { origin: corsOrigins.length ? corsOrigins : [/^http:\/\/localhost:\d+$/] };
+// CORS: allow local loopback and spectra domains, plus env list
+const extraCors = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+const rootDomain = (process.env.ROOT_DOMAIN || 'spectra.gallery').replace(/\.+$/, '');
+const apiDomain = process.env.API_DOMAIN || `api.${rootDomain}`;
+const storageDomain = process.env.STORAGE_DOMAIN || `storage.${rootDomain}`;
+const defaultOrigins = [
+  CLIENT_URL,
+  STORAGE_API_URL,
+  'http://localhost',
+  'http://127.0.0.1:8000',
+  'http://127.0.0.1:6601',
+  `https://${rootDomain}`,
+  `https://${apiDomain}`,
+  `https://${storageDomain}`,
+  `https://dev.${rootDomain}`
+].filter(Boolean).map(u => (typeof u === 'string' ? u.replace(/\/+$/, '') : u));
+const corsOrigins = Array.from(new Set([...defaultOrigins, ...extraCors]));
+const corsRegex = [
+  /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/,
+  new RegExp('^https://(.*\\.)?' + rootDomain.replace(/\./g, '\\.') + '$')
+];
+const corsOptions = {
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    if (corsOrigins.includes(origin)) return cb(null, true);
+    if (corsRegex.some(rx => rx.test(origin))) return cb(null, true);
+    return cb(new Error('Not allowed by CORS'));
+  },
+  credentials: true
+};
 
 app.use(cors(corsOptions));
 
@@ -52,8 +69,26 @@ app.use(bodyParser.json());
 
 app.use(bodyParser.urlencoded({extended: true}));
 
-// Create HTTP server and Socket.IO
-const server = http.createServer(app);
+// Create HTTP/HTTPS server and Socket.IO
+let server;
+const ENABLE_HTTPS = String(process.env.ENABLE_HTTPS || '').toLowerCase() === '1';
+if (ENABLE_HTTPS && https) {
+  try {
+    const key = fs.readFileSync(process.env.TLS_KEY_PATH || './keys/server.key');
+    const cert = fs.readFileSync(process.env.TLS_CERT_PATH || './keys/server.crt');
+    const ca = process.env.TLS_CA_PATH && fs.existsSync(process.env.TLS_CA_PATH) ? fs.readFileSync(process.env.TLS_CA_PATH) : undefined;
+    const opts = ca ? { key, cert, ca } : { key, cert };
+    server = https.createServer(opts, app);
+    console.log('HTTPS enabled for backend');
+  } catch (e) {
+    console.warn('Failed to enable HTTPS (falling back to HTTP):', e?.message || e);
+    server = http.createServer(app);
+  }
+} else {
+  server = http.createServer(app);
+}
+
+console.log(`[backend] env=${process.env.APP_ENV || process.env.NODE_ENV} file=${process.env.__ENV_FILE} port=${appCypherConfig.PORT} internal_storage=${process.env.STORAGE_INTERNAL_URL || appCypherConfig.STORAGE_INTERNAL_URL}`);
 
 const io = new Server(server, {
   cors: {
@@ -126,6 +161,7 @@ if (!SKIP_DB_ROUTES) {
   require('./routes/blog.routes')(app);
   require('./routes/portfolio.routes')(app);
   require('./routes/generative.routes')(app);
+  require('./routes/generativeSerie.routes')(app);
   require('./routes/lab.routes')(app);
   require('./routes/print.routes')(app);
   require('./routes/health.routes')(app);
@@ -135,7 +171,24 @@ if (!SKIP_DB_ROUTES) {
   require('./routes/telemetry.routes')(app);
   require('./routes/draft.routes')(app);
   require('./routes/analytics.routes')(app);
+  require('./routes/apply.routes')(app);
+  require('./routes/admin.apply.routes')(app);
+  require('./routes/admin.whitelist.routes')(app);
+  require('./routes/dao.tx.routes')(app);
+  require('./routes/dao.admin.routes')(app);
+  require('./routes/chain.routes')(app);
+  require('./routes/admin.onchain.routes')(app);
+  require('./routes/agent.chat.routes')(app);
+  require('./routes/onchain.tx.routes')(app);
+  require('./routes/chain.reconcile.routes')(app);
+  require('./routes/admin.provenance.routes')(app);
+  require('./routes/ops.routes')(app);
 } else {
+  // Minimal routes for handshake and health even without DB
+  require('./routes/app.auth.routes')(app);
+  require('./routes/storage.auth.routes')(app);
+  require('./routes/health.routes')(app);
+
   app.get('/api/health', (req, res) => {
     res.json({ ok: true, service: 'backend', port: appCypherConfig.PORT || 8000, db: { state: 'skipped' } });
   });
@@ -173,14 +226,62 @@ io.on('connection', socket => {
 
 const SKIP_DB = process.env.SKIP_DB === '1';
 
+// Helper to start API server without DB (fallback mode)
+function startApiNoDb() {
+  console.warn('⚠ Falling back to no-DB mode. Some features are disabled.');
+  const API_PORT = appCypherConfig.PORT || 8000;
+  const API_HOST = process.env.HOST || '0.0.0.0';
+  function startApiServer(host) {
+    try {
+      server.listen(API_PORT, host, () => {
+        console.log(`Server running on http://${host}:${API_PORT}. (HTTP + Socket.IO, no DB)`);
+        try {
+          const base = (process.env.WEBAUTHN_ORIGIN || process.env.BASE_URL || `http://localhost:${API_PORT}`).replace(/\/+$/,'');
+          console.log(`→ YubiKey setup: ${base}/api/auth/2fa/register (requires auth token)`);
+          console.log(`→ YubiKey auth:  ${base}/api/auth/2fa/login`);
+        } catch (_) { /* no-op */ }
+      });
+    } catch (e) {
+      if ((e && (e.code === 'EPERM' || e.code === 'EACCES')) && host !== '127.0.0.1') {
+        console.warn(`Listen denied on ${host}:${API_PORT} (${e.code}); retrying on 127.0.0.1`);
+        return startApiServer('127.0.0.1');
+      }
+      throw e;
+    }
+    server.once('error', (err) => {
+      if ((err.code === 'EPERM' || err.code === 'EACCES') && host !== '127.0.0.1') {
+        console.warn(`Listen denied on ${host}:${API_PORT} (${err.code}); retrying on 127.0.0.1`);
+        return startApiServer('127.0.0.1');
+      }
+      console.error('Server listen error:', err);
+      process.exitCode = 1;
+    });
+  }
+  // Minimal routes for handshake and health
+  try {
+    require('./routes/app.auth.routes')(app);
+    require('./routes/storage.auth.routes')(app);
+  } catch (_) { /* optional */ }
+  try { require('./routes/health.routes')(app); } catch (_) { /* optional */ }
+  app.get('/api/health', (req, res) => {
+    res.json({ ok: true, service: 'backend', port: appCypherConfig.PORT || 8000, db: { state: 'skipped' } });
+  });
+  app.get('/api/monitor', (req, res) => {
+    res.json({ ok: true, backend: { ok: true }, storage_health: { ok: true, data: {} }, frontend: { ok: true } });
+  });
+  startApiServer(API_HOST);
+}
+
 if (!SKIP_DB) {
   const { HOST, PORT, DB, AUTH_SOURCE, DB_USER, DB_PASSWORD } = dbConfig;
 
+  let missing = [];
   for (const [k, v] of Object.entries({ HOST, PORT, DB, AUTH_SOURCE, DB_USER, DB_PASSWORD })) {
-    if (!v && v !== 0) {
-      console.error(`❌ Missing config: ${k}`);
-      process.exit(1);
-    }
+    if (!v && v !== 0) missing.push(k);
+  }
+  if (missing.length) {
+    console.error(`❌ Missing Mongo config keys: ${missing.join(', ')}`);
+    return startApiNoDb();
   }
 
   const baseUri = `mongodb://${HOST}:${PORT}/${DB}`;
@@ -211,11 +312,44 @@ if (!SKIP_DB) {
       console.log('✅ Mongo connected & authenticated');
 
       const API_PORT = appCypherConfig.PORT || 8000;
-      server.listen(API_PORT, () => {
-        console.log(`Server running on port ${API_PORT}. (HTTP + Socket.IO)`);
-      });
+      const API_HOST = process.env.HOST || '0.0.0.0';
+      function startApiServer(host) {
+        try {
+          server.listen(API_PORT, host, () => {
+            console.log(`Server running on http://${host}:${API_PORT}. (HTTP + Socket.IO)`);
+            try {
+              const base = (process.env.WEBAUTHN_ORIGIN || process.env.BASE_URL || `http://localhost:${API_PORT}`).replace(/\/+$/,'');
+              console.log(`→ YubiKey setup: ${base}/api/auth/2fa/register (requires auth token)`);
+              console.log(`→ YubiKey auth:  ${base}/api/auth/2fa/login`);
+            } catch (_) { /* no-op */ }
+          });
+        } catch (e) {
+          if ((e && (e.code === 'EPERM' || e.code === 'EACCES')) && host !== '127.0.0.1') {
+            console.warn(`Listen denied on ${host}:${API_PORT} (${e.code}); retrying on 127.0.0.1`);
+            return startApiServer('127.0.0.1');
+          }
+          throw e;
+        }
+        server.once('error', (err) => {
+          if ((err.code === 'EPERM' || err.code === 'EACCES') && host !== '127.0.0.1') {
+            console.warn(`Listen denied on ${host}:${API_PORT} (${err.code}); retrying on 127.0.0.1`);
+            return startApiServer('127.0.0.1');
+          }
+          console.error('Server listen error:', err);
+          process.exitCode = 1;
+        });
+      }
+      startApiServer(API_HOST);
 
       initial(db);
+
+      // Development-only helper routes
+      try {
+        if (process.env.NODE_ENV !== 'production') {
+          require('./routes/dev.routes')(app);
+          console.log('→ Dev routes enabled');
+        }
+      } catch (_) { /* optional in prod */ }
 
       try {
         const { ConnectionMonitor } = require('./services/connectionMonitor');
@@ -226,16 +360,12 @@ if (!SKIP_DB) {
         console.warn('Connection monitor failed to start:', e?.message || e);
       }
     } catch (err) {
-      console.error('❌ Mongo connection error:', err);
-      process.exit(1);
+      console.error('❌ Mongo connection error:', err && (err.message || err));
+      return startApiNoDb();
     }
   })();
 } else {
-  console.warn('⚠ Running without MongoDB (SKIP_DB=1). Some features are disabled.');
-  const API_PORT = appCypherConfig.PORT || 8000;
-  server.listen(API_PORT, () => {
-    console.log(`Server running on port ${API_PORT}. (HTTP + Socket.IO, no DB)`);
-  });
+  startApiNoDb();
 }
 
 /*
